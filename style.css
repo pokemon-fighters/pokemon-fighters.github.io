@@ -1,0 +1,5196 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   DESIGN TOKENS
+
+   Named versions of the colors/spacing/radii already used
+   throughout this file, so new rules (and future edits) pull from
+   one consistent palette instead of re-guessing a hex value each
+   time. Existing selectors below still carry their original literal
+   values — token adoption happens gradually, new/updated rules use
+   the variables.
+============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg-void: #07111f;
+  --bg-deep: #050b14;
+  --surface-1: #0c1b2d;
+  --surface-2: #091321;
+  --surface-raised: #102238;
+
+  /* Borders */
+  --border-subtle: #29415b;
+  --border-strong: #36506b;
+  --border-accent: #4fb3ff;
+
+  /* Text */
+  --text-primary: #eaf3ff;
+  --text-secondary: #9db2c8;
+  --text-muted: #7590aa;
+  --text-faint: #6f89a3;
+
+  /* Accents */
+  --accent-cyan: #5de4ff;
+  --accent-blue: #4fb3ff;
+  --accent-orange: #ff762e;
+  --accent-orange-light: #ffcf45;
+  --accent-good: #55e6a0;
+  --accent-good-light: #b9f36c;
+  --accent-bad: #ff685e;
+  --accent-warn: #ffcc55;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radius scale */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Type */
+  --font-body:
+    Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Rajdhani", var(--font-body);
+}
+
+/* Sharper, more technical face for headings, labels, nav and
+   buttons — an "arena HUD" feel distinct from the body copy — while
+   Inter stays on body text where its neutrality reads better at
+   small sizes. */
+h1,
+h2,
+h3,
+.hero-title,
+.nav-item,
+.battle-btn,
+.season-pill,
+.roster-heading strong,
+.fighter-name b,
+.eyebrow,
+.type-chip,
+.resource,
+.pokedex-name,
+.pokedex-top strong {
+  font-family: var(--font-display);
+}
+
+/* Visible keyboard focus everywhere — several interactive elements
+   below only had a mouse-hover state, leaving keyboard/switch-device
+   users with no indication of where focus is. */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Respect the OS-level "reduce motion" setting: modal entrances and
+   the close-button rotate still happen, just as an instant cut
+   instead of a moving animation, for anyone who's asked their
+   system to minimize motion. */
+@media (prefers-reduced-motion: reduce) {
+  .pokedex-modal,
+  .pokedex-card {
+    animation: none !important;
+  }
+
+  .pokedex-close:hover {
+    transform: none;
+  }
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  font-family: var(--font-body);
+
+  background: var(--bg-void);
+  color: #fff;
+}
+
+button {
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* HOME */
+
+.home {
+  background: radial-gradient(
+    circle at 50% 35%,
+    #183e68 0,
+    #0b1b31 42%,
+    #050b14 100%
+  );
+
+  overflow: hidden;
+
+  padding: 18px 22px 0;
+}
+
+/* BACKGROUND GLOW */
+
+.bg-glow {
+  position: absolute;
+
+  width: 420px;
+  height: 420px;
+
+  border-radius: 50%;
+
+  filter: blur(90px);
+
+  opacity: 0.2;
+
+  pointer-events: none;
+}
+
+.glow-a {
+  background: #21b5ff;
+
+  left: -180px;
+  top: 170px;
+}
+
+.glow-b {
+  background: #7d45ff;
+
+  right: -170px;
+  top: 80px;
+}
+
+/* TOP BAR */
+
+.topbar {
+  height: 64px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  position: relative;
+  z-index: 5;
+}
+
+.profile,
+.resources,
+.resource {
+  display: flex;
+  align-items: center;
+}
+
+.profile {
+  gap: 10px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  display: grid;
+  place-items: center;
+
+  background: linear-gradient(145deg, #ffe56b, #ff9e35);
+
+  box-shadow: 0 8px 25px #0005;
+
+  font-size: 22px;
+}
+#pokeball-image {
+  width: 14px;
+  height: 14px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+
+  border-radius: inherit;
+
+  object-fit: cover;
+}
+.eyebrow,
+.fighter-name small,
+.match-info small {
+  display: block;
+
+  font-size: 9px;
+
+  letter-spacing: 1.4px;
+
+  color: #8da5bf;
+}
+
+.profile strong {
+  font-size: 14px;
+}
+
+.resources {
+  gap: 9px;
+}
+
+.resource {
+  gap: 5px;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  padding: 9px 12px;
+
+  border-radius: 12px;
+
+  font-size: 12px;
+}
+
+/* Captured-Pokémon counter in the header, now a real button so it
+   can jump straight into the roster screen instead of being a
+   plain readout. */
+.resource-btn {
+  cursor: pointer;
+
+  font: inherit;
+  color: inherit;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.resource-btn:hover {
+  border-color: #4fb3ff;
+  background: #142c46;
+}
+
+.resource-btn:active {
+  transform: scale(0.95);
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 12px;
+
+  background: #0c1b2d;
+
+  color: #9db2c8;
+
+  border: 1px solid #29415b;
+}
+
+/* INSTALL / DOWNLOAD (laptop-only "install as app" affordance) */
+
+.install-btn {
+  width: auto;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 0 14px;
+
+  cursor: pointer;
+
+  color: #7fe0a7;
+
+  border-color: #2f6b4a;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    transform 0.1s;
+}
+
+.install-btn-label {
+  line-height: 1;
+}
+
+.install-btn:hover {
+  border-color: #4fdb8f;
+
+  box-shadow: 0 0 0 3px rgba(79, 219, 143, 0.15);
+}
+
+.install-btn:active {
+  transform: scale(0.96);
+}
+
+.install-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.install-btn.hidden {
+  display: none;
+}
+
+/* Never show the install button on touch/small-screen layouts —
+   this is a laptop/desktop-only convenience button. Mobile users
+   install via their browser's own "Add to Home Screen" flow. */
+
+@media (max-width: 900px), (pointer: coarse) {
+  .install-btn {
+    display: none !important;
+  }
+}
+
+/* 2-PLAYER TOGGLE */
+
+.mode-toggle {
+  cursor: pointer;
+
+  color: #9fc1df;
+
+  font: inherit;
+
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s;
+}
+
+.mode-toggle:hover {
+  border-color: #4a6f92;
+}
+
+.mode-toggle.active {
+  border-color: #5de4ff;
+
+  color: #5de4ff;
+
+  box-shadow: 0 0 0 1px #5de4ff inset;
+}
+
+/* HERO */
+
+.hero {
+  position: relative;
+  z-index: 2;
+
+  max-width: 1000px;
+
+  height: calc(100vh - 155px);
+
+  min-height: 490px;
+
+  margin: auto;
+
+  text-align: center;
+
+  padding-top: 16px;
+}
+
+.season-pill {
+  display: inline-flex;
+
+  gap: 9px;
+
+  background: #112941;
+
+  border: 1px solid #31516f;
+
+  color: #9fc1df;
+
+  padding: 7px 13px;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  letter-spacing: 1px;
+}
+
+/* TITLE */
+
+.hero-title {
+  margin-top: 10px;
+
+  line-height: 0.82;
+
+  text-shadow: 0 7px 25px #0007;
+}
+
+.hero-title span {
+  display: block;
+
+  font-size: clamp(22px, 3vw, 34px);
+
+  font-weight: 800;
+
+  color: #dbeaff;
+
+  letter-spacing: 6px;
+}
+
+.hero-title b {
+  font-size: clamp(42px, 7vw, 76px);
+
+  font-style: italic;
+
+  letter-spacing: 2px;
+
+  background: linear-gradient(90deg, #fff, #63c7ff);
+
+  -webkit-background-clip: text;
+
+  color: transparent;
+}
+
+/* FIGHTERS */
+
+.fighters {
+  height: 350px;
+
+  max-width: 880px;
+
+  margin: -3px auto 0;
+
+  display: flex;
+
+  align-items: flex-end;
+
+  justify-content: center;
+
+  position: relative;
+}
+
+.fighter-card {
+  width: 43%;
+  height: 320px;
+
+  position: relative;
+}
+
+/* FIGHTER NAME */
+
+.fighter-name {
+  position: absolute;
+
+  top: 26px;
+
+  z-index: 3;
+
+  text-align: left;
+}
+
+.left-fighter .fighter-name {
+  left: 5%;
+}
+
+.right-fighter .fighter-name {
+  text-align: right;
+  right: 5%;
+}
+
+.fighter-name b {
+  display: block;
+
+  font-size: 26px;
+
+  line-height: 1.05;
+
+  text-transform: capitalize;
+}
+
+.fighter-name span {
+  display: inline-block;
+
+  margin-top: 4px;
+
+  background: #2e5d7f;
+
+  border-radius: 5px;
+
+  padding: 3px 7px;
+
+  font-size: 8px;
+
+  font-weight: 900;
+
+  letter-spacing: 1px;
+}
+
+.right-fighter .fighter-name span {
+  background: #7c4939;
+}
+
+/* POKEMON */
+
+.pokemon-wrap {
+  height: 100%;
+
+  display: flex;
+
+  align-items: flex-end;
+
+  justify-content: center;
+
+  position: relative;
+}
+
+.pokemon-wrap:after {
+  content: "";
+
+  position: absolute;
+
+  bottom: 13px;
+
+  width: 210px;
+  height: 32px;
+
+  border-radius: 50%;
+
+  background: #0007;
+
+  filter: blur(13px);
+}
+
+.pokemon-wrap img {
+  position: relative;
+
+  z-index: 2;
+
+  width: min(300px, 90%);
+
+  height: auto;
+
+  image-rendering: auto;
+
+  filter: drop-shadow(0 18px 16px #0008);
+
+  animation: float 2.8s ease-in-out infinite;
+}
+
+.right-fighter img {
+  animation-delay: -1.2s;
+
+  transform: scaleX(-1);
+}
+
+/* POWER */
+
+.power {
+  position: absolute;
+
+  /* Was bottom: 0, flush with the very bottom of the 320px-tall
+     fighter card — which is also where .match-info (RANK / WIN
+     STREAK / ENERGY) starts, pulled up 7px by its own negative
+     margin. The two collided ("106 POWER" running into "RANK"
+     right underneath it). Lifting this up just enough clears that
+     collision while keeping the badge sitting near the Pokémon's
+     feet, which is the intended look. */
+  bottom: 20px;
+
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  font-size: 10px;
+
+  white-space: nowrap;
+
+  color: #a9c0d5;
+
+  z-index: 4;
+}
+
+.power b {
+  color: #fff;
+  font-size: 14px;
+}
+
+/* VS */
+
+.vs {
+  position: absolute;
+
+  z-index: 5;
+
+  bottom: 93px;
+
+  left: 50%;
+
+  transform: translateX(-50%) rotate(-5deg);
+
+  width: 92px;
+  height: 92px;
+
+  border-radius: 50%;
+
+  display: grid;
+
+  place-items: center;
+
+  background: radial-gradient(circle, #ffdf61, #f27b25 70%);
+
+  border: 5px solid #fff;
+
+  box-shadow:
+    0 0 0 8px #07111f,
+    0 12px 35px #0008;
+}
+
+.vs div {
+  font-size: 28px;
+
+  font-weight: 1000;
+
+  font-style: italic;
+
+  text-shadow: 2px 3px #7b2b16;
+}
+
+.vs span {
+  position: absolute;
+
+  bottom: -20px;
+
+  background: #ff5c42;
+
+  color: #fff;
+
+  border-radius: 6px;
+
+  padding: 3px 8px;
+
+  font-size: 8px;
+
+  letter-spacing: 1px;
+}
+
+/* MATCH INFO */
+
+.match-info {
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  gap: 28px;
+
+  margin-top: -7px;
+}
+
+.match-info div:not(.divider) {
+  min-width: 85px;
+}
+
+.match-info b {
+  display: block;
+
+  font-size: 11px;
+
+  margin-top: 2px;
+}
+
+.divider {
+  height: 25px;
+
+  width: 1px;
+
+  background: #34506a;
+}
+
+/* BOTTOM NAV */
+
+.bottom-nav {
+  height: 74px;
+
+  position: absolute;
+
+  z-index: 8;
+
+  bottom: 0;
+
+  left: 0;
+  right: 0;
+
+  background: rgba(4, 12, 22, 0.92);
+
+  border-top: 1px solid #263b50;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: clamp(8px, 3vw, 42px);
+
+  backdrop-filter: blur(14px);
+}
+
+.nav-item {
+  background: none;
+
+  color: #6f89a3;
+
+  font-size: 8px;
+
+  letter-spacing: 1px;
+
+  font-weight: 900;
+
+  min-width: 75px;
+}
+
+.nav-item span {
+  display: block;
+
+  font-size: 22px;
+
+  margin-bottom: 3px;
+}
+
+.nav-item.active {
+  color: #e7f5ff;
+}
+
+/* BATTLE BUTTON */
+
+.battle-btn {
+  width: 150px;
+  height: 62px;
+
+  margin-top: -20px;
+
+  border-radius: 18px;
+
+  background: linear-gradient(145deg, #ffcf45, #ff762e);
+
+  color: #fff;
+
+  box-shadow:
+    0 9px 30px #ff812e55,
+    0 0 0 5px #07111f;
+
+  font-size: 17px;
+
+  font-weight: 1000;
+
+  font-style: italic;
+}
+
+.battle-btn span {
+  font-size: 19px;
+}
+
+.battle-btn small {
+  display: block;
+
+  font-size: 7px;
+
+  letter-spacing: 1.5px;
+
+  margin-top: 2px;
+}
+
+.nav-item:hover {
+  color: #fff;
+}
+
+.battle-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* API STATUS */
+
+#api-status {
+  position: absolute;
+
+  z-index: 10;
+
+  right: 15px;
+
+  bottom: 78px;
+
+  font-size: 8px;
+
+  color: #7590aa;
+}
+
+/* BATTLE SCREEN */
+
+.battle {
+  background: #0a1422;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  overflow: hidden;
+}
+
+.battle-top {
+  position: absolute;
+
+  z-index: 10;
+
+  top: 18px;
+
+  left: calc(20px + env(safe-area-inset-left));
+  right: calc(20px + env(safe-area-inset-right));
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+}
+
+.health-card {
+  width: min(330px, 38vw);
+
+  background: #091321d9;
+
+  border: 1px solid #36506b;
+
+  border-radius: 13px;
+
+  padding: 9px 12px;
+}
+
+.health-card > div:first-child {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  font-size: 12px;
+}
+
+.health-card span {
+  font-size: 8px;
+
+  color: #7590aa;
+
+  letter-spacing: 1px;
+}
+
+.health-card .trainer-tag {
+  margin-top: 2px;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.6px;
+
+  color: #9fb6cc;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.health-card .trainer-tag::before {
+  content: "🎒 ";
+}
+
+.health-card.enemy .trainer-tag {
+  text-align: right;
+}
+
+.hp {
+  height: 10px;
+
+  background: #263342;
+
+  border-radius: 8px;
+
+  margin-top: 7px;
+
+  overflow: hidden;
+}
+
+.hp i {
+  display: block;
+
+  height: 100%;
+
+  background: linear-gradient(90deg, #55e6a0, #b9f36c);
+
+  transition: width 0.15s;
+}
+
+.enemy .hp i {
+  background: linear-gradient(90deg, #ffcc55, #ff685e);
+}
+
+.team-pips {
+  display: flex;
+
+  gap: 5px;
+
+  margin-top: 8px;
+}
+
+/* Move-slot hotkey hint — lists the active Pokémon's up to 4 real
+   moves next to which number key throws each one. Only meaningful
+   for Player 1 in a local/AI or 2-player battle (see
+   updatePokemonLabels), so it's hidden the rest of the time. */
+.move-hotkeys-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+
+  margin-top: 8px;
+
+  font-size: 8.5px;
+  letter-spacing: 0.3px;
+  color: #8ba3bd;
+}
+
+.move-hotkeys-hint b {
+  color: #b9f36c;
+  margin-right: 3px;
+}
+
+.pip {
+  width: 9px;
+
+  height: 9px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.16);
+
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+  display: inline-block;
+
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+
+.pip-clickable {
+  cursor: pointer;
+}
+
+.pip-clickable:hover {
+  transform: scale(1.45);
+
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.pip-alive {
+  background: #55e6a0;
+}
+
+.pip-current {
+  background: #b9f36c;
+
+  box-shadow: 0 0 6px #b9f36c;
+}
+
+.enemy .pip-alive {
+  background: #ffcc55;
+}
+
+.enemy .pip-current {
+  background: #ff685e;
+
+  box-shadow: 0 0 6px #ff685e;
+}
+
+.pip-fainted {
+  background: rgba(255, 90, 90, 0.25);
+}
+
+/* TEAM SELECT MODAL */
+
+.team-select-card {
+  width: min(480px, 100%);
+}
+
+.team-select-hint {
+  font-size: 11px;
+
+  color: #9db2c8;
+
+  text-align: center;
+
+  margin: 8px 0 16px;
+
+  line-height: 1.5;
+}
+
+.team-select-search-wrap {
+  margin: 0 0 12px;
+}
+
+.team-select-grid {
+  max-height: 46vh;
+
+  padding-bottom: 8px;
+}
+
+.team-pick-card {
+  position: relative;
+}
+
+.team-pick-card.active {
+  border-color: #b9f36c;
+
+  background: #1c2a1acc;
+
+  box-shadow: 0 0 0 1px #b9f36c inset;
+}
+
+.team-pick-card .captured-badge {
+  color: #b9f36c;
+}
+
+/* Order badge shown on a selected grid card instead of a bare
+   checkmark, so a player can see at a glance which battle slot
+   (1st out, 2nd out, ...) each Pokémon currently holds. */
+.team-pick-card .captured-badge.team-pick-order {
+  width: 20px;
+  height: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  font-weight: 800;
+  color: #06111d;
+
+  background: #b9f36c;
+  border-radius: 50%;
+}
+
+/* LINEUP STRIP — shows the current battle order and lets the
+   player rearrange it (‹ / › swap with a neighbor) or drop a
+   Pokémon from the team, without needing to deselect-then-reselect
+   in the right click order. */
+
+.team-lineup {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+
+  padding: 4px 2px 12px;
+  margin-bottom: 4px;
+
+  scrollbar-width: thin;
+}
+
+.team-lineup-empty {
+  font-size: 11px;
+  color: #6c86a0;
+  text-align: center;
+
+  width: 100%;
+  padding: 10px 4px;
+}
+
+.team-lineup-item {
+  position: relative;
+  flex-shrink: 0;
+
+  width: 64px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  padding: 8px 4px 6px;
+
+  background: #0c1b2d;
+  border: 1px solid #29415b;
+  border-radius: 12px;
+}
+
+.team-lineup-order {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+
+  width: 18px;
+  height: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 10px;
+  font-weight: 800;
+  color: #06111d;
+
+  background: #b9f36c;
+  border-radius: 50%;
+
+  box-shadow: 0 0 0 2px #0c1b2d;
+}
+
+.team-lineup-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+
+  filter: drop-shadow(0 2px 4px #0008);
+}
+
+.team-lineup-noart {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #16283e;
+}
+
+.team-lineup-item b {
+  font-size: 9px;
+  font-weight: 700;
+  color: #cfe0f0;
+
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-lineup-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  margin-top: 2px;
+}
+
+.team-lineup-controls button {
+  width: 18px;
+  height: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+  color: #9db2c8;
+
+  background: #16283e;
+  border: 1px solid #29415b;
+  border-radius: 5px;
+
+  cursor: pointer;
+}
+
+.team-lineup-controls button:hover:not(:disabled) {
+  border-color: #4fb3ff;
+  color: #fff;
+}
+
+.team-lineup-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.team-lineup-controls .team-lineup-remove:hover {
+  border-color: #ff5a5a;
+  color: #ff8484;
+}
+
+.team-select-actions {
+  display: flex;
+
+  gap: 10px;
+
+  margin-top: 18px;
+}
+
+.team-select-actions .back-btn {
+  position: static;
+
+  flex: 1;
+}
+
+.team-select-confirm {
+  flex: 2;
+
+  position: static;
+
+  height: 44px;
+}
+
+.round {
+  font-size: 9px;
+
+  color: #7590aa;
+
+  letter-spacing: 2px;
+}
+
+.round b {
+  color: #fff;
+}
+
+/* GAME
+   The battle is rendered at a fixed 1200×650 logical resolution
+   (see GAME.width/height in game.js) and stretched via CSS. On
+   screens with a different aspect ratio than 1200:650, naively
+   filling the viewport would squash the sprites. Instead, size
+   #game-container to the largest box that (a) fits inside the
+   viewport and (b) preserves the 1200:650 ratio, then let the
+   flex-centered .battle screen letterbox it — the bars blend in
+   since .battle already shares the same near-black background. */
+
+#game-container {
+  position: relative;
+
+  width: min(100%, calc(100vh * (1200 / 650)));
+  height: min(100%, calc(100vw * (650 / 1200)));
+
+  /* Prefer dvh/dvw where supported — on mobile browsers the address
+     bar/toolbar showing or hiding shifts 100vh, which would resize
+     and jolt the letterboxed game area mid-battle (most noticeable
+     rotating into landscape). Browsers without dvh support simply
+     ignore these and keep the vh/vw values above. */
+  width: min(100%, calc(100dvh * (1200 / 650)));
+  height: min(100%, calc(100dvw * (650 / 1200)));
+
+  aspect-ratio: 1200 / 650;
+}
+
+#game-container canvas {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+}
+
+/* FORCE LANDSCAPE (pure CSS transform, no native APIs)
+   Battles look best in landscape. Rather than calling the browser's
+   Fullscreen / Screen-Orientation-Lock APIs — which behave
+   inconsistently across devices and can even crash the page on
+   some Android builds (e.g. certain MIUI/Xiaomi phones intercept
+   fullscreen requests via their own "Game Turbo" overlay) — this
+   just visually rotates #battlefield-page 90° with a CSS transform
+   whenever the real viewport is portrait. Which way (left/right) is
+   set inline by JS per applyBattleOrientation() in game.js, since
+   it's flippable — this stylesheet only handles the parts that are
+   the same either way: #game-container's sizing (vh/vw swapped) so
+   the letterboxed canvas still fills the rotated space correctly,
+   and the flip button's appearance. */
+
+#battlefield-page.force-landscape-rotate #game-container {
+  width: min(100%, calc(100vw * (1200 / 650)));
+  height: min(100%, calc(100vh * (650 / 1200)));
+
+  width: min(100%, calc(100dvw * (1200 / 650)));
+  height: min(100%, calc(100dvh * (650 / 1200)));
+}
+
+#battlefield-page.force-landscape-rotate .health-card {
+  width: min(330px, 38vh);
+}
+
+#battle-flip-orientation {
+  position: absolute;
+  z-index: 70;
+  top: 18px;
+  right: calc(20px + env(safe-area-inset-right));
+
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #36506b;
+  border-radius: 999px;
+
+  background: #091321d9;
+  color: #eaf2fb;
+  font-size: 17px;
+
+  cursor: pointer;
+}
+
+#battle-flip-orientation.hidden {
+  display: none;
+}
+
+/* CONTROLS */
+
+#controls-transcript {
+  position: absolute;
+
+  z-index: 20;
+
+  bottom: 20px;
+
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  background: #07111ee6;
+
+  border: 1px solid #34516d;
+
+  border-radius: 999px;
+
+  padding: 10px 18px;
+
+  font-size: 10px;
+
+  color: #9fb5ca;
+
+  white-space: nowrap;
+}
+
+/* HOME BUTTON */
+
+.back-btn {
+  position: absolute;
+
+  z-index: 20;
+
+  left: calc(20px + env(safe-area-inset-left));
+
+  bottom: calc(22px + env(safe-area-inset-bottom));
+
+  background: #102238;
+
+  color: #b9cbe0;
+
+  border: 1px solid #34516d;
+
+  border-radius: 11px;
+
+  padding: 10px 14px;
+
+  font-size: 10px;
+
+  font-weight: 900;
+}
+
+/* TOUCH CONTROLS (phones/tablets) */
+
+:root {
+  --touch-btn: 54px;
+  --touch-btn-small: 40px;
+  --touch-btn-attack: 72px;
+  --touch-gap: 10px;
+  --touch-bottom: 90px;
+}
+
+.touch-controls {
+  position: absolute;
+
+  z-index: 25;
+
+  left: 0;
+  right: 0;
+  bottom: calc(var(--touch-bottom) + env(safe-area-inset-bottom));
+
+  display: none;
+
+  align-items: flex-end;
+
+  justify-content: space-between;
+
+  padding: 0 calc(14px + env(safe-area-inset-right)) 0
+    calc(14px + env(safe-area-inset-left));
+
+  pointer-events: none;
+}
+
+/* Each cluster gets its own translucent "tray" so the buttons read
+   as one control surface instead of loose floating circles, and a
+   little breathing room so a slightly-off tap still lands. */
+
+.touch-dpad,
+.touch-actions {
+  display: grid;
+
+  gap: var(--touch-gap);
+
+  padding: 8px;
+  border-radius: 22px;
+
+  background: rgba(6, 14, 24, 0.4);
+  backdrop-filter: blur(4px);
+
+  pointer-events: auto;
+}
+
+/* D-pad: jump centered on top, move left/right below it — a proper
+   pad shape instead of three circles in a row, which is both more
+   compact and closer to how a thumb naturally rests. */
+
+.touch-dpad {
+  grid-template-columns: var(--touch-btn) var(--touch-btn);
+  grid-template-rows: var(--touch-btn) var(--touch-btn);
+  justify-items: center;
+}
+
+#touch-jump {
+  grid-column: 1 / span 2;
+}
+
+#touch-left {
+  grid-row: 2;
+  grid-column: 1;
+}
+
+#touch-right {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+/* Action cluster: Attack is the clear primary (biggest, warmest
+   color, bottom-right where a right thumb rests), Block/Dodge are
+   secondary, Switch — used far less often — is smallest and tucked
+   up top out of the way of accidental taps. */
+
+.touch-actions {
+  grid-template-columns: var(--touch-btn) var(--touch-btn-attack);
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-items: end;
+}
+
+#touch-switch {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+#touch-block {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+#touch-dodge {
+  grid-row: 2;
+  grid-column: 1;
+}
+
+#touch-attack {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+.touch-btn {
+  width: var(--touch-btn);
+  height: var(--touch-btn);
+
+  border-radius: 50%;
+
+  background: rgba(12, 27, 45, 0.82);
+
+  border: 1px solid #3a5878;
+
+  color: #eaf3ff;
+
+  font-size: 19px;
+
+  display: grid;
+
+  place-items: center;
+
+  backdrop-filter: blur(6px);
+
+  touch-action: none;
+
+  -webkit-user-select: none;
+  user-select: none;
+
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.touch-btn-small {
+  width: var(--touch-btn-small);
+  height: var(--touch-btn-small);
+
+  font-size: 15px;
+}
+
+.touch-btn-attack {
+  width: var(--touch-btn-attack);
+  height: var(--touch-btn-attack);
+
+  font-size: 26px;
+
+  background: rgba(255, 118, 46, 0.32);
+
+  border-color: #ff9e5a;
+
+  box-shadow: 0 0 18px rgba(255, 130, 50, 0.35);
+}
+
+/* Move picker — a compact 2x2 grid anchored directly above the
+   Attack button (not spanning the full screen width), so throwing a
+   specific move is a short thumb-hop from Attack instead of a trip
+   across the whole screen. Only on the same touch-capable screens
+   the rest of the touch controls use. */
+
+.touch-moves {
+  position: absolute;
+
+  z-index: 25;
+
+  right: calc(14px + env(safe-area-inset-right));
+  /* Sits directly above the action tray: the tray's own bottom
+     offset, plus its two stacked rows (small/regular buttons on
+     top, Attack's row below — Attack is the taller of the two on
+     that row) and its padding+gap, plus a little breathing room. */
+  bottom: calc(
+    var(--touch-bottom) + var(--touch-btn) + var(--touch-gap) +
+      var(--touch-btn-attack) + 16px + 10px + env(safe-area-inset-bottom)
+  );
+
+  display: none;
+  flex-wrap: wrap;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  gap: 6px;
+
+  width: 150px;
+
+  pointer-events: none;
+}
+
+.touch-move-btn {
+  pointer-events: auto;
+
+  flex: 1 1 66px;
+  min-width: 66px;
+
+  padding: 7px 8px;
+
+  border-radius: 12px;
+
+  background: rgba(12, 27, 45, 0.86);
+  border: 1px solid #3a5878;
+
+  color: #eaf3ff;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.touch-move-btn b {
+  color: #b9f36c;
+  margin-right: 4px;
+}
+
+.touch-move-btn:active {
+  transform: scale(0.94);
+  background: rgba(79, 179, 255, 0.35);
+  border-color: #4fb3ff;
+}
+
+.touch-btn-active,
+.touch-btn:active {
+  transform: scale(0.92);
+
+  background: rgba(79, 179, 255, 0.35);
+
+  border-color: #4fb3ff;
+}
+
+/* Only surface touch controls on touch-capable / small screens —
+   desktop mouse+keyboard players keep the uncluttered view. */
+
+@media (max-width: 900px), (pointer: coarse) {
+  .touch-controls {
+    display: flex;
+  }
+
+  .touch-moves {
+    display: flex;
+  }
+}
+
+/* ANIMATION */
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ROSTER SCREEN */
+
+.roster {
+  background: radial-gradient(
+    circle at 50% 0%,
+    #17324f 0,
+    #0a1729 45%,
+    #050b14 100%
+  );
+
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 18px 22px;
+}
+
+.roster-top {
+  display: flex;
+
+  align-items: center;
+
+  gap: 16px;
+
+  flex: none;
+}
+
+.roster-back {
+  position: static;
+}
+
+.roster-heading {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.roster-heading strong {
+  font-size: 15px;
+
+  letter-spacing: 0.5px;
+}
+
+.roster-heading span {
+  font-size: 10px;
+
+  color: #7590aa;
+
+  letter-spacing: 0.5px;
+}
+
+.roster-search-wrap {
+  margin: 16px 0 12px;
+
+  flex: none;
+}
+
+.roster-search {
+  width: 100%;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  color: #eaf3ff;
+
+  padding: 12px 16px;
+
+  border-radius: 12px;
+
+  font-size: 13px;
+}
+
+.roster-search::placeholder {
+  color: #6f89a3;
+}
+
+.roster-search:focus {
+  outline: none;
+
+  border-color: #4fb3ff;
+}
+
+.roster-grid {
+  flex: 1;
+
+  overflow-y: auto;
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+
+  gap: 10px;
+
+  padding-bottom: 90px;
+
+  align-content: start;
+}
+
+.roster-card {
+  background: #0c1b2dcc;
+
+  border: 1px solid #29415b;
+
+  border-radius: 14px;
+
+  padding: 10px 6px 8px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 4px;
+
+  text-align: center;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+  color: #eaf3ff;
+  font-size: 11px;
+}
+
+.roster-card:hover {
+  transform: translateY(-2px);
+
+  border-color: #4fb3ff;
+
+  background: #102338cc;
+}
+
+.roster-card.active {
+  border-color: #ffcf45;
+
+  background: #1c2a1acc;
+
+  box-shadow: 0 0 0 1px #ffcf45 inset;
+}
+
+.roster-card img {
+  width: 64px;
+  height: 64px;
+
+  object-fit: contain;
+
+  image-rendering: auto;
+
+  filter: drop-shadow(0 6px 8px #0006);
+}
+
+.roster-card b {
+  font-size: 10px;
+
+  font-weight: 800;
+
+  text-transform: capitalize;
+
+  letter-spacing: 0.3px;
+
+  line-height: 1.2;
+}
+
+.roster-card small {
+  font-size: 8px;
+
+  color: #7590aa;
+
+  letter-spacing: 0.5px;
+}
+
+/* ROSTER CATEGORY CHIPS */
+
+.roster-categories {
+  display: flex;
+
+  gap: 8px;
+
+  overflow-x: auto;
+
+  padding-bottom: 4px;
+
+  flex: none;
+
+  scrollbar-width: none;
+}
+
+.roster-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.type-chip {
+  flex: none;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  color: #9db2c8;
+
+  padding: 8px 14px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.3px;
+
+  white-space: nowrap;
+}
+
+.type-chip:hover {
+  border-color: #4fb3ff;
+
+  color: #eaf3ff;
+}
+
+.type-chip.active {
+  background: #1f3c58;
+
+  border-color: #64c8ff;
+
+  color: #fff;
+}
+
+.type-chip[data-type="captured"].active {
+  background: #46340f;
+
+  border-color: #ffcf45;
+
+  color: #ffe9ad;
+}
+
+/* per-type accent border when active, matching Pokémon type colors */
+
+.type-chip[data-type="fire"].active {
+  border-color: #ff8a4a;
+}
+.type-chip[data-type="water"].active {
+  border-color: #5aa7ff;
+}
+.type-chip[data-type="electric"].active {
+  border-color: #ffd447;
+}
+.type-chip[data-type="grass"].active {
+  border-color: #63cf6c;
+}
+.type-chip[data-type="ice"].active {
+  border-color: #83e0e0;
+}
+.type-chip[data-type="fighting"].active {
+  border-color: #e0685a;
+}
+.type-chip[data-type="poison"].active {
+  border-color: #b567d6;
+}
+.type-chip[data-type="ground"].active {
+  border-color: #d9b661;
+}
+.type-chip[data-type="flying"].active {
+  border-color: #a3b3ff;
+}
+.type-chip[data-type="psychic"].active {
+  border-color: #ff6fa0;
+}
+.type-chip[data-type="bug"].active {
+  border-color: #a9d13f;
+}
+.type-chip[data-type="rock"].active {
+  border-color: #c9b06a;
+}
+.type-chip[data-type="ghost"].active {
+  border-color: #8f7bd6;
+}
+.type-chip[data-type="dragon"].active {
+  border-color: #7f6bf0;
+}
+.type-chip[data-type="dark"].active {
+  border-color: #8a7566;
+}
+.type-chip[data-type="steel"].active {
+  border-color: #b8c4d1;
+}
+.type-chip[data-type="fairy"].active {
+  border-color: #ff9fd6;
+}
+
+/* CAPTURED BADGE ON ROSTER CARDS */
+
+.roster-card {
+  position: relative;
+}
+
+.roster-card .captured-badge {
+  position: absolute;
+
+  top: 6px;
+
+  right: 6px;
+
+  font-size: 11px;
+
+  filter: drop-shadow(0 2px 3px #0008);
+}
+
+.roster-card .buy-badge {
+  position: absolute;
+
+  top: 6px;
+
+  right: 6px;
+
+  font-size: 10px;
+
+  opacity: 0.85;
+
+  filter: drop-shadow(0 2px 3px #0008);
+}
+
+/* POKÉDEX MODAL */
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pokedex-modal {
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 30;
+
+  background: rgba(4, 10, 18, 0.78);
+
+  backdrop-filter: blur(6px);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  /* Animations replay automatically every time display flips from
+     none to flex (i.e. every time a popup opens), so all six modals
+     sharing this class get a smooth entrance for free — no JS
+     changes needed. Previously they just snapped open instantly. */
+  animation: modal-backdrop-in 0.18s ease-out;
+}
+
+.pokedex-card {
+  position: relative;
+
+  width: min(420px, 100%);
+
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  background: linear-gradient(180deg, #11253b, #0a1729);
+
+  border: 1px solid #2f4d6b;
+
+  border-radius: 20px;
+
+  padding: 26px 22px 22px;
+
+  /* Added a soft cyan glow alongside the drop shadow — matches the
+     app's holographic-HUD look elsewhere (arena rings, focus
+     states) instead of the card just being a flat dark rectangle. */
+  box-shadow:
+    0 25px 60px #000a,
+    0 0 0 1px rgba(79, 179, 255, 0.06),
+    0 0 40px rgba(79, 179, 255, 0.08);
+
+  animation: modal-card-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Thin accent bar along the top edge, echoing the cyan brand color —
+   a small detail that makes the card read as "this app" rather than
+   a generic gray dialog. */
+.pokedex-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 20px;
+  right: 20px;
+
+  height: 2px;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-accent),
+    transparent
+  );
+
+  border-radius: 0 0 2px 2px;
+
+  opacity: 0.7;
+}
+
+.pokedex-close {
+  position: absolute;
+
+  top: 14px;
+
+  right: 14px;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 10px;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  color: #9db2c8;
+
+  font-size: 13px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.pokedex-close:hover {
+  color: #fff;
+
+  border-color: #4fb3ff;
+
+  background: #142c46;
+
+  transform: rotate(90deg);
+}
+
+.pokedex-top {
+  text-align: center;
+}
+
+.pokedex-top img {
+  width: 150px;
+  height: 150px;
+
+  object-fit: contain;
+
+  filter: drop-shadow(0 10px 14px #0007);
+}
+
+.pokedex-dex-no {
+  font-size: 10px;
+
+  color: #7590aa;
+
+  letter-spacing: 1.5px;
+}
+
+.pokedex-name {
+  font-size: 22px;
+
+  font-weight: 900;
+
+  text-transform: capitalize;
+
+  margin-top: 2px;
+}
+
+.pokedex-legendary-badge {
+  display: inline-block;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  vertical-align: middle;
+
+  color: #2a1a00;
+
+  background: linear-gradient(135deg, #ffe56b, #ff9e35);
+  border-radius: 8px;
+
+  padding: 3px 8px;
+
+  box-shadow: 0 0 12px rgba(255, 190, 60, 0.45);
+}
+
+.pokedex-types {
+  display: flex;
+
+  gap: 6px;
+
+  justify-content: center;
+
+  margin-top: 8px;
+}
+
+.type-badge {
+  padding: 4px 12px;
+
+  border-radius: 999px;
+
+  font-size: 9px;
+
+  font-weight: 900;
+
+  letter-spacing: 1px;
+
+  background: #2e5d7f;
+}
+
+.type-badge[data-type="fire"] {
+  background: #b5502a;
+}
+.type-badge[data-type="water"] {
+  background: #2b5fa8;
+}
+.type-badge[data-type="electric"] {
+  background: #a8871f;
+}
+.type-badge[data-type="grass"] {
+  background: #337a3a;
+}
+.type-badge[data-type="ice"] {
+  background: #2f8484;
+}
+.type-badge[data-type="fighting"] {
+  background: #9c3c30;
+}
+.type-badge[data-type="poison"] {
+  background: #7a3c93;
+}
+.type-badge[data-type="ground"] {
+  background: #8a6b2c;
+}
+.type-badge[data-type="flying"] {
+  background: #5c67ab;
+}
+.type-badge[data-type="psychic"] {
+  background: #ab2f61;
+}
+.type-badge[data-type="bug"] {
+  background: #6d8a1f;
+}
+.type-badge[data-type="rock"] {
+  background: #7c6a35;
+}
+.type-badge[data-type="ghost"] {
+  background: #52468f;
+}
+.type-badge[data-type="dragon"] {
+  background: #4a3bc9;
+}
+.type-badge[data-type="dark"] {
+  background: #4a3d33;
+}
+.type-badge[data-type="steel"] {
+  background: #5c6b78;
+}
+.type-badge[data-type="fairy"] {
+  background: #b0578e;
+}
+.type-badge[data-type="normal"] {
+  background: #6f7361;
+}
+
+.pokedex-capture-status {
+  text-align: center;
+
+  margin-top: 14px;
+
+  font-size: 11px;
+
+  letter-spacing: 0.5px;
+
+  padding: 8px 12px;
+
+  border-radius: 10px;
+}
+
+.pokedex-capture-status.owned {
+  background: #1c3a1acc;
+
+  color: #8be89b;
+
+  border: 1px solid #366b39;
+}
+
+.pokedex-capture-status.wild {
+  background: #24344acc;
+
+  color: #9fc1df;
+
+  border: 1px solid #2f4d6b;
+}
+
+/* HP / heal row on a captured Pokémon's detail card */
+
+.pokedex-hp-row {
+  margin-top: 12px;
+
+  background: #0f1d2f;
+  border: 1px solid #23405c;
+  border-radius: 14px;
+
+  padding: 12px 14px;
+}
+
+.pokedex-hp-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: #8ba3bd;
+
+  margin-bottom: 6px;
+}
+
+.pokedex-hp-label b {
+  font-size: 13px;
+  color: #fff;
+}
+
+.pokedex-hp-track {
+  height: 8px;
+  border-radius: 5px;
+
+  background: #16283e;
+  overflow: hidden;
+}
+
+.pokedex-hp-fill {
+  height: 100%;
+  border-radius: 5px;
+
+  background: linear-gradient(90deg, #72e6a6, #b9f36c);
+
+  transition: width 0.3s ease;
+}
+
+.pokedex-heal-row {
+  display: flex;
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+.pokedex-heal-btn {
+  flex: 1;
+
+  padding: 9px 8px;
+  border-radius: 10px;
+
+  background: #16283e;
+  border: 1px solid #29415b;
+  color: #fff;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.pokedex-heal-btn:hover:not(:disabled) {
+  border-color: #4fb3ff;
+}
+
+.pokedex-heal-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pokedex-xp-fill {
+  background: linear-gradient(90deg, #4fb3ff, #b18cff);
+}
+
+.pokedex-moves-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  margin-top: 10px;
+}
+
+.pokedex-move-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #cfe0f0;
+
+  background: #16283e;
+  border: 1px solid #29415b;
+  border-radius: 8px;
+
+  padding: 5px 9px;
+}
+
+.pokedex-moves-pending {
+  font-size: 10.5px;
+  color: #6c86a0;
+  margin-top: 8px;
+}
+
+.pokedex-stats {
+  margin-top: 18px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 9px;
+}
+
+.pokedex-stat-row {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  font-size: 10px;
+}
+
+.pokedex-stat-row span:first-child {
+  width: 62px;
+
+  flex: none;
+
+  color: #7590aa;
+
+  letter-spacing: 0.5px;
+}
+
+.pokedex-stat-row span:last-child {
+  width: 30px;
+
+  flex: none;
+
+  text-align: right;
+
+  font-weight: 800;
+}
+
+.pokedex-stat-track {
+  flex: 1;
+
+  height: 7px;
+
+  background: #16283c;
+
+  border-radius: 6px;
+
+  overflow: hidden;
+}
+
+.pokedex-stat-fill {
+  height: 100%;
+
+  background: linear-gradient(90deg, #55c8ff, #7d6bff);
+
+  border-radius: 6px;
+}
+
+.pokedex-abilities {
+  margin-top: 16px;
+
+  font-size: 10px;
+
+  color: #9db2c8;
+
+  line-height: 1.7;
+}
+
+.pokedex-abilities b {
+  color: #eaf3ff;
+
+  text-transform: capitalize;
+}
+
+.pokedex-fight-btn {
+  width: 100%;
+
+  margin-top: 18px;
+
+  padding: 13px;
+
+  border-radius: 12px;
+
+  background: linear-gradient(145deg, #ffcf45, #ff762e);
+
+  color: #fff;
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.5px;
+}
+
+.pokedex-fight-btn:hover {
+  transform: translateY(-1px);
+}
+
+.pokedex-buy-row {
+  display: flex;
+
+  gap: 10px;
+
+  margin-top: 12px;
+}
+
+.pokedex-buy-btn {
+  flex: 1;
+
+  padding: 12px 8px;
+
+  border-radius: 12px;
+
+  font-size: 12px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.3px;
+
+  color: #fff;
+
+  border: 1px solid transparent;
+}
+
+.pokedex-buy-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.pokedex-buy-coins {
+  background: linear-gradient(145deg, #ffd76a, #e8952a);
+}
+
+.pokedex-buy-gems {
+  background: linear-gradient(145deg, #8fd0ff, #6a6bff);
+}
+
+.pokedex-buy-btn:disabled {
+  opacity: 0.4;
+
+  cursor: not-allowed;
+
+  filter: grayscale(0.4);
+}
+
+.roster-empty {
+  grid-column: 1 / -1;
+
+  text-align: center;
+
+  color: #7590aa;
+
+  font-size: 12px;
+
+  padding: 40px 0;
+}
+
+@media (max-width: 700px) {
+  .roster {
+    padding: 14px 14px;
+  }
+
+  .roster-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+
+  .roster-card img {
+    width: 52px;
+    height: 52px;
+  }
+
+  .type-chip {
+    font-size: 10px;
+
+    padding: 7px 11px;
+  }
+
+  .pokedex-card {
+    padding: 22px 16px 18px;
+  }
+
+  .pokedex-top img {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+  .home {
+    padding: 12px 12px 0;
+  }
+
+  .resources .resource {
+    padding: 7px;
+  }
+
+  .resources {
+    gap: 6px;
+  }
+
+  .resources .resource span {
+    font-size: 11px;
+  }
+
+  .mode-toggle b {
+    display: none;
+  }
+
+  .hero {
+    min-height: 480px;
+  }
+
+  .fighters {
+    height: 330px;
+  }
+
+  .fighter-card {
+    width: 48%;
+  }
+
+  .fighter-name b {
+    font-size: 20px;
+  }
+
+  .fighter-name {
+    top: 45px;
+  }
+
+  .vs {
+    width: 70px;
+    height: 70px;
+  }
+
+  .vs div {
+    font-size: 22px;
+  }
+
+  .match-info {
+    gap: 12px;
+  }
+
+  .bottom-nav {
+    gap: 2px;
+  }
+
+  .nav-item {
+    min-width: 55px;
+    font-size: 7px;
+  }
+
+  .battle-btn {
+    width: 115px;
+  }
+
+  .battle-top {
+    top: 12px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .health-card {
+    width: 40vw;
+  }
+
+  .round {
+    display: none;
+  }
+
+  #controls-transcript {
+    font-size: 8px;
+
+    max-width: 92%;
+
+    overflow: hidden;
+  }
+
+  .right-fighter img {
+    transform: scaleX(-1);
+  }
+
+  /* .power sits at the very bottom of .fighter-card and match-info
+     is pulled up -7px to sit close beneath it — fine at desktop
+     font sizes, but the two visibly overlap at phone widths. Lift
+     the power readout instead of pushing match-info down (there's
+     very little vertical headroom above the bottom nav to spare). */
+
+  .power {
+    bottom: 14px;
+  }
+
+  :root {
+    --touch-bottom: 78px;
+  }
+  .left-card {
+    margin-top: 1000px;
+  }
+}
+
+/* SMALL PHONE (narrow handsets — iPhone SE and similar) */
+
+@media (max-width: 420px) {
+  .topbar {
+    height: 56px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+
+    border-radius: 12px;
+
+    font-size: 18px;
+  }
+
+  .profile strong {
+    font-size: 12px;
+  }
+
+  .resources .resource {
+    padding: 6px;
+
+    gap: 4px;
+  }
+
+  .resources .resource span {
+    font-size: 10px;
+  }
+
+  #pokeball-image {
+    width: 12px;
+    height: 12px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .season-pill {
+    font-size: 9px;
+
+    padding: 6px 10px;
+  }
+
+  .fighter-name {
+    top: 34px;
+  }
+
+  .fighter-name b {
+    font-size: 17px;
+  }
+
+  .power {
+    font-size: 9px;
+  }
+
+  .match-info {
+    gap: 8px;
+  }
+
+  .match-info div:not(.divider) {
+    min-width: 64px;
+  }
+
+  .battle-btn {
+    width: 96px;
+    height: 54px;
+
+    font-size: 14px;
+  }
+
+  .nav-item {
+    min-width: 44px;
+  }
+
+  .health-card {
+    width: 44vw;
+
+    padding: 7px 9px;
+  }
+
+  .health-card > div:first-child {
+    font-size: 10px;
+  }
+
+  :root {
+    --touch-btn: 46px;
+    --touch-btn-small: 34px;
+    --touch-btn-attack: 60px;
+  }
+
+  #controls-transcript {
+    display: none;
+  }
+}
+
+/* LANDSCAPE / SHORT VIEWPORTS (phones in landscape, small laptops
+   in a split window) — the fixed-height hero needs to shrink and
+   the on-screen battle controls need to sit closer to the edges
+   so they don't crowd out the health bars above them. This is the
+   main battle-screen layout most players will actually fight in,
+   since the 1200:650 battle canvas is itself widescreen. */
+
+@media (max-height: 480px) {
+  .home {
+    padding: 8px 16px 0;
+  }
+
+  .topbar {
+    height: 46px;
+  }
+
+  .hero {
+    min-height: 0;
+    height: calc(100vh - 100px);
+
+    padding-top: 4px;
+  }
+
+  .hero-title {
+    margin-top: 2px;
+  }
+
+  .season-pill {
+    display: none;
+  }
+
+  .fighters {
+    height: min(230px, 40vh);
+  }
+
+  .fighter-card {
+    height: 100%;
+  }
+
+  .match-info {
+    margin-top: -4px;
+  }
+
+  .bottom-nav {
+    height: 54px;
+  }
+
+  .nav-item span {
+    font-size: 16px;
+
+    margin-bottom: 0;
+  }
+
+  .battle-btn {
+    height: 46px;
+
+    margin-top: -12px;
+  }
+
+  .battle-top {
+    top: calc(8px + env(safe-area-inset-top));
+  }
+
+  .health-card {
+    padding: 7px 10px;
+  }
+
+  .health-card > div:first-child {
+    font-size: 11px;
+  }
+
+  .health-card span {
+    font-size: 7px;
+  }
+
+  .hp {
+    height: 8px;
+
+    margin-top: 5px;
+  }
+
+  .team-pips {
+    margin-top: 5px;
+  }
+
+  .round {
+    display: none;
+  }
+
+  :root {
+    --touch-bottom: 6px;
+    --touch-gap: 7px;
+    --touch-btn: 42px;
+    --touch-btn-small: 32px;
+    --touch-btn-attack: 56px;
+  }
+
+  #controls-transcript {
+    display: none;
+  }
+
+  .back-btn {
+    top: calc(10px + env(safe-area-inset-top));
+    bottom: auto;
+    left: auto;
+    right: calc(12px + env(safe-area-inset-right));
+
+    padding: 6px 10px;
+
+    font-size: 9px;
+  }
+}
+
+/* VERY SHORT LANDSCAPE (small phones like iPhone SE, or a compact
+   split-screen window) — squeeze the battle chrome down further
+   so health cards and touch controls both fit without overlap. */
+
+@media (max-height: 380px) {
+  .health-card {
+    width: min(220px, 34vw);
+
+    padding: 5px 8px;
+  }
+
+  .health-card > div:first-child {
+    font-size: 10px;
+  }
+
+  .team-pips {
+    display: none;
+  }
+
+  :root {
+    --touch-bottom: 4px;
+    --touch-gap: 5px;
+    --touch-btn: 36px;
+    --touch-btn-small: 28px;
+    --touch-btn-attack: 48px;
+  }
+
+  .touch-moves {
+    width: 130px;
+  }
+
+  .touch-move-btn {
+    font-size: 9px;
+    padding: 5px 6px;
+  }
+
+  .back-btn {
+    padding: 5px 8px;
+
+    font-size: 8px;
+  }
+}
+
+/* ============================================================
+   TOAST NOTIFICATIONS (dynamic in-app alerts)
+============================================================ */
+
+.toast-container {
+  position: fixed;
+
+  top: 16px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  z-index: 500;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+  width: min(380px, 92vw);
+
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 10px;
+
+  background: linear-gradient(180deg, #14283f, #0c1a2c);
+
+  border: 1px solid #2f4d6b;
+
+  border-radius: 14px;
+
+  padding: 12px 14px;
+
+  box-shadow: 0 14px 30px #000a;
+
+  opacity: 0;
+
+  transform: translateY(-14px) scale(0.97);
+
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+
+  cursor: pointer;
+}
+
+.toast.show {
+  opacity: 1;
+
+  transform: translateY(0) scale(1);
+}
+
+.toast.hide {
+  opacity: 0;
+
+  transform: translateY(-10px) scale(0.97);
+}
+
+.toast-success {
+  border-color: #3ecf8e;
+}
+
+.toast-error {
+  border-color: #e8617a;
+}
+
+.toast-icon {
+  font-size: 20px;
+
+  line-height: 1;
+
+  flex: none;
+
+  margin-top: 1px;
+}
+
+.toast-icon img {
+  width: 20px;
+  height: 20px;
+
+  display: block;
+  object-fit: contain;
+}
+
+.toast-body {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  font-size: 12px;
+
+  color: #cfe0ef;
+
+  line-height: 1.4;
+}
+
+.toast-body b {
+  font-size: 12px;
+
+  letter-spacing: 0.3px;
+
+  color: #fff;
+}
+
+/* ============================================================
+   SETTINGS MODAL
+============================================================ */
+
+.settings-card {
+  width: min(400px, 100%);
+}
+
+.settings-body {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+
+  margin-top: 20px;
+}
+
+.settings-row {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 12px;
+
+  font-size: 12px;
+
+  color: #9db2c8;
+
+  letter-spacing: 0.3px;
+}
+
+.settings-row-col {
+  flex-direction: column;
+
+  align-items: stretch;
+}
+
+.settings-row-col > span {
+  margin-bottom: 8px;
+}
+
+.settings-hint {
+  margin-top: -6px;
+  margin-bottom: 4px;
+
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.settings-hint.error {
+  color: #ff8484;
+}
+
+.settings-hint.success {
+  color: #8be89b;
+}
+
+.settings-hint.pending {
+  color: #8ba3bd;
+}
+
+.settings-input {
+  width: 170px;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  border-radius: 10px;
+
+  padding: 9px 12px;
+
+  color: #fff;
+
+  font-size: 12px;
+
+  outline: none;
+}
+
+.settings-input:focus {
+  border-color: #4fb3ff;
+}
+
+.settings-switch {
+  position: relative;
+
+  width: 46px;
+  height: 26px;
+
+  border-radius: 999px;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  flex: none;
+}
+
+.settings-switch i {
+  position: absolute;
+
+  top: 2px;
+  left: 2px;
+
+  width: 20px;
+  height: 20px;
+
+  border-radius: 50%;
+
+  background: #7590aa;
+
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.settings-switch.active {
+  border-color: #3ecf8e;
+}
+
+.settings-switch.active i {
+  transform: translateX(20px);
+
+  background: #3ecf8e;
+}
+
+.settings-segment {
+  display: flex;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  border-radius: 10px;
+
+  padding: 3px;
+
+  gap: 3px;
+}
+
+.settings-segment button {
+  flex: 1;
+
+  padding: 8px 0;
+
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: #7590aa;
+
+  font-size: 11px;
+
+  letter-spacing: 0.3px;
+}
+
+.settings-segment button.active {
+  background: #1c3a57;
+
+  color: #fff;
+}
+
+.settings-danger-btn {
+  padding: 11px 0;
+
+  border-radius: 10px;
+
+  background: #2a1420;
+
+  border: 1px solid #6b2438;
+
+  color: #f08099;
+
+  font-size: 12px;
+
+  letter-spacing: 0.3px;
+}
+
+.settings-danger-btn.armed {
+  background: #4a1420;
+
+  border-color: #e8617a;
+
+  color: #fff;
+}
+
+/* ACCOUNT (Google Sign-In) */
+
+.google-signin-container {
+  display: flex;
+
+  justify-content: center;
+}
+
+.google-setup-hint {
+  font-size: 11px;
+
+  line-height: 1.5;
+
+  color: #7590aa;
+
+  text-align: center;
+}
+
+.google-account-info {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  background: #0c1b2d;
+
+  border: 1px solid #29415b;
+
+  border-radius: 12px;
+
+  padding: 10px;
+}
+
+.google-account-avatar {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+
+  flex: none;
+
+  object-fit: cover;
+
+  background: #1c3a57;
+}
+
+.google-account-text {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 1px;
+
+  flex: 1;
+
+  min-width: 0;
+}
+
+.google-account-text b {
+  font-size: 12px;
+
+  color: #fff;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.google-account-text small {
+  font-size: 10px;
+
+  color: #7590aa;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.google-account-info .settings-danger-btn {
+  flex: none;
+
+  width: auto;
+
+  padding: 8px 12px;
+
+  font-size: 10px;
+}
+
+/* ============================================================
+   HOW TO PLAY MODAL
+============================================================ */
+
+.info-card {
+  width: min(440px, 100%);
+
+  text-align: left;
+}
+
+.info-body {
+  margin-top: 18px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.info-body h4 {
+  font-size: 11px;
+
+  letter-spacing: 0.6px;
+
+  color: #4fb3ff;
+
+  margin-bottom: 4px;
+}
+
+.info-body p {
+  font-size: 12px;
+
+  line-height: 1.55;
+
+  color: #b7c8da;
+}
+
+/* ============================================================
+   LEAGUE SCREEN
+============================================================ */
+
+.league {
+  /* Was a brown/gold wash (#2a2312 → #16110a) that broke from the
+     cool navy palette every other screen uses — it read like a
+     different app. Keeps a small warm glow up top as a "trophy
+     room" accent, nod to rank/gold theming, but settles into the
+     same dark surface tones as everywhere else instead of dominating
+     the whole screen in murky brown. */
+  background: radial-gradient(
+    circle at 50% 0%,
+    #2c2115 0%,
+    var(--surface-1) 42%,
+    var(--bg-deep) 100%
+  );
+
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 18px 22px;
+}
+
+.league-body {
+  margin-top: 20px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 16px;
+
+  overflow-y: auto;
+}
+
+.league-rank-card {
+  display: flex;
+
+  align-items: center;
+
+  gap: 16px;
+
+  /* Same fix as .league above — was a fully brown-tinted card
+     (#23200f/#14120a) fighting the app's normal dark-surface cards
+     everywhere else. A warm border is enough to read as "this is
+     the rank/trophy card" without the whole card changing palette. */
+  background: linear-gradient(180deg, var(--surface-raised), var(--surface-1));
+
+  border: 1px solid rgba(255, 207, 69, 0.3);
+
+  border-radius: 18px;
+
+  padding: 18px;
+}
+
+.league-rank-icon {
+  font-size: 40px;
+
+  line-height: 1;
+
+  flex: none;
+}
+
+.league-rank-info {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 4px;
+
+  flex: 1;
+}
+
+.league-rank-info small {
+  font-size: 10px;
+
+  letter-spacing: 0.6px;
+
+  color: #b8a468;
+}
+
+.league-rank-info b {
+  font-size: 17px;
+
+  letter-spacing: 0.3px;
+}
+
+.league-progress-track {
+  width: 100%;
+
+  height: 7px;
+
+  border-radius: 999px;
+
+  background: #0c1b2d;
+
+  overflow: hidden;
+
+  margin-top: 4px;
+}
+
+.league-progress-track i {
+  display: block;
+
+  height: 100%;
+
+  background: linear-gradient(90deg, #ffd43b, #ffb020);
+
+  border-radius: 999px;
+
+  transition: width 0.3s ease;
+}
+
+.league-progress-track#league-progress-fill {
+  width: 0%;
+}
+
+#league-progress-label {
+  font-size: 10px;
+
+  color: #7590aa;
+
+  letter-spacing: 0.3px;
+}
+
+.league-stat-row {
+  display: flex;
+
+  gap: 12px;
+}
+
+.league-stat-card {
+  flex: 1;
+
+  background: #0f1d2f;
+
+  border: 1px solid #23405c;
+
+  border-radius: 14px;
+
+  padding: 14px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.league-stat-card small {
+  font-size: 10px;
+
+  letter-spacing: 0.5px;
+
+  color: #7590aa;
+}
+
+.league-stat-card b {
+  font-size: 16px;
+}
+
+.league-rewards {
+  background: #0f1d2f;
+
+  border: 1px solid #23405c;
+
+  border-radius: 14px;
+
+  padding: 14px;
+}
+
+.league-rewards small {
+  font-size: 10px;
+
+  letter-spacing: 0.5px;
+
+  color: #7590aa;
+}
+
+.league-rewards p {
+  margin-top: 6px;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+
+  color: #b7c8da;
+}
+
+/* SHOP */
+
+.shop-inventory-row {
+  display: flex;
+  gap: 10px;
+}
+
+.shop-inventory-card {
+  flex: 1;
+
+  background: #0f1d2f;
+  border: 1px solid #23405c;
+  border-radius: 14px;
+
+  padding: 12px 8px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+
+  text-align: center;
+}
+
+.shop-inventory-card span {
+  font-size: 20px;
+}
+
+.shop-inventory-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+
+.shop-inventory-card b {
+  font-size: 16px;
+}
+
+.shop-inventory-card small {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: #7590aa;
+}
+
+.shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  background: #0f1d2f;
+  border: 1px solid #23405c;
+  border-radius: 14px;
+
+  padding: 12px 14px;
+}
+
+.shop-item-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 22px;
+  border-radius: 12px;
+
+  background: #16283e;
+  border: 1px solid #29415b;
+}
+
+.shop-item-icon img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.shop-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-item-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.shop-item-desc {
+  font-size: 11px;
+  color: #8ba3bd;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.shop-item-buy {
+  flex-shrink: 0;
+
+  padding: 9px 14px;
+  border-radius: 10px;
+
+  background: linear-gradient(135deg, #1f6fb0, #134a78);
+  border: 1px solid #2f7dc2;
+  color: #fff;
+
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+
+  cursor: pointer;
+}
+
+.shop-item-buy:hover {
+  background: linear-gradient(135deg, #2a80c4, #185f96);
+}
+
+.shop-item-buy:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: #223752;
+  border-color: #2c4560;
+}
+
+.shop-hint {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #8ba3bd;
+
+  background: #0f1d2f;
+  border: 1px solid #23405c;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.league-battle-btn {
+  width: 100%;
+  height: 56px;
+
+  margin-top: 4px;
+
+  border-radius: 16px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 8px;
+
+  flex: none;
+}
+
+.league-battle-btn span {
+  font-size: 17px;
+}
+
+/* ============================================================
+   SIGN-IN GATE
+============================================================ */
+
+#auth-gate {
+  display: flex;
+}
+
+html.pf-authed #auth-gate {
+  display: none !important;
+}
+
+.auth-gate {
+  position: fixed;
+  inset: 0;
+
+  z-index: 999;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  overflow: hidden;
+
+  background: radial-gradient(
+    circle at 50% 35%,
+    #183e68 0,
+    #0b1b31 42%,
+    #050b14 100%
+  );
+}
+
+.auth-gate-card {
+  position: relative;
+
+  width: min(380px, 100%);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  text-align: center;
+
+  gap: 14px;
+
+  background: linear-gradient(180deg, #11253b, #0a1729);
+
+  border: 1px solid #2f4d6b;
+
+  border-radius: 22px;
+
+  padding: 34px 26px 28px;
+
+  box-shadow: 0 25px 60px #000a;
+}
+
+.auth-gate-logo {
+  width: 56px;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  font-size: 26px;
+
+  background: #0c1b2d;
+  border: 1px solid #29415b;
+}
+
+.auth-gate-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+
+  letter-spacing: 0.5px;
+}
+
+.auth-gate-title span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #9db2c8;
+}
+
+.auth-gate-title b {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.auth-gate-copy {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9db2c8;
+
+  max-width: 300px;
+}
+
+.auth-gate .google-signin-container {
+  margin-top: 6px;
+}
+
+/* Firebase Google sign-in button (replaces the old GIS-rendered
+   button now that sign-in goes through Firebase's popup flow) */
+
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 10px 20px;
+
+  border-radius: 999px;
+  border: 1px solid #3c4b5a;
+
+  background: #1c1c1c;
+  color: #fff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.google-btn:hover {
+  background: #2a2a2a;
+}
+
+.google-btn:active {
+  transform: scale(0.97);
+}
+
+.google-btn img {
+  width: 18px;
+  height: 18px;
+}
+
+.google-btn-lg {
+  padding: 13px 26px;
+  font-size: 15px;
+}
+
+/* ============================================================
+   ONLINE BATTLE MODAL
+============================================================ */
+
+.online-card {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.online-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.online-copy {
+  font-size: 13px;
+  color: #9db2c8;
+  line-height: 1.5;
+}
+
+.online-join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.online-code-input {
+  flex: 1;
+  min-width: 0;
+  background: #0c1b2d;
+  border: 1px solid #2f4d6b;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  font-size: 15px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.online-room-code {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-align: center;
+  color: #ffd43b;
+  background: #0c1b2d;
+  border: 1px solid #2f4d6b;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.online-debug-readout {
+  background: #0c1b2d;
+  border: 1px solid #2f4d6b;
+  border-radius: 12px;
+  padding: 14px;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  min-height: 120px;
+}
+
+/* --- Redesigned "Play Online" popup ---------------------------
+   Was a stack of plain pill buttons with no visual hierarchy.
+   Now: a centered icon/title header, big tappable option cards
+   (icon + title + subtitle instead of a bare label), a labeled
+   divider before the room-code join row, and an animated spinner
+   + friendlier copy while matchmaking is in progress. */
+
+.online-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.online-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: linear-gradient(145deg, #123a56, #0a1c2e);
+  border: 1px solid #2f6a91;
+  box-shadow: 0 0 26px rgba(79, 179, 255, 0.28);
+}
+
+.online-title {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #fff;
+}
+
+.online-header .online-copy {
+  max-width: 300px;
+}
+
+.online-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  width: 100%;
+  padding: 14px 16px;
+
+  background: #0c1b2d;
+  border: 1px solid #29415b;
+  border-radius: 14px;
+
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.online-option:hover {
+  border-color: #4fb3ff;
+  background: #102943;
+}
+
+.online-option:active {
+  transform: scale(0.98);
+}
+
+.online-option-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  border-radius: 12px;
+}
+
+.online-option-random .online-option-icon {
+  background: rgba(255, 212, 59, 0.12);
+  border: 1px solid rgba(255, 212, 59, 0.35);
+}
+
+.online-option-friend .online-option-icon {
+  background: rgba(79, 179, 255, 0.12);
+  border: 1px solid rgba(79, 179, 255, 0.35);
+}
+
+.online-option-body {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.online-option-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.online-option-sub {
+  font-size: 11.5px;
+  color: #8ba3bd;
+  line-height: 1.35;
+}
+
+.online-option-arrow {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #4a6f92;
+  transition: transform 0.15s ease;
+}
+
+.online-option:hover .online-option-arrow {
+  transform: translateX(2px);
+  color: #4fb3ff;
+}
+
+.online-bet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 12px 14px;
+  border-radius: 14px;
+
+  background: #0f1d2f;
+  border: 1px solid #23405c;
+}
+
+.online-bet-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #8ba3bd;
+}
+
+.online-bet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.online-bet-chip {
+  padding: 7px 12px;
+  border-radius: 10px;
+
+  background: #16283e;
+  border: 1px solid #29415b;
+  color: #cfe0f0;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.online-bet-chip:hover {
+  border-color: #4fb3ff;
+}
+
+.online-bet-chip.active {
+  background: linear-gradient(135deg, #ffe56b, #ff9e35);
+  border-color: #ffbf69;
+  color: #2a1a00;
+}
+
+.online-bet-hint {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #6c86a0;
+}
+
+.online-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin: 2px 0;
+
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #5f7994;
+}
+
+.online-divider::before,
+.online-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #20374f;
+}
+
+.online-join-btn {
+  background: linear-gradient(135deg, #1f6fb0, #134a78);
+  border-color: #2f7dc2;
+}
+
+.online-join-btn:hover {
+  background: linear-gradient(135deg, #2a80c4, #185f96);
+}
+
+.online-waiting-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+
+  padding: 10px 0 4px;
+}
+
+.online-spinner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+
+  border: 3px solid #1c3450;
+  border-top-color: #5de4ff;
+
+  animation: online-spin 0.9s linear infinite;
+}
+
+@keyframes online-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.online-waiting-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.online-waiting-sub {
+  font-size: 12px;
+  color: #8ba3bd;
+  text-align: center;
+  margin-top: -8px;
+}
+
+/* ============================================================
+   VS INTRO — trainer-vs-trainer reveal at the start of an online
+   match. Backdrop-blurs the (already-rendered) battlefield behind
+   it, flies each trainer's name in from its side to meet in the
+   middle, then drops "VS" in from the top with a flash. Pure CSS
+   keyframes, triggered by app.js's showVsIntro toggling the
+   .playing class.
+============================================================ */
+
+.vs-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+
+  background: rgba(4, 10, 18, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  opacity: 0;
+  pointer-events: none;
+
+  transition: opacity 0.4s ease;
+}
+
+.vs-intro.playing {
+  opacity: 1;
+}
+
+.vs-intro.fading {
+  opacity: 0;
+}
+
+.vs-intro-name {
+  font-size: clamp(20px, 6vw, 34px);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(79, 179, 255, 0.6);
+  text-transform: uppercase;
+
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.vs-intro-left {
+  transform: translateX(-160px);
+}
+
+.vs-intro-right {
+  transform: translateX(160px);
+}
+
+.vs-intro.playing .vs-intro-left {
+  animation: vs-intro-slide-left 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.vs-intro.playing .vs-intro-right {
+  animation: vs-intro-slide-right 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes vs-intro-slide-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-160px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vs-intro-slide-right {
+  0% {
+    opacity: 0;
+    transform: translateX(160px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.vs-intro-badge {
+  flex-shrink: 0;
+
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffe56b, #ff9e35);
+  box-shadow: 0 0 30px rgba(255, 190, 60, 0.7);
+
+  color: #2a1a00;
+  font-size: 20px;
+  font-weight: 900;
+
+  opacity: 0;
+  transform: translateY(-140px) scale(0.6);
+}
+
+.vs-intro.playing .vs-intro-badge {
+  animation: vs-intro-drop 0.55s 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)
+    forwards;
+}
+
+@keyframes vs-intro-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-140px) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   CAPTURE ANIMATION — Poké Ball wobble + flash + sparkle burst
+   shown over the toast area when a Pokémon is captured (see
+   playCaptureAnimation in app.js).
+============================================================ */
+
+.capture-anim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0;
+  pointer-events: none;
+
+  transition: opacity 0.3s ease;
+}
+
+.capture-anim.playing {
+  opacity: 1;
+}
+
+.capture-anim img {
+  width: 84px;
+  height: 84px;
+
+  filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  animation: capture-wobble 1.1s ease-in-out;
+}
+
+@keyframes capture-wobble {
+  0% {
+    transform: scale(0.3) translateY(-40px);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  35%,
+  55%,
+  75% {
+    transform: rotate(-18deg);
+  }
+  45%,
+  65% {
+    transform: rotate(18deg);
+  }
+  85% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 24px rgba(255, 229, 107, 0.9));
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  }
+}
+
+
+/* ============================================================
+   CATCH SCREEN (after a win in 1-player mode)
+============================================================ */
+
+.catch-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 16px;
+
+  background: rgba(3, 8, 18, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.catch-modal.hidden {
+  display: none;
+}
+
+.catch-card {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+
+  padding: 18px 18px 16px;
+
+  border: 1px solid rgba(120, 170, 220, 0.35);
+  border-radius: 20px;
+
+  background: linear-gradient(180deg, #0f1d33, #08111f);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  text-align: center;
+}
+
+.catch-top {
+  display: flex;
+  justify-content: space-between;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #7fa6cf;
+}
+
+.catch-stage {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 190px;
+  margin: 6px 0;
+}
+
+.catch-mon {
+  max-width: 100%;
+  max-height: 100%;
+
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.6));
+
+  transition:
+    transform 0.45s ease,
+    opacity 0.45s ease,
+    filter 0.45s ease;
+}
+
+.catch-mon.absorb {
+  transform: scale(0.1);
+  opacity: 0;
+  filter: brightness(3);
+}
+
+.catch-mon.caught {
+  filter: drop-shadow(0 0 18px #ffd43b);
+}
+
+.catch-ball-anim {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+}
+
+.catch-ball-anim.hidden {
+  display: none;
+}
+
+.catch-ball-anim img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.catch-ball-anim.wobble {
+  animation: catchWobble 0.8s ease-in-out infinite;
+}
+
+@keyframes catchWobble {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-24deg); }
+  45% { transform: rotate(22deg); }
+  70% { transform: rotate(-12deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.catch-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.catch-status {
+  min-height: 40px;
+  margin: 4px 0 2px;
+
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b9d0e8;
+}
+
+.catch-chance {
+  font-size: 12px;
+  color: #8fb1d4;
+}
+
+.catch-chance b {
+  color: #ffd43b;
+}
+
+.catch-balls {
+  display: flex;
+  gap: 8px;
+
+  margin: 12px 0 4px;
+  padding: 4px 2px 8px;
+
+  overflow-x: auto;
+}
+
+.catch-ball-chip {
+  flex: 0 0 auto;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  width: 78px;
+  padding: 8px 4px;
+
+  border: 1px solid rgba(120, 170, 220, 0.3);
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.04);
+  color: #dbe9f8;
+  cursor: pointer;
+}
+
+.catch-ball-chip b {
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.catch-ball-chip small {
+  font-size: 11px;
+  color: #8fb1d4;
+}
+
+.catch-ball-chip.selected {
+  border-color: #ffd43b;
+  background: rgba(255, 212, 59, 0.12);
+}
+
+.catch-ball-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.catch-ball-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.catch-ball-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.catch-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+
+  margin-top: 10px;
+}
+
+.catch-btn {
+  flex: 1;
+
+  padding: 11px 14px;
+
+  border: 1px solid rgba(120, 170, 220, 0.35);
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6f0fb;
+
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.catch-btn.primary {
+  border: none;
+  background: linear-gradient(180deg, #ffc933, #ff8a2a);
+  color: #2a1400;
+}
+
+.catch-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+
+/* Ball icon shown on a captured card / in the Pokédex entry. */
+.roster-card .captured-badge img {
+  width: 18px;
+  height: 18px;
+
+  display: block;
+  object-fit: contain;
+}
+
+.pokedex-ball-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pokedex-ball-label img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+
+/* Live latency badge shown during online play. */
+.online-ping {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 8000;
+
+  transform: translateX(-50%);
+
+  padding: 3px 10px;
+
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  background: rgba(5, 12, 24, 0.8);
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+
+  pointer-events: none;
+}
+
+.online-ping.hidden {
+  display: none;
+}
+
+.online-ping.ping-good {
+  color: #69db7c;
+}
+
+.online-ping.ping-ok {
+  color: #ffd43b;
+}
+
+.online-ping.ping-bad {
+  color: #ff6b6b;
+}
+
+
+/* Rematch offer shown after an online match. */
+.rematch-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 8500;
+
+  transform: translateX(-50%);
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+
+  min-width: 240px;
+  padding: 14px 18px;
+
+  border: 1px solid rgba(120, 170, 220, 0.4);
+  border-radius: 16px;
+
+  background: linear-gradient(180deg, #0f1d33, #08111f);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+
+  color: #e6f0fb;
+  text-align: center;
+}
+
+.rematch-prompt span {
+  font-size: 12px;
+  color: #9fb6cc;
+}
+
+.rematch-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+
+/* Catch success glow + sparkles. */
+.catch-stage.success::before {
+  content: "";
+  position: absolute;
+  inset: 8% 14%;
+
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 212, 59, 0.45),
+    rgba(255, 212, 59, 0) 70%
+  );
+
+  animation: catchGlow 1.1s ease-out 1;
+}
+
+.catch-stage.success::after {
+  content: "✦  ✧  ✦  ✧  ✦";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+
+  color: #ffd43b;
+  letter-spacing: 10px;
+  font-size: 18px;
+
+  animation: catchSparkle 1.2s ease-out 1;
+}
+
+@keyframes catchGlow {
+  from { transform: scale(0.4); opacity: 1; }
+  to { transform: scale(1.3); opacity: 0; }
+}
+
+@keyframes catchSparkle {
+  from { transform: translateY(14px); opacity: 0; }
+  40% { opacity: 1; }
+  to { transform: translateY(-6px); opacity: 0.85; }
+}
+
+
+.tutorial-icon {
+  margin: 10px 0 2px;
+  font-size: 54px;
+  line-height: 1;
+}
+
+
+/* ============================================================
+   FRIENDS
+============================================================ */
+
+.friends-btn {
+  position: relative;
+}
+
+.friends-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+
+  border-radius: 999px;
+  background: #ff4d4d;
+  color: #fff;
+
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+.friends-badge.hidden {
+  display: none;
+}
+
+.friends-card {
+  display: flex;
+  flex-direction: column;
+
+  width: min(480px, 100%);
+  height: min(620px, 100%);
+
+  text-align: left;
+}
+
+.friends-close {
+  border: none;
+  background: transparent;
+  color: #9fb6cc;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.friends-tabs {
+  display: flex;
+  gap: 6px;
+
+  margin: 10px 0;
+}
+
+.friends-tab {
+  flex: 1;
+
+  padding: 9px 6px;
+
+  border: 1px solid rgba(120, 170, 220, 0.3);
+  border-radius: 10px;
+
+  background: rgba(255, 255, 255, 0.04);
+  color: #c9dbee;
+
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.friends-tab.active {
+  border-color: #ffd43b;
+  background: rgba(255, 212, 59, 0.12);
+  color: #ffd43b;
+}
+
+.friends-count {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+
+  font-size: 11px;
+  font-style: normal;
+  text-align: center;
+}
+
+.friends-body {
+  flex: 1;
+  overflow-y: auto;
+
+  padding-right: 2px;
+}
+
+.friends-empty {
+  padding: 18px 8px;
+
+  color: #9fb6cc;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.friends-section {
+  margin: 10px 2px 4px;
+
+  color: #7fa6cf;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 8px;
+  margin-bottom: 6px;
+
+  border: 1px solid rgba(120, 170, 220, 0.2);
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.friend-avatar {
+  position: relative;
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 50%;
+  color: #fff;
+
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.friend-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+
+  width: 12px;
+  height: 12px;
+
+  border: 2px solid #0b1626;
+  border-radius: 50%;
+
+  background: #6b7a8c;
+}
+
+.friend-dot.online {
+  background: #3ddc84;
+}
+
+.friend-dot.battle {
+  background: #ff9f43;
+}
+
+.friend-info {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.friend-info b {
+  overflow: hidden;
+
+  color: #fff;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-info small {
+  color: #8fa6bd;
+  font-size: 11px;
+}
+
+.friend-status.online {
+  color: #3ddc84;
+}
+
+.friend-status.battle {
+  color: #ff9f43;
+}
+
+.friend-btns {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.friend-btn {
+  padding: 7px 10px;
+
+  border: 1px solid rgba(120, 170, 220, 0.35);
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.07);
+  color: #e6f0fb;
+
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.friend-btn.good {
+  border-color: transparent;
+  background: #2f9e5f;
+  color: #fff;
+}
+
+.friend-btn.danger {
+  color: #ff8787;
+}
+
+.friend-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.friend-note {
+  color: #8fa6bd;
+  font-size: 12px;
+}
+
+.friends-myid {
+  margin-bottom: 10px;
+  padding: 10px;
+
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+
+  color: #c9dbee;
+  font-size: 13px;
+}
+
+.friends-myid b {
+  margin: 0 6px;
+
+  color: #ffd43b;
+  letter-spacing: 1.5px;
+}
+
+.friends-search {
+  display: flex;
+  gap: 8px;
+
+  margin-bottom: 10px;
+}
+
+.friends-search input {
+  flex: 1;
+  min-width: 0;
+
+  padding: 10px;
+
+  border: 1px solid rgba(120, 170, 220, 0.35);
+  border-radius: 10px;
+
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+/* Battle invite popup */
+.friend-invite-popup {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  z-index: 9500;
+
+  transform: translateX(-50%);
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+
+  min-width: 260px;
+  padding: 14px 18px;
+
+  border: 1px solid #ffd43b;
+  border-radius: 16px;
+
+  background: linear-gradient(180deg, #0f1d33, #08111f);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+
+  color: #fff;
+  text-align: center;
+}
+
+.friend-invite-popup span {
+  color: #9fb6cc;
+  font-size: 12px;
+}
+
+.friend-actions {
+  display: flex;
+  gap: 8px;
+
+  width: 100%;
+  margin-top: 8px;
+}
+
+
+/* Wager picker under a friend + wager line on the invite popup. */
+.invite-picker {
+  margin: -2px 0 8px;
+  padding: 10px;
+
+  border: 1px solid rgba(255, 212, 59, 0.35);
+  border-radius: 12px;
+
+  background: rgba(255, 212, 59, 0.06);
+}
+
+.invite-picker small {
+  display: block;
+  margin-bottom: 8px;
+
+  color: #9fb6cc;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.invite-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.invite-chip {
+  padding: 7px 10px;
+
+  border: 1px solid rgba(120, 170, 220, 0.35);
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6f0fb;
+
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.invite-chip.active {
+  border-color: #ffd43b;
+  background: rgba(255, 212, 59, 0.15);
+  color: #ffd43b;
+}
+
+.invite-chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.invite-send {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+.invite-send span {
+  color: #c9dbee;
+  font-size: 12px;
+}
+
+.friend-invite-popup .invite-wager {
+  color: #9fb6cc;
+  font-weight: 700;
+}
+
+.friend-invite-popup .invite-wager.has-bet {
+  color: #ffd43b;
+}

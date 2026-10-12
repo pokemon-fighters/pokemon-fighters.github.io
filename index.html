@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Sign-in gate: decide BEFORE first paint whether this browser
+         already has a signed-in trainer, so there's no flash of the
+         game underneath the gate. Must check the same key app.js
+         uses for GOOGLE_PROFILE_KEY. -->
+    <script>
+      (function () {
+        try {
+          var signedIn = !!localStorage.getItem("pf_google_profile_v1");
+
+          document.documentElement.classList.add(
+            signedIn ? "pf-authed" : "pf-gate",
+          );
+        } catch (e) {
+          document.documentElement.classList.add("pf-gate");
+        }
+      })();
+    </script>
+
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <title>Pokémon Fighter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" type="image/x-icon" href="icon-192.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <meta name="theme-color" content="#0b1220" />
+  </head>
+
+  <body>
+    <!-- SIGN-IN GATE — covers the whole app until the trainer signs
+         in with Google. Required so progress can be saved to a
+         specific account (see nsKey() in app.js). Visible by
+         default; the inline script in <head> hides it immediately
+         if this browser already has a signed-in trainer. -->
+
+    <div id="auth-gate" class="auth-gate">
+      <div class="bg-glow glow-a"></div>
+      <div class="bg-glow glow-b"></div>
+
+      <div class="auth-gate-card">
+        <div class="auth-gate-logo">⚡</div>
+
+        <div class="auth-gate-title">
+          <span>POKÉMON</span>
+          <b>FIGHTER</b>
+        </div>
+
+        <p class="auth-gate-copy">
+          Sign in with Google to save your trainer progress — it'll be
+          tied to your account so your team, captures, and rank are
+          right where you left them.
+        </p>
+
+        <div
+          id="gate-google-signin-container"
+          class="google-signin-container"
+        ></div>
+
+        <p id="gate-hint" class="google-setup-hint hidden"></p>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <main id="home-page" class="home screen">
+      <div class="bg-glow glow-a"></div>
+      <div class="bg-glow glow-b"></div>
+
+      <header class="topbar">
+        <div class="profile">
+          <div class="avatar" id="topbar-avatar">⚡</div>
+
+          <div>
+            <span class="eyebrow">TRAINER</span>
+            <strong id="trainer-name-label">Player One</strong>
+          </div>
+        </div>
+
+        <div class="resources">
+          <div class="resource">
+            <span>🥮</span>
+            <b id="coins">2,450</b>
+          </div>
+
+          <div class="resource">
+            <span>💎</span>
+            <b id="gems">180</b>
+          </div>
+
+          <button
+            class="resource resource-btn friends-btn"
+            id="btn-friends"
+            type="button"
+            title="Friends"
+          >
+            <span>👥</span>
+            <b id="friends-online-count">0</b>
+            <i id="friends-badge" class="friends-badge hidden">0</i>
+          </button>
+
+          <button
+            class="resource resource-btn"
+            id="btn-captured-topbar"
+            type="button"
+            title="Open your captured Pokémon"
+          >
+            <span
+              ><img
+                id="pokeball-image"
+                src="pokeball.png"
+            /></span>
+            <b id="captured-count">1</b>
+          </button>
+
+          <button
+            class="resource mode-toggle"
+            id="toggle-2p"
+            type="button"
+            title="1-player mode — the opponent is AI-controlled"
+          >
+            <span>🎮</span>
+            <b id="mode-toggle-label">1P</b>
+          </button>
+
+          <button
+            class="icon-btn install-btn"
+            id="install-app-btn"
+            type="button"
+            title="Download Pokémon Fighter as an app"
+          >
+            <span aria-hidden="true">⬇</span>
+            <span class="install-btn-label">Download</span>
+          </button>
+
+          <button class="icon-btn" id="settings">⚙</button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="season-pill">
+          🏆 SEASON 01
+          <span>•</span>
+          FIGHTER LEAGUE
+        </div>
+
+        <div class="hero-title">
+          <span>POKÉMON</span>
+          <b>FIGHTER</b>
+        </div>
+
+        <!-- FIGHTERS -->
+
+        <div class="fighters">
+          <!-- PLAYER -->
+
+          <div class="fighter-card left-fighter">
+            <div class="fighter-name">
+              <small id="player-role-label">YOUR FIGHTER</small>
+
+              <b id="player-name"> Pikachu </b>
+
+              <span id="player-type"> ELECTRIC </span>
+            </div>
+
+            <div class="pokemon-wrap">
+              <img id="player-img" alt="Player Pokémon" />
+            </div>
+
+            <div class="power">
+              ⚡
+              <b id="player-power">112</b>
+              POWER
+            </div>
+          </div>
+
+          <!-- VS -->
+
+          <div class="vs">
+            <div>VS</div>
+
+            <span>LIVE</span>
+          </div>
+
+          <!-- OPPONENT -->
+
+          <div class="fighter-card right-fighter">
+            <div class="fighter-name">
+              <small id="enemy-role-label">OPPONENT</small>
+
+              <b id="enemy-name"> Charizard </b>
+
+              <span id="enemy-type"> FIRE </span>
+            </div>
+
+            <div class="pokemon-wrap">
+              <img id="enemy-img" alt="Opponent Pokémon" />
+            </div>
+
+            <div class="power">
+              🔥
+              <b id="enemy-power">118</b>
+              POWER
+            </div>
+          </div>
+        </div>
+
+        <!-- MATCH INFORMATION -->
+
+        <div class="match-info">
+          <div>
+            <small>RANK</small>
+            <b id="rank-label">BRONZE III</b>
+          </div>
+
+          <div class="divider"></div>
+
+          <div>
+            <small>WIN STREAK</small>
+            <b id="win-streak-label">4 🔥</b>
+          </div>
+
+          <div class="divider"></div>
+
+          <div>
+            <small>ENERGY</small>
+            <b>FULL</b>
+          </div>
+        </div>
+      </section>
+
+      <!-- BOTTOM NAVIGATION -->
+
+      <nav class="bottom-nav">
+        <button class="nav-item active" id="btn-home">
+          <span>⌂</span>
+          HOME
+        </button>
+
+        <button class="nav-item" id="btn-shop">
+          <span>🛍️</span>
+          SHOP
+        </button>
+
+        <button class="nav-item" id="btn-captured">
+          <span>◈</span>
+          POKÉMON
+        </button>
+
+        <button class="battle-btn" id="btn-normal-battle">
+          <span>⚔</span>
+
+          BATTLE
+
+          <small> NORMAL MATCH </small>
+        </button>
+
+        <button class="nav-item" id="btn-ranked-battle">
+          <span>♛</span>
+          LEAGUE
+        </button>
+
+        <button class="nav-item" id="btn-online-battle">
+          <span>🌐</span>
+          ONLINE
+        </button>
+
+        <button class="nav-item" id="btn-info">
+          <span>?</span>
+          HOW TO PLAY
+        </button>
+      </nav>
+
+      <div id="api-status">Connecting to PokéAPI…</div>
+
+      <!-- ONLINE BATTLE MODAL — mode pick, matchmaking wait, room
+           codes, and (for now, this first version) a plain debug
+           view of the live synced battle state. A full animated
+           online battle screen replaces the debug view in a later
+           update. -->
+
+      <div id="online-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card online-card">
+          <button id="online-close" class="pokedex-close">✕</button>
+
+          <div id="online-mode-pick" class="online-section">
+            <div class="online-header">
+              <div class="online-icon-badge">🌐</div>
+              <h2 class="online-title">Play Online</h2>
+              <p class="online-copy">
+                Battle a real trainer live. Your current team is used.
+              </p>
+            </div>
+
+            <div class="online-bet">
+              <span class="online-bet-label">WAGER (WINNER TAKES BOTH)</span>
+              <div id="online-bet-chips" class="online-bet-chips">
+                <button type="button" class="online-bet-chip active" data-amount="0" data-currency="coins">No Bet</button>
+                <button type="button" class="online-bet-chip" data-amount="50" data-currency="coins">🥮 50</button>
+                <button type="button" class="online-bet-chip" data-amount="150" data-currency="coins">🥮 150</button>
+                <button type="button" class="online-bet-chip" data-amount="5" data-currency="gems">💎 5</button>
+                <button type="button" class="online-bet-chip" data-amount="15" data-currency="gems">💎 15</button>
+              </div>
+              <p class="online-bet-hint">
+                Both trainers must pick the same wager and be able to afford it.
+                The server holds both stakes and the winner takes the whole
+                pot.
+              </p>
+            </div>
+
+            <button
+              id="online-random-btn"
+              class="online-option online-option-random"
+              type="button"
+            >
+              <span class="online-option-icon">🎲</span>
+              <span class="online-option-body">
+                <span class="online-option-title">Random Opponent</span>
+                <span class="online-option-sub"
+                  >Quick matchmaking with any trainer online</span
+                >
+              </span>
+              <span class="online-option-arrow">›</span>
+            </button>
+
+            <button
+              id="online-create-room-btn"
+              class="online-option online-option-friend"
+              type="button"
+            >
+              <span class="online-option-icon">🔗</span>
+              <span class="online-option-body">
+                <span class="online-option-title">Play With a Friend</span>
+                <span class="online-option-sub"
+                  >Create a private room and share the code</span
+                >
+              </span>
+              <span class="online-option-arrow">›</span>
+            </button>
+
+            <div class="online-divider">OR JOIN WITH A CODE</div>
+
+            <div id="online-join-row" class="online-join-row">
+              <input
+                id="online-room-code-input"
+                class="online-code-input"
+                type="text"
+                maxlength="6"
+                placeholder="ENTER CODE"
+                autocomplete="off"
+                autocapitalize="characters"
+              />
+              <button id="online-join-room-btn" class="google-btn online-join-btn">
+                Join
+              </button>
+            </div>
+          </div>
+
+          <div id="online-waiting" class="online-section hidden">
+            <div class="online-waiting-visual">
+              <div class="online-spinner"></div>
+              <p id="online-waiting-text" class="online-waiting-title">
+                Searching for an opponent…
+              </p>
+              <p class="online-waiting-sub">
+                Hang tight, this won't take long.
+              </p>
+            </div>
+            <p id="online-room-code-display" class="online-room-code hidden"></p>
+            <button id="online-cancel-btn" class="settings-danger-btn">
+              Cancel
+            </button>
+          </div>
+
+          <div id="online-debug-battle" class="online-section hidden">
+            <p class="online-copy">Live online battle.</p>
+            <div id="online-debug-readout" class="online-debug-readout"></div>
+            <p class="online-copy">
+              Controls: A/D move · W jump · S attack (1-4 for a specific
+              move) · Q dodge · Shift block · Tab switch
+            </p>
+            <button id="online-leave-btn" class="settings-danger-btn">
+              Leave Match
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAM SELECT MODAL -->
+
+      <div id="team-select-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card team-select-card">
+          <button id="team-select-close" class="pokedex-close">✕</button>
+
+          <div class="pokedex-top">
+            <strong>CHOOSE YOUR TEAM</strong>
+            <span id="team-select-count">0/6 SELECTED</span>
+          </div>
+
+          <p id="team-select-hint" class="team-select-hint">
+            Tap the Pokémon you want to battle with.
+          </p>
+
+          <div id="team-select-lineup" class="team-lineup"></div>
+
+          <div
+            id="team-select-search-wrap"
+            class="roster-search-wrap team-select-search-wrap hidden"
+          >
+            <input
+              id="team-select-search"
+              class="roster-search"
+              type="text"
+              placeholder="Search Pokémon…"
+              autocomplete="off"
+            />
+          </div>
+
+          <div id="team-select-grid" class="roster-grid team-select-grid"></div>
+
+          <div class="team-select-actions">
+            <button id="team-select-cancel" class="back-btn">CANCEL</button>
+            <button
+              id="team-select-confirm"
+              class="battle-btn team-select-confirm"
+            >
+              ⚔ START BATTLE
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAM SELECT MODAL — PLAYER 2 (local 2-player mode) -->
+
+      <div id="team-select-p2-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card team-select-card">
+          <button id="team-select-p2-close" class="pokedex-close">✕</button>
+
+          <div class="pokedex-top">
+            <strong>CHOOSE PLAYER 2'S TEAM</strong>
+            <span id="team-select-p2-count">0/6 SELECTED</span>
+          </div>
+
+          <p class="team-select-hint">
+            Player 2, pick up to 6 Pokémon from the full Pokédex to fight with.
+            Leave slots empty and the rest will be auto-filled with wild
+            Pokémon.
+          </p>
+
+          <div class="roster-search-wrap team-select-search-wrap">
+            <input
+              id="team-select-p2-search"
+              class="roster-search"
+              type="text"
+              placeholder="Search Pokémon…"
+              autocomplete="off"
+            />
+          </div>
+
+          <div id="team-select-p2-lineup" class="team-lineup"></div>
+
+          <div
+            id="team-select-p2-grid"
+            class="roster-grid team-select-grid"
+          ></div>
+
+          <div class="team-select-actions">
+            <button id="team-select-p2-cancel" class="back-btn">CANCEL</button>
+            <button
+              id="team-select-p2-confirm"
+              class="battle-btn team-select-confirm"
+            >
+              ⚔ START BATTLE
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS MODAL -->
+
+      <div id="settings-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card settings-card">
+          <button id="settings-close" class="pokedex-close">✕</button>
+
+          <div class="pokedex-top">
+            <strong>SETTINGS</strong>
+          </div>
+
+          <div class="settings-body">
+            <div class="settings-row settings-row-col">
+              <span>Account</span>
+
+              <div
+                id="google-signin-container"
+                class="google-signin-container"
+              ></div>
+
+              <div id="google-account-info" class="google-account-info hidden">
+                <img
+                  id="google-account-avatar"
+                  class="google-account-avatar"
+                  alt=""
+                  referrerpolicy="no-referrer"
+                />
+
+                <div class="google-account-text">
+                  <b id="google-account-name"></b>
+                  <small id="google-account-email"></small>
+                </div>
+
+                <button
+                  id="google-signout-btn"
+                  class="settings-danger-btn"
+                  type="button"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+
+            <label class="settings-row" for="settings-trainer-name">
+              <span>Trainer Name</span>
+              <input
+                id="settings-trainer-name"
+                class="settings-input"
+                type="text"
+                maxlength="16"
+                autocomplete="off"
+                placeholder="Player One"
+              />
+            </label>
+
+            <p id="trainer-name-status" class="settings-hint hidden"></p>
+
+            <div class="settings-row">
+              <span>Sound Effects</span>
+              <button
+                id="settings-sound-toggle"
+                class="settings-switch"
+                type="button"
+                aria-pressed="false"
+              >
+                <i></i>
+              </button>
+            </div>
+
+            <div class="settings-row settings-row-col">
+              <span>Battle Difficulty</span>
+              <div id="settings-difficulty" class="settings-segment">
+                <button type="button" data-value="easy">Easy</button>
+                <button type="button" data-value="normal">Normal</button>
+                <button type="button" data-value="hard">Hard</button>
+              </div>
+            </div>
+
+            <div class="settings-row settings-row-col">
+              <span>Data</span>
+              <button
+                id="settings-reset"
+                class="settings-danger-btn"
+                type="button"
+              >
+                Reset Progress
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY MODAL -->
+
+      <div id="info-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card info-card">
+          <button id="info-close" class="pokedex-close">✕</button>
+
+          <div class="pokedex-top">
+            <strong>HOW TO PLAY</strong>
+          </div>
+
+          <div id="info-body" class="info-body">
+            <!-- populated by app.js -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- BATTLE SCREEN -->
+
+    <main id="battlefield-page" class="battle screen hidden">
+      <button
+        id="battle-flip-orientation"
+        type="button"
+        class="hidden"
+        title="Flip rotation direction"
+        aria-label="Flip rotation direction"
+      >
+        ⟲
+      </button>
+
+      <div id="game-container"></div>
+
+      <!-- VS INTRO — plays over the battlefield at the start of an
+           online match (see showVsIntro in app.js) -->
+      <div id="vs-intro" class="vs-intro hidden">
+        <div class="vs-intro-name vs-intro-left" id="vs-intro-name-left"></div>
+        <div class="vs-intro-badge">VS</div>
+        <div class="vs-intro-name vs-intro-right" id="vs-intro-name-right"></div>
+      </div>
+
+      <div class="battle-top">
+        <div class="health-card">
+          <div>
+            <b id="p1-label"> Pikachu </b>
+
+            <span> YOU </span>
+          </div>
+
+          <div id="p1-trainer" class="trainer-tag">Trainer</div>
+
+          <div class="hp">
+            <i id="p1-hp" style="width: 100%"></i>
+          </div>
+
+          <div id="p1-team-pips" class="team-pips"></div>
+
+          <div id="move-hotkeys-hint" class="move-hotkeys-hint hidden"></div>
+
+          <div id="ball-hotkey-hint" class="move-hotkeys-hint hidden"></div>
+        </div>
+
+        <div class="round">
+          ROUND
+          <b>01</b>
+        </div>
+
+        <div class="health-card enemy">
+          <div>
+            <b id="p2-label"> Charizard </b>
+
+            <span> OPPONENT </span>
+          </div>
+
+          <div id="p2-trainer" class="trainer-tag">Trainer</div>
+
+          <div class="hp">
+            <i id="p2-hp" style="width: 100%"></i>
+          </div>
+
+          <div id="p2-team-pips" class="team-pips"></div>
+        </div>
+      </div>
+
+      <div id="controls-transcript">
+        P1: A/D move • W jump • S attack • Q dodge • 5 throw ball • 6 change ball &nbsp; | &nbsp; P2: ←/→
+        move • ↑ jump • ↓ attack • / dodge
+      </div>
+
+      <button id="back-home" class="back-btn">← HOME</button>
+
+      <!-- ON-SCREEN TOUCH CONTROLS (phones/tablets — mirrors Player 1's
+           keyboard controls; hidden on mouse/keyboard desktop layouts) -->
+
+      <!-- MOVE PICKER (phones/tablets) — the on-screen equivalent of
+           hotkeys 1-4. Filled in by updatePokemonLabels (game.js) with
+           the active Pokémon's moves; hidden when it has none. -->
+
+      <div id="touch-moves" class="touch-moves hidden"></div>
+
+      <div id="touch-controls" class="touch-controls">
+        <div class="touch-dpad">
+          <button
+            id="touch-left"
+            class="touch-btn"
+            type="button"
+            aria-label="Move left"
+          >
+            ◀
+          </button>
+          <button
+            id="touch-jump"
+            class="touch-btn"
+            type="button"
+            aria-label="Jump"
+          >
+            ▲
+          </button>
+          <button
+            id="touch-right"
+            class="touch-btn"
+            type="button"
+            aria-label="Move right"
+          >
+            ▶
+          </button>
+        </div>
+
+        <div class="touch-actions">
+          <button
+            id="touch-switch"
+            class="touch-btn touch-btn-small"
+            type="button"
+            aria-label="Switch Pokémon"
+          >
+            ⇄
+          </button>
+          <button
+            id="touch-block"
+            class="touch-btn"
+            type="button"
+            aria-label="Block"
+          >
+            🛡
+          </button>
+          <button
+            id="touch-dodge"
+            class="touch-btn"
+            type="button"
+            aria-label="Dodge"
+          >
+            ↺
+          </button>
+          <button
+            id="touch-ball-next"
+            class="touch-btn touch-btn-small"
+            type="button"
+            aria-label="Change Poké Ball type"
+          >
+            ⇄
+          </button>
+          <button
+            id="touch-ball"
+            class="touch-btn touch-btn-small"
+            type="button"
+            aria-label="Throw Poké Ball"
+          >
+            <img src="pokeball.png" alt="" style="width: 70%; height: 70%" />
+          </button>
+          <button
+            id="touch-attack"
+            class="touch-btn touch-btn-attack"
+            type="button"
+            aria-label="Attack"
+          >
+            ⚔
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- FIGHTER ROSTER / POKÉDEX -->
+
+    <main id="roster-page" class="roster screen hidden">
+      <header class="roster-top">
+        <button id="roster-back" class="back-btn roster-back">← HOME</button>
+
+        <div class="roster-heading">
+          <strong>POKÉDEX</strong>
+          <span id="roster-count">Loading roster…</span>
+        </div>
+      </header>
+
+      <div id="roster-categories" class="roster-categories">
+        <button class="type-chip active" data-type="all">All</button>
+        <button class="type-chip" data-type="captured">⚡ Captured</button>
+        <button class="type-chip" data-type="normal">Normal</button>
+        <button class="type-chip" data-type="fire">Fire</button>
+        <button class="type-chip" data-type="water">Water</button>
+        <button class="type-chip" data-type="electric">Electric</button>
+        <button class="type-chip" data-type="grass">Grass</button>
+        <button class="type-chip" data-type="ice">Ice</button>
+        <button class="type-chip" data-type="fighting">Fighting</button>
+        <button class="type-chip" data-type="poison">Poison</button>
+        <button class="type-chip" data-type="ground">Ground</button>
+        <button class="type-chip" data-type="flying">Flying</button>
+        <button class="type-chip" data-type="psychic">Psychic</button>
+        <button class="type-chip" data-type="bug">Bug</button>
+        <button class="type-chip" data-type="rock">Rock</button>
+        <button class="type-chip" data-type="ghost">Ghost</button>
+        <button class="type-chip" data-type="dragon">Dragon</button>
+        <button class="type-chip" data-type="dark">Dark</button>
+        <button class="type-chip" data-type="steel">Steel</button>
+        <button class="type-chip" data-type="fairy">Fairy</button>
+      </div>
+
+      <div class="roster-search-wrap">
+        <input
+          id="roster-search"
+          class="roster-search"
+          type="text"
+          placeholder="Search Pokémon…"
+          autocomplete="off"
+        />
+      </div>
+
+      <div id="roster-grid" class="roster-grid"></div>
+
+      <!-- POKÉDEX ENTRY MODAL -->
+
+      <div id="pokedex-modal" class="pokedex-modal hidden">
+        <div class="pokedex-card">
+          <button id="pokedex-close" class="pokedex-close">✕</button>
+
+          <div id="pokedex-body" class="pokedex-body">
+            <!-- populated by app.js -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- LEAGUE -->
+
+    <main id="league-page" class="league screen hidden">
+      <header class="roster-top">
+        <button id="league-back" class="back-btn roster-back">← HOME</button>
+
+        <div class="roster-heading">
+          <strong>FIGHTER LEAGUE</strong>
+          <span>Season 01</span>
+        </div>
+      </header>
+
+      <div class="league-body">
+        <div class="league-rank-card">
+          <div class="league-rank-icon" id="league-rank-icon">🥉</div>
+
+          <div class="league-rank-info">
+            <small>CURRENT RANK</small>
+            <b id="league-rank-name">Bronze III</b>
+
+            <div class="league-progress-track">
+              <i id="league-progress-fill" style="width: 0%"></i>
+            </div>
+
+            <span id="league-progress-label">0/3 wins to promote</span>
+          </div>
+        </div>
+
+        <div class="league-stat-row">
+          <div class="league-stat-card">
+            <small>WIN STREAK</small>
+            <b id="league-streak-value">0 🔥</b>
+          </div>
+
+          <div class="league-stat-card">
+            <small>BEST STREAK</small>
+            <b id="league-best-streak-value">0</b>
+          </div>
+        </div>
+
+        <div class="league-stat-row">
+          <div class="league-stat-card">
+            <small>🥮 COINS</small>
+            <b id="league-coins-value">0</b>
+          </div>
+
+          <div class="league-stat-card">
+            <small>💎 GEMS</small>
+            <b id="league-gems-value">0</b>
+          </div>
+        </div>
+
+        <div class="league-rewards">
+          <small>MATCH REWARDS</small>
+          <p id="league-rewards-text">
+            Win a League battle for coins, a chance at gems, and progress toward
+            your next promotion. Lose your streak and you'll drop back a rank.
+          </p>
+        </div>
+
+        <button id="league-battle-btn" class="battle-btn league-battle-btn">
+          <span>⚔</span>
+          ENTER LEAGUE BATTLE
+        </button>
+      </div>
+    </main>
+
+    <!-- SHOP -->
+
+    <main id="shop-page" class="league screen hidden">
+      <header class="roster-top">
+        <button id="shop-back" class="back-btn roster-back">← HOME</button>
+
+        <div class="roster-heading">
+          <strong>SHOP</strong>
+          <span>Poké Balls, Berries &amp; Potions</span>
+        </div>
+      </header>
+
+      <div class="league-body">
+        <div class="league-stat-row">
+          <div class="league-stat-card">
+            <small>🥮 COINS</small>
+            <b id="shop-coins-value">0</b>
+          </div>
+
+          <div class="league-stat-card">
+            <small>💎 GEMS</small>
+            <b id="shop-gems-value">0</b>
+          </div>
+        </div>
+
+        <div class="shop-inventory-row">
+          <div class="shop-inventory-card">
+            <span
+              ><img
+                class="shop-inventory-icon"
+                src="pokeball.png"
+                alt="Poké Ball"
+            /></span>
+            <b id="shop-inv-pokeballs">0</b>
+            <small>Poké Balls</small>
+          </div>
+
+          <div class="shop-inventory-card">
+            <span>🍒</span>
+            <b id="shop-inv-berries">0</b>
+            <small>Berries</small>
+          </div>
+
+          <div class="shop-inventory-card">
+            <span>🧪</span>
+            <b id="shop-inv-potions">0</b>
+            <small>Potions</small>
+          </div>
+        </div>
+
+        <div id="shop-items" class="shop-items"></div>
+
+        <p class="shop-hint">
+          There are 27 kinds of Poké Ball, each with its own odds. Win a
+          1-player battle and a catch screen opens where you throw one, or
+          press 5 during a fight (6 changes the ball type). Stronger balls
+          catch more easily, but even a fainted Pokémon can refuse to settle
+          in the ball and break free. Berries
+          and Potions heal a captured Pokémon's damage from your Captured tab,
+          so it doesn't carry battle scars into the next fight.
+        </p>
+      </div>
+    </main>
+
+    <!-- TOAST NOTIFICATIONS -->
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- Firebase (Auth + Firestore) — loaded before app.js so it's
+         ready synchronously when app.js runs. Compat build is used
+         (not the modular v9+ SDK) so it works as a plain global
+         script, matching the rest of this project's no-bundler
+         setup. -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="game.js"></script>
+    <script src="app.js"></script>
+    <script src="friends.js"></script>
+  </body>
+</html>

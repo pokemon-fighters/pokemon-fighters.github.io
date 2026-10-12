@@ -1,0 +1,237 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only the wagers the UI actually offers (see ALLOWED_BETS in
+    // app.js). Blocks negative / fractional / oversized stakes.
+    function validBet(amount, currency) {
+      return (amount == 0 && currency == 'coins') ||
+        (currency == 'coins' && (amount == 50 || amount == 150)) ||
+        (currency == 'gems' && (amount == 5 || amount == 15));
+    }
+
+    // Sanity bounds for a numeric field in a player save.
+    function okCount(data, field) {
+      return !(field in data) ||
+        (data[field] is number && data[field] >= 0 && data[field] <= 100000000);
+    }
+
+    // Each signed-in trainer can only read/write their OWN save —
+    // the document ID must match their verified Firebase Auth uid.
+    match /players/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+
+      // Own save only, and numeric balances must be sane. NOTE: this
+      // is only a bounds check — a determined player can still edit
+      // their own balances. Fully trusting the economy needs the
+      // match server / a Cloud Function to own coins and gems.
+      allow create, update: if request.auth != null &&
+        request.auth.uid == uid &&
+        okCount(request.resource.data, 'coins') &&
+        okCount(request.resource.data, 'gems') &&
+        okCount(request.resource.data, 'pokeballCount') &&
+        okCount(request.resource.data, 'berryCount') &&
+        okCount(request.resource.data, 'potionCount') &&
+        okCount(request.resource.data, 'rankIndex') &&
+        okCount(request.resource.data, 'rankWins') &&
+        okCount(request.resource.data, 'winStreak') &&
+        okCount(request.resource.data, 'bestStreak');
+    }
+
+    // Random-match waiting tickets. Anyone signed in can see who's
+    // waiting (needed to find an opponent), but you can only
+    // create/update your own ticket.
+    match /queue/{uid} {
+      allow read: if request.auth != null;
+
+      // Wagers are validated by the match server (and sanitized by
+      // the client), so a ticket only needs to belong to its owner.
+      allow create: if request.auth != null && request.auth.uid == uid;
+
+      // The owner can update their own ticket. Another player can
+      // ONLY "claim" an unclaimed ticket by setting claimedBy to
+      // their own uid (nothing else may change) — the owner then
+      // deletes their own ticket. This replaces the old rule that
+      // let ANY signed-in user delete ANY ticket, which allowed
+      // wiping everyone's matchmaking search.
+      allow update: if request.auth != null && (
+        request.auth.uid == uid ||
+        (resource.data.get('claimedBy', null) == null &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedBy']) &&
+         request.resource.data.claimedBy == request.auth.uid)
+      );
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Match rooms (both random-match pairings and friend room
+    // codes). You can only create a room that names you as one of
+    // the two participants, and can only update a room you're
+    // already part of (or are joining as the empty guest slot).
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+        (request.resource.data.hostUid == request.auth.uid ||
+         request.resource.data.guestUid == request.auth.uid);
+
+      // Existing participants may update, but the host and the stake
+      // can never change. A stranger may only take the guest slot if
+      // it is EMPTY (previously anyone could overwrite guestUid on a
+      // full room and hijack it).
+      allow update: if request.auth != null &&
+        request.resource.data.hostUid == resource.data.hostUid &&
+        request.resource.data.get('betAmount', 0) == resource.data.get('betAmount', 0) &&
+        request.resource.data.get('betCurrency', 'coins') == resource.data.get('betCurrency', 'coins') &&
+        (resource.data.hostUid == request.auth.uid ||
+         resource.data.guestUid == request.auth.uid ||
+         (resource.data.guestUid == null &&
+          request.resource.data.guestUid == request.auth.uid));
+
+      // Either side of a match can delete the room doc once both
+      // have what they need from it (see the cleanup calls right
+      // after connectToMatch() in app.js). There was previously no
+      // delete rule at all, so rooms accumulated forever — old
+      // "matched" rooms then got picked up by a LATER, unrelated
+      // search from the same account and hijacked it into a dead
+      // room, which is what made Random Opponent look broken.
+      allow delete: if request.auth != null &&
+        (resource.data.hostUid == request.auth.uid ||
+         resource.data.guestUid == request.auth.uid);
+    }
+
+    // ------------------------------------------------------------
+    // FRIENDS
+    // ------------------------------------------------------------
+
+    // Public profile used to find a trainer by name / Trainer ID and
+    // to show Online / In battle / Offline. Anyone signed in can read
+    // it; only the owner can write their own, with a fixed set of
+    // fields.
+    match /profiles/{uid} {
+      allow read: if request.auth != null;
+
+      allow create, update: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(
+          ['uid', 'name', 'nameLower', 'shortId', 'activity', 'lastSeen']) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() <= 24 &&
+        request.resource.data.nameLower is string &&
+        request.resource.data.nameLower.size() <= 24;
+
+      allow delete: if false;
+    }
+
+    // A pending friend request. The id is always <fromUid>_<toUid>,
+    // so there can only be one per direction. Only the two people
+    // involved can see it, and either can cancel/decline it.
+    match /friendRequests/{reqId} {
+      allow read: if request.auth != null &&
+        (resource.data.from == request.auth.uid ||
+         resource.data.to == request.auth.uid);
+
+      allow create: if request.auth != null &&
+        request.resource.data.from == request.auth.uid &&
+        request.resource.data.to != request.auth.uid &&
+        reqId == request.resource.data.from + '_' + request.resource.data.to &&
+        request.resource.data.keys().hasOnly(
+          ['from', 'to', 'fromName', 'toName', 'createdAt']);
+
+      allow update: if false;
+
+      allow delete: if request.auth != null &&
+        (resource.data.from == request.auth.uid ||
+         resource.data.to == request.auth.uid);
+    }
+
+    // Each trainer's friend list. You can always edit your own list.
+    // The person ACCEPTING a request may also write the requester's
+    // side — but only while that request to them really exists, so
+    // nobody can put themselves on a stranger's list. Either side can
+    // remove the friendship.
+    match /friends/{uid}/list/{friendUid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null && uid != friendUid && (
+        request.auth.uid == uid ||
+        (request.auth.uid == friendUid &&
+         get(/databases/$(database)/documents/friendRequests/$(uid + '_' + friendUid)).data.to == request.auth.uid));
+
+      allow update: if request.auth != null && request.auth.uid == uid;
+
+      allow delete: if request.auth != null &&
+        (request.auth.uid == uid || request.auth.uid == friendUid);
+    }
+
+    // Battle invites. You can only invite someone who has YOU on
+    // their friend list, the invite sits in THEIR inbox, and they (or
+    // you) can delete it.
+    match /invites/{toUid}/items/{fromUid} {
+      allow read: if request.auth != null && request.auth.uid == toUid;
+
+      allow create, update: if request.auth != null &&
+        request.auth.uid == fromUid &&
+        request.resource.data.from == fromUid &&
+        request.resource.data.keys().hasOnly(
+          ['from', 'fromName', 'roomCode', 'betAmount', 'betCurrency', 'createdAt']) &&
+        validBet(request.resource.data.betAmount, request.resource.data.betCurrency) &&
+        exists(/databases/$(database)/documents/friends/$(toUid)/list/$(fromUid));
+
+      allow delete: if request.auth != null &&
+        (request.auth.uid == toUid || request.auth.uid == fromUid);
+    }
+
+    // Wager stakes / payouts written ONLY by the match server (via
+    // firebase-admin, which bypasses these rules). Players can read
+    // their own entries and delete them once applied to their wallet,
+    // but can never create or edit one — so winnings can't be forged.
+    match /walletAdjustments/{uid}/entries/{entryId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if false;
+    }
+
+    // Server-only wager bookkeeping (no client access at all).
+    match /wagers/{wagerId} {
+      allow read, write: if false;
+    }
+
+    // Verified match results — only the trusted match server
+    // writes here (via firebase-admin, which bypasses these rules
+    // entirely). Signed-in players can read match history.
+    match /matches/{matchId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Trainer name reservations — doc id is the name itself
+    // (lowercased/trimmed), so two trainers can never hold the same
+    // one; whichever uid's doc exists for a given id owns that name.
+    // See claimTrainerName in app.js, which always renames inside a
+    // single transaction (claim the new id, release the old one).
+    match /trainerNames/{nameKey} {
+      // Anyone signed in can check whether a name is free before
+      // trying to claim it, or see who owns one.
+      allow read: if request.auth != null;
+
+      // You can only ever create a reservation that names YOU as
+      // the owner. Firestore's create() itself already fails if a
+      // document with this id already exists, which is what makes
+      // "first writer wins" hold even under a race — this rule just
+      // stops the winner's write from claiming it for someone else.
+      allow create: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+
+      // Only the current owner can release a name (done as part of
+      // renaming to a different one).
+      allow delete: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+
+      // Names are always released-then-reclaimed, never edited in
+      // place, so there's nothing to update.
+      allow update: if false;
+    }
+  }
+}
