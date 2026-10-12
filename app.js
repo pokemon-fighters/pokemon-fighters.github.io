@@ -5749,6 +5749,10 @@ const onlineMatch = {
   queueUnsub: null,
   roomUnsub: null,
   input: { left: false, right: false, block: false },
+  /* Bumped by every connectToMatch AND every stopOnlineMatch. An
+     in-flight connectToMatch compares it after each await, so a
+     Cancel pressed while it was still preparing really cancels. */
+  attempt: 0,
 };
 
 /* Best-effort cleanup if the tab is closed/refreshed mid-search —
@@ -6913,34 +6917,86 @@ async function commitTrainerName() {
   });
 }
 
-/* Fire-and-forget check run once at startup: makes sure whatever
-   name is currently saved locally is actually reserved under this
-   account, silently claiming it if it's free (covers everyone who
-   already had a name saved before this feature existed) and
-   warning — without forcing anything — if it's somehow already
-   someone else's. */
+/* Builds a free-looking alternative to a taken name: the original
+   (shortened if needed so the whole thing still fits the 16-character
+   limit) plus a few digits, e.g. "Arman" -> "Arman482". More digits
+   are used as the attempts go on, so it can always find something. */
+function trainerNameCandidate(rawName, attempt) {
+  const digits = attempt < 5 ? 2 : attempt < 9 ? 3 : 4;
+  const num = String(
+    Math.floor(Math.random() * Math.pow(10, digits)),
+  ).padStart(digits, "0");
+
+  return rawName.trim().slice(0, 16 - num.length) + num;
+}
+
+/* Run once at startup: makes sure whatever name is saved locally is
+   actually reserved under this account.
+
+   • Free (or already yours) -> it's reserved, nothing else happens.
+   • TAKEN by another trainer -> previously this only showed a
+     warning and left the duplicate name in place, so a brand-new
+     account whose Google name (e.g. "Arman") already belonged to
+     someone else kept using it. Now it automatically picks the
+     nearest free name ("Arman482"), saves it, and tells the player —
+     two trainers can never end up sharing a name. They can still
+     change it any time in Settings. */
 async function ensureTrainerNameClaimed() {
   const raw = (settings.trainerName || "").trim();
 
   if (!raw) return;
 
-  const result = await claimTrainerName(raw, raw);
+  /* previous = "" on purpose. Passing (raw, raw) made claimTrainerName
+     think "nothing changed" and return success WITHOUT touching
+     Firestore — so this startup check never reserved or verified the
+     name at all, and two accounts could share a Google first name. */
+  const result = await claimTrainerName(raw, "");
 
   if (result.ok) {
     lastClaimedTrainerName = raw;
     return;
   }
 
-  if (result.reason === "taken") {
-    showToast({
-      icon: "⚠️",
-      title: "Your trainer name is already taken",
-      message:
-        "Another trainer already has \"" +
-        raw +
-        "\" — pick a new one in Settings.",
-    });
+  if (result.reason !== "taken") return;
+
+  for (let attempt = 0; attempt < 14; attempt++) {
+    const candidate = trainerNameCandidate(raw, attempt);
+
+    /* previous = "" : we don't own the taken name, so there is
+       nothing of ours to release. */
+    const tryClaim = await claimTrainerName(candidate, "");
+
+    if (tryClaim.ok) {
+      settings.trainerName = candidate;
+      lastClaimedTrainerName = candidate;
+
+      saveSettings();
+      updateTrainerNameUI();
+
+      showToast({
+        icon: "🏷️",
+        title: "\"" + raw + "\" was already taken",
+        message:
+          "You're now \"" +
+          candidate +
+          "\". You can change it in Settings.",
+        duration: 6000,
+      });
+
+      return;
+    }
+
+    if (tryClaim.reason === "error") break;
   }
+
+  showToast({
+    icon: "⚠️",
+    title: "Your trainer name is already taken",
+    message:
+      "Another trainer already has \"" +
+      raw +
+      "\" — pick a new one in Settings.",
+  });
 }
 
 async function buildOnlineTeamPayload() {
@@ -6973,6 +7029,8 @@ async function buildOnlineTeamPayload() {
 }
 
 async function connectToMatch(roomId, trainerNames, bet) {
+  const attempt = ++onlineMatch.attempt;
+
   showOnlineSection("online-waiting");
   setWaitingText("Connecting to the match server…");
   document.getElementById("online-room-code-display").classList.add("hidden");
@@ -7019,6 +7077,8 @@ async function connectToMatch(roomId, trainerNames, bet) {
     token = await fbAuth.currentUser.getIdToken();
     teamPayload = await buildOnlineTeamPayload();
   } catch (e) {
+    if (onlineMatch.attempt !== attempt) return;
+
     showToast({
       icon: "⚠️",
       title: "Couldn't start the match",
@@ -7029,6 +7089,11 @@ async function connectToMatch(roomId, trainerNames, bet) {
     showOnlineSection("online-mode-pick");
     return;
   }
+
+  /* The player pressed Cancel / left while we were fetching the login
+     token and building the team — don't open a connection for a
+     search that no longer exists. */
+  if (onlineMatch.attempt !== attempt) return;
 
   const url =
     MATCH_SERVER_URL +
@@ -7571,6 +7636,7 @@ function stopOnlinePing() {
 }
 
 function stopOnlineMatch() {
+  onlineMatch.attempt += 1;
   onlineMatch.active = false;
   onlineMatch.reconnecting = false;
 
@@ -7582,8 +7648,26 @@ function stopOnlineMatch() {
   window.removeEventListener("keyup", handleOnlineKeyUp);
 
   if (onlineMatch.ws) {
+    const ws = onlineMatch.ws;
+
     try {
-      onlineMatch.ws.close();
+      if (ws.readyState === WebSocket.CONNECTING) {
+        /* Closing a socket that hasn't connected yet makes the browser
+           print "WebSocket is closed before the connection is
+           established". Let it finish connecting, then close it. */
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.onopen = () => {
+          try {
+            ws.close();
+          } catch (e) {
+            /* Already closed. */
+          }
+        };
+      } else {
+        ws.close();
+      }
     } catch (e) {
       /* Already closed. */
     }
