@@ -601,6 +601,8 @@ function initGoogleSignIn() {
 ============================================================ */
 
 if (fbAuth) {
+  let nameCheckedForAccount = null;
+
   fbAuth.onAuthStateChanged((user) => {
     if (user) {
       const profile = buildProfileFromFirebaseUser(user);
@@ -624,6 +626,19 @@ if (fbAuth) {
            another device has saved something newer. */
 
         backgroundCloudSyncCheck();
+
+        /* Reserve this trainer's name now that the signed-in user is
+           known (once per account per page load). The check at
+           startup ran BEFORE Firebase restored the session, saw no
+           user, and silently did nothing — so a new account never
+           had its Google first name checked and could end up sharing
+           it with someone else. If the name is taken this swaps in a
+           free one ("Arman" -> "Arman482"). */
+        if (nameCheckedForAccount !== profile.sub) {
+          nameCheckedForAccount = profile.sub;
+
+          ensureTrainerNameClaimed();
+        }
       }
     } else if (googleProfile) {
       /* Firebase says signed out (session expired, or signed out on
@@ -792,11 +807,15 @@ function wireHoldButton(id, key, code) {
    button is for. */
 
 // URL of the built Windows installer (electron-builder / NSIS .exe).
-// This MUST exactly match the filename you upload to /downloads/ on
-// your Netlify site (case + punctuation, including underscores vs dots).
+// The Windows installer lives in a GitHub Release of the
+// pokemon-fighters website repo. "releases/latest/download/<file>"
+// always serves the newest release's file, so publishing a new
+// version never needs a website change — just attach an installer
+// named EXACTLY "Pokemon-Fighter-Setup.exe" (no version number in the
+// file name) to each new release.
 const WINDOWS_INSTALLER_URL =
-  "https://github.com/webmaker007/Arman/releases/download/v1.0.0/Pokemon-Fighter-Setup-1_0_0.exe";
-const WINDOWS_INSTALLER_FILENAME = "Pokemon-Fighter-Setup-1_0_0.exe";
+  "https://github.com/pokemon-fighters/pokemon-fighters.github.io/releases/latest/download/Pokemon-Fighter-Setup.exe";
+const WINDOWS_INSTALLER_FILENAME = "Pokemon-Fighter-Setup.exe";
 
 function isWindows() {
   const uaPlatform =
@@ -6827,11 +6846,16 @@ async function claimTrainerName(rawName, previousRawName) {
         tx.delete(fbDb.collection("trainerNames").doc(previousKey));
       }
 
-      tx.set(newRef, {
-        uid: uid,
-        name: trimmed,
-        claimedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      /* Already reserved by THIS account: nothing to write (and the
+         security rules only allow creating a reservation, not
+         rewriting one). */
+      if (!newSnap.exists) {
+        tx.set(newRef, {
+          uid: uid,
+          name: trimmed,
+          claimedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
 
       return { ok: true };
     });
