@@ -5194,3 +5194,31 @@ html.pf-authed #auth-gate {
 .friend-invite-popup .invite-wager.has-bet {
   color: #ffd43b;
 }
+
+/* ===== ADVENTURE MODE ===== */
+#adventure-page{overflow:auto}
+.adv-wrap{max-width:520px;margin:0 auto;padding:14px;color:#eaf0ff}
+.adv-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.adv-top h2{margin:0;font-size:1.2rem;letter-spacing:.08em;flex:1}
+.adv-pill{background:#141d33;border:1px solid #26324f;border-radius:999px;padding:4px 12px;font-weight:600;font-size:.85rem}
+#adv-map{display:block;width:100%;height:auto;border-radius:10px;image-rendering:pixelated;background:#000}
+#adv-msg{min-height:1.4em;margin:8px 2px;color:#9aa8c9;font-size:.92rem}
+.adv-btn{font:inherit;font-weight:700;border:0;border-radius:10px;background:#3d5bff;color:#fff;min-height:44px;padding:0 14px;cursor:pointer}
+.adv-btn:disabled{opacity:.5}
+.adv-ghost{background:transparent;color:#9aa8c9;border:1px solid #26324f;min-height:36px}
+.adv-pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,52px);gap:6px;justify-content:center;margin:6px 0 12px}
+.adv-pad .u{grid-column:2}.adv-pad .l{grid-row:2}.adv-pad .d{grid-row:2;grid-column:2}.adv-pad .r{grid-row:2;grid-column:3}
+.adv-team{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.adv-chip{border:1px solid #26324f;border-radius:10px;padding:4px 10px;font-size:.88rem;background:#141d33}
+.adv-chip.down{opacity:.45}
+#adv-battle{position:fixed;inset:0;background:rgba(5,9,20,.82);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+#adv-battle[hidden]{display:none}
+.adv-bx{width:100%;max-width:480px;background:#141d33;border:1px solid #26324f;border-radius:16px;padding:14px;max-height:100%;overflow:auto}
+.adv-row{display:flex;align-items:center;gap:12px;margin:8px 0}
+.adv-em{font-size:2.6rem;width:56px;text-align:center}
+.adv-grow{flex:1}.adv-nm{font-weight:700}.adv-nm small{color:#9aa8c9;font-weight:500}
+.adv-hp{height:10px;border-radius:6px;background:#26324f;overflow:hidden;margin-top:4px}
+.adv-hp i{display:block;height:100%;background:#38d26a;transition:width .3s}
+.adv-row.foe .adv-hp i{background:#ff5a63}
+#adv-log{min-height:3em;margin:10px 0;color:#9aa8c9}
+.adv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
