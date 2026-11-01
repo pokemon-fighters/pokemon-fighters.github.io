@@ -16,7 +16,7 @@
 ============================================================
 */
 
-const CACHE_VERSION = "v39";
+const CACHE_VERSION = "v40";
 const SHELL_CACHE = `fighter-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fighter-runtime-${CACHE_VERSION}`;
 
