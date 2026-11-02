@@ -1,8 +1,6 @@
 /* ============================================================
-   ADVENTURE (3D) — STORY ADVENTURE + STORM ROYALE
-   STORY: a Pokémon-ROM style journey with a starter, a rival, route
-   trainers, tall grass, Pokémon Centers, Marts, 3 gym badges and a
-   Champion. STORM ROYALE: 20 trainers drop onto a huge 240 x 240 map. A storm closes in
+   ADVENTURE (3D) — STORM ROYALE
+   20 trainers drop onto a huge 240 x 240 map. A storm closes in
    five phases, loot crates hide around the cottages, rivals roam
    and chase you, and the last rival is the Mewtwo boss. Be the
    last one standing for a BOOYAH!
@@ -38,20 +36,13 @@
   const IMM = { electric: "ground", normal: "ghost", ghost: "normal", ground: "flying", psychic: "dark", fighting: "ghost", dragon: "fairy" };
   const TC = { fire: 0xf08030, water: 0x4a90d9, grass: 0x58b84a, electric: 0xf5d33b, normal: 0xb8b8a8, psychic: 0xf95587, ghost: 0x705898, dragon: 0x6f35fc, fighting: 0xc03028, poison: 0xa040a0, rock: 0xb8a038, ground: 0xe0c068, flying: 0xa890f0, bug: 0xa8b820, steel: 0xb8b8d0, dark: 0x705848, fairy: 0xee99ac, ice: 0x98d8d8 };
   const eff = (a, d) => { let m = 1; d.t.forEach((t) => { if (has(IMM[a], t)) m = 0; else if (has(SE[a], t)) m *= 2; else if (has(RES[a], t)) m *= 0.5; }); return m; };
-  const EXTRA = [[2, "Ivysaur", "grass,poison", 2], [5, "Charmeleon", "fire", 2], [8, "Wartortle", "water", 2], [64, "Kadabra", "psychic", 2], [93, "Haunter", "ghost,poison", 2], [75, "Graveler", "rock,ground", 2], [67, "Machoke", "fighting", 2], [42, "Golbat", "poison,flying", 2], [44, "Gloom", "grass,poison", 2], [20, "Raticate", "normal", 1], [76, "Golem", "rock,ground", 3]].map(([id, n, t, k]) => ({ id, n, s: n.toLowerCase(), t: t.split(","), k }));
-  const SPECIES = {}; POOL.concat(EXTRA, [BOSS]).forEach((p) => { SPECIES[p.id] = p; });
-  const EVO = { 1: [2, 16], 2: [3, 32], 4: [5, 16], 5: [6, 36], 7: [8, 16], 8: [9, 36], 25: [26, 22], 19: [20, 20], 63: [64, 16], 64: [65, 36], 92: [93, 25], 93: [94, 38], 74: [75, 25], 75: [76, 38], 66: [67, 28], 67: [68, 38], 41: [42, 22], 43: [44, 21] };
-  const xpNeed = (lv) => 6 + lv * 4;
-  function restat(c) { c.max = 40 + c.lv * 5 + c.k * 10; c.a = Math.round(4 + c.lv * 0.8 + c.k * 1.2); }
-  function mkL(p, lv) { const c = { id: p.id, n: p.n, s: p.s, t: p.t, k: p.k, lv, xp: 0, cd: 0 }; restat(c); c.hp = c.max; return c; }
   const mk = (p, l = 1) => { const max = Math.round((42 + p.k * 12) * l); return { id: p.id, n: p.n, s: p.s, t: p.t, k: p.k, max, hp: max, a: Math.round((7 + p.k * 2) * (0.85 + l * 0.15)), cd: 0 }; };
   const RIVALS = ["Blaze", "Nova", "Viper", "Echo", "Rogue", "Titan", "Ghost", "Raven", "Storm", "Frost", "Hunter", "Zero"];
 
   /* ---------- site bridge ---------- */
   const toast = (o) => { try { showToast(o); } catch (e) {} };
   function addCoins(n) { try { coins += n; saveStoredNumber(COINS_KEY, coins); updateResourcesUI(); } catch (e) {} }
-  const ballCount = () => { try { return totalBalls(); } catch (e) { return 0; } };
-  function pickBall() { for (const [id, m, n] of [["ultra", 2, "Ultra Ball"], ["great", 1.5, "Great Ball"], ["pokeball", 1, "Poké Ball"]]) { try { if (getBallCount(id) > 0) return { id, m, n }; } catch (e) {} } return null; }
+  const ballCount = () => { try { return getBallCount("pokeball"); } catch (e) { return 0; } };
   const spendBall = () => { try { if (!useBall("pokeball")) return false; saveInventory(); return true; } catch (e) { return false; } };
   const giveBalls = (n) => { try { addBalls("pokeball", n); saveInventory(); } catch (e) {} };
   function siteTeam() {
@@ -66,7 +57,7 @@
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(A)); } catch (e) {} };
 
   /* ---------- state ---------- */
-  let A, THREE, renderer, scene, camera, meadow, region = null, zoneG, zoneWall, zoneRing, nextRing;
+  let A, THREE, renderer, scene, camera, meadow, zoneG, zoneWall, zoneRing, nextRing;
   let trainer, partnerH, foeH, mode = null, G = null, B = null;
   let built = false, running = false, last = 0, t = 0, runId = 0, camSnap = true;
   const P = { x: 0, z: 24, rot: Math.PI, moving: false };
@@ -156,16 +147,6 @@
 .av-squad{display:flex;gap:8px;justify-content:center;margin:12px 0}.av-squad div{width:78px;background:#0c1b2d;border:1px solid #29415b;border-radius:12px;padding:6px 2px;font:700 10px var(--font-display);color:#cfe0f0}.av-squad img{width:58px;height:58px;object-fit:contain;display:block;margin:0 auto}
 .av-rules{display:flex;flex-direction:column;gap:6px;text-align:left;margin:10px 0}.av-rule{display:flex;gap:10px;align-items:center;background:#0f1d2f;border:1px solid #23405c;border-radius:12px;padding:8px 12px;font-size:12px;color:#b7c8da;line-height:1.4}.av-rule i{font-style:normal;font-size:20px}.av-rule b{color:#ffcf45}
 .av-drop{width:100%;min-height:56px;font-size:19px;letter-spacing:2px;margin-top:6px}
-#av-dlg{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(660px,94vw);z-index:7;background:linear-gradient(180deg,#fbf7ea,#e9dfc4);color:#1b2433;border:4px solid #2b3a55;border-radius:16px;padding:12px 18px 16px;box-shadow:0 8px 0 #1b2433,0 18px 40px rgba(0,0,0,.45);cursor:pointer;font:600 15px/1.5 var(--font-body)}
-#av-dlg .nm{font:900 12px var(--font-display);letter-spacing:1.5px;color:#c4483c;min-height:15px}#av-dlg .tx{min-height:3em}#av-dlg i{position:absolute;right:16px;bottom:8px;font-style:normal;color:#c4483c;animation:avblink .8s infinite}
-@keyframes avblink{50%{opacity:.2}}
-#av-prompt{position:absolute;left:50%;bottom:calc(172px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;background:rgba(7,17,31,.9);border:1px solid #ffcf45;color:#ffcf45;font:800 13px var(--font-display);letter-spacing:1px;padding:7px 16px;border-radius:999px;pointer-events:none;white-space:nowrap}
-#av-act{position:absolute;right:92px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:5;width:64px;height:64px;border-radius:50%;font-size:24px;padding:0}
-#av-loc{position:absolute;top:calc(112px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:5;pointer-events:none;font:900 26px var(--font-display);letter-spacing:3px;color:#fff;text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.6);opacity:0;white-space:nowrap}
-#av-loc.show{animation:avloc 3s ease-out}@keyframes avloc{0%{opacity:0;transform:translate(-50%,-12px)}12%{opacity:1;transform:translate(-50%,0)}75%{opacity:1}100%{opacity:0}}
-#av-flash{position:absolute;inset:0;z-index:12;pointer-events:none;opacity:0;background:#fff}
-#av-flash.on{animation:avflash .72s steps(1,end) forwards}@keyframes avflash{0%{opacity:1;background:#fff}12%{opacity:0}24%{opacity:1;background:#fff}36%{opacity:0}48%{opacity:1;background:#fff}60%{opacity:0}72%{opacity:1;background:#000}100%{opacity:1;background:#000}}
-@media(max-width:560px){#av-act{right:78px;bottom:calc(140px + env(safe-area-inset-bottom))}#av-loc{font-size:19px}#av-dlg{font-size:13.5px}}
 @media(max-width:560px){.av-zbar{min-width:130px;padding:5px 8px 11px}.av-hbox{min-width:54px;padding:5px 7px}#av-map{width:104px;height:104px}.av-chip{min-width:128px}}
 `;
     document.head.appendChild(s);
@@ -271,29 +252,28 @@
     nextRing = mesh(new THREE.RingGeometry(0.992, 1, 120), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide }), 0, 0.09, 0); nextRing.rotation.x = -Math.PI / 2;
     zoneG.add(zoneWall, zoneRing, nextRing); zoneG.visible = false;
   }
-  function showScene(kind) {
-    const st = kind === "region"; meadow.visible = !st; if (region) region.visible = st; zoneG.visible = false;
-    COLA = st ? SCOL : COL; BND = st ? { x0: -94, x1: 194, z0: -41, z1: 41 } : { x0: -W + 2, x1: W - 2, z0: -W + 2, z1: W - 2 };
-    scene.background = new THREE.Color(0x8fd0ff); scene.fog = new THREE.Fog(0x8fd0ff, 70, 230); trainer.visible = true; camSnap = true;
+  function showScene() {
+    meadow.visible = true; zoneG.visible = false; scene.background = new THREE.Color(0x8fd0ff); scene.fog = new THREE.Fog(0x8fd0ff, 70, 230);
+    trainer.visible = true; camSnap = true;
   }
-  const inGrassFree = (x, z) => !(x < BND.x0 || x > BND.x1 || z < BND.z0 || z > BND.z1 || COLA.some((c) => (x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + 0.4) ** 2));
+  const inGrassFree = (x, z) => !(Math.abs(x) > W - 2 || Math.abs(z) > W - 2 || COL.some((c) => (x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + 0.4) ** 2));
 
   /* ---------- setup ---------- */
   function setup(cb) {
     if (built) return cb(); built = true; injectCSS();
     $("adventure-page").innerHTML = `<div id="av-3d"></div>
-      <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><button class="av-btn ghost" id="av-party" hidden>☰ PARTY</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
+      <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
       <div id="av-hud" hidden></div><canvas id="av-map" width="300" height="300" hidden></canvas><div id="av-feed"></div><div id="av-msg"></div>
       <div id="av-bottom"><div id="av-team"></div><div id="av-pad" hidden><button class="av-btn u" data-k="up">▲</button><button class="av-btn l" data-k="left">◀</button><button class="av-btn d" data-k="down">▼</button><button class="av-btn r" data-k="right">▶</button></div></div>
       <div id="av-battle" hidden><div class="av-cards"><div class="av-card" id="av-mecard"></div><div class="av-card foe" id="av-foecard"></div></div>
         <div class="av-panel"><div id="av-log"></div><div class="av-acts">
           <button class="av-btn" id="av-a1">⚔ Attack<small>Basic hit</small></button><button class="av-btn" id="av-a2">✦ Special<small>1.7× damage</small></button>
           <button class="av-btn ghost" id="av-a3">⚪ Poké Ball<small></small></button><button class="av-btn ghost" id="av-a4">🏃 Run<small>Escape</small></button>
-          <button class="av-btn ghost" id="av-a5">⇄ Swap<small>Change creature</small></button><button class="av-btn ghost" id="av-a6">🧪 Potion<small></small></button></div></div></div>
-      <div id="av-float"></div><div id="av-dlg" hidden></div><div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-loc"></div><div id="av-flash"></div><div id="av-modal" hidden></div>`;
-    $("av-back").onclick = onBack; $("av-party").onclick = partyMenu; $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); if (G) drawMap(); };
+          <button class="av-btn ghost" id="av-a5" style="grid-column:1/-1">⇄ Swap creature</button></div></div></div>
+      <div id="av-float"></div><div id="av-modal" hidden></div>`;
+    $("av-back").onclick = onBack; $("av-map").onclick = () => { $("av-map").classList.toggle("big"); if (G) drawMap(); };
     document.querySelectorAll("#av-pad button").forEach((b) => { const k = b.dataset.k; b.addEventListener("pointerdown", (e) => { e.preventDefault(); pad[k] = true; }); ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { pad[k] = false; })); });
-    [["a1", "atk"], ["a2", "sp"], ["a3", "ball"], ["a4", "run"], ["a5", "swap"], ["a6", "potion"]].forEach(([id, k]) => { $("av-" + id).onclick = () => act(k); });
+    [["a1", "atk"], ["a2", "sp"], ["a3", "ball"], ["a4", "run"], ["a5", "swap"]].forEach(([id, k]) => { $("av-" + id).onclick = () => act(k); });
     const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
     s.onload = () => { THREE = window.THREE; init3d(); cb(); };
     s.onerror = () => { built = false; $("av-msg").textContent = "Couldn’t load the 3D engine — check your connection and try again."; };
@@ -318,7 +298,7 @@
   function setHud(html) { if (html === hudLast) return; hudLast = html; const h = $("av-hud"); h.hidden = !html; h.innerHTML = html || ""; }
   function feed(s) { const f = $("av-feed"), d = document.createElement("div"); d.className = "av-feedln"; d.textContent = s; f.appendChild(d); while (f.children.length > 4) f.firstChild.remove(); setTimeout(() => d.remove(), 5000); }
   function float(h, txt, cls) {
-    if (!h || !camera) return; const v = new THREE.Vector3(h.position.x, 2.6 * ((h.userData.s || 2.1) / 2.1), h.position.z).project(camera);
+    if (!h || !camera) return; const v = new THREE.Vector3(h.position.x, 2.6 * (h.userData.s / 2.1), h.position.z).project(camera);
     const p = $("adventure-page"), d = document.createElement("div"); d.className = "av-fl " + (cls || ""); d.textContent = txt;
     d.style.left = ((v.x * 0.5 + 0.5) * p.clientWidth) + "px"; d.style.top = ((-v.y * 0.5 + 0.5) * p.clientHeight) + "px"; $("av-float").appendChild(d); setTimeout(() => d.remove(), 950);
   }
@@ -326,41 +306,25 @@
   function refresh() {
     let c = 0; try { c = coins; } catch (e) {}
     $("av-res").textContent = "🥮 " + c.toLocaleString() + "  ·  ⚪ " + ballCount();
-    $("av-team").innerHTML = G && !B ? G.squad.map((m, i) => `<div class="av-chip${i === G.lead && m.hp > 0 ? " lead" : ""}${m.hp <= 0 ? " down" : ""}"><img src="${ART + m.id}.png" alt=""><div><b>${m.n}${m.lv ? " Lv" + m.lv : ""}</b><span class="av-bar"><u class="${hpCls(m)}" style="width:${Math.max(0, m.hp / m.max * 100)}%"></u></span></div></div>`).join("") : "";
+    $("av-team").innerHTML = G && !B ? G.squad.map((m, i) => `<div class="av-chip${i === G.lead && m.hp > 0 ? " lead" : ""}${m.hp <= 0 ? " down" : ""}"><img src="${ART + m.id}.png" alt=""><div><b>${m.n}</b><span class="av-bar"><u class="${hpCls(m)}" style="width:${Math.max(0, m.hp / m.max * 100)}%"></u></span></div></div>`).join("") : "";
   }
   const showPad = (v) => { $("av-pad").hidden = !v; };
 
   /* ---------- lobby ---------- */
   function menu() {
-    if (G && G.story) saveStory();
-    runId++; mode = null; G = null; DL = null; clearBattle(); clearDyn(); showScene("meadow");
-    ["av-dlg", "av-prompt", "av-act", "av-party"].forEach((id) => { $(id).hidden = true; }); $("av-loc").classList.remove("show");
-    P.x = 0; P.z = 26; P.rot = Math.PI; setPartner(true, siteTeam()); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "ADVENTURE"; $("adventure-page").classList.remove("danger"); say(""); refresh(); zoneG.visible = false;
-    const S = A.story, sub = S ? "💾 " + S.badges.length + "/3 BADGES · " + S.squad.length + " POKÉMON" + (S.flags && S.flags.champ ? " · 🏆 CHAMPION" : "") : "NEW JOURNEY";
-    modal(`<h2>CHOOSE YOUR ADVENTURE</h2><p>Your rewards go straight to your coins and Poké Balls.</p><div class="av-modes">
-      <button class="av-mode" data-m="story" style="--c:#4fb3ff"><div class="ic">🗺️</div><div><b>STORY ADVENTURE</b><span>A classic Pokémon journey: pick a starter, beat your rival and route trainers, level up, evolve, win 3 gym badges and challenge the Champion.</span><i>${sub}</i></div></button>
-      <button class="av-mode" data-m="royale" style="--c:#ff6b3d"><div class="ic">🔥</div><div><b>STORM ROYALE</b><span>20 trainers, one shrinking storm. Loot, fight and be the last one standing.</span><i>🏆 ${A.s.booyah} BOOYAH · BEST ${A.s.best ? "#" + A.s.best : "—"}</i></div></button></div>
-      <div class="av-row2">${S ? '<button class="av-btn ghost" data-m="new">NEW STORY GAME</button>' : ""}<button class="av-btn ghost" data-m="home">← HOME</button></div>`, (m) => {
-      m.querySelectorAll("[data-m]").forEach((b) => { b.onclick = () => {
-        const k = b.dataset.m;
-        if (k === "story") { closeModal(); startStory(false); } else if (k === "royale") royaleLobby(); else if (k === "home") { closeModal(); close(); }
-        else modal(`<h2 class="lose">ERASE STORY SAVE?</h2><p>Your story progress, badges and party will be deleted and you will start over.</p><div class="av-row2"><button class="av-btn ghost" data-a="no">CANCEL</button><button class="av-btn" data-a="yes">ERASE & START</button></div>`, (m2) => { m2.querySelector("[data-a=no]").onclick = menu; m2.querySelector("[data-a=yes]").onclick = () => { closeModal(); startStory(true); }; });
-      }; });
-    });
-  }
-  function royaleLobby() {
-    const team = siteTeam(), S = A.s;
+    runId++; mode = null; G = null; clearBattle(); clearDyn(); showScene();
+    P.x = 0; P.z = 26; P.rot = Math.PI; const team = siteTeam(); setPartner(true, team); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "STORM ROYALE"; $("adventure-page").classList.remove("danger"); say(""); refresh(); zoneG.visible = false;
+    const S = A.s;
     modal(`<h2>STORM ROYALE</h2><div class="av-tag">20 TRAINERS · 1 SHRINKING STORM · 1 WINNER</div>
       <div class="av-stats"><div class="av-stat"><small>BOOYAHS</small><b>${S.booyah}</b></div><div class="av-stat"><small>BEST RANK</small><b>${S.best ? "#" + S.best : "—"}</b></div><div class="av-stat"><small>TOTAL KILLS</small><b>${S.kills}</b></div></div>
       <div class="av-squad">${team.slice(0, 4).map((c) => `<div><img src="${ART + c.id}.png" alt="">${c.n}</div>`).join("")}</div>
       <div class="av-rules"><div class="av-rule"><i>🌀</i><span>Stay <b>inside the safe zone</b>. The storm closes in 5 phases and hurts your whole squad.</span></div><div class="av-rule"><i>📦</i><span>Raid cottages for <b>loot crates</b>: Poké Balls, healing and coins.</span></div><div class="av-rule"><i>⚔️</i><span>Touch a rival to battle. <b>Catch</b> them with Poké Balls to add them to your Pokédex.</span></div><div class="av-rule"><i>👑</i><span>Defeat the final boss and win a <b>BOOYAH!</b> Hold Shift to sprint, tap the minimap to enlarge it.</span></div></div>
-      <button class="av-btn av-drop" data-a="go">🪂 DROP IN</button><div class="av-row2"><button class="av-btn ghost" data-a="back">← BACK</button></div>`, (m) => {
-      m.querySelector("[data-a=go]").onclick = () => { closeModal(); startSurvival(); }; m.querySelector("[data-a=back]").onclick = menu;
+      <button class="av-btn av-drop" data-a="go">🪂 DROP IN</button><div class="av-row2"><button class="av-btn ghost" data-a="back">← BACK TO HOME</button></div>`, (m) => {
+      m.querySelector("[data-a=go]").onclick = () => { closeModal(); startSurvival(); }; m.querySelector("[data-a=back]").onclick = () => { closeModal(); close(); };
     });
   }
   function onBack() {
     if (B && B.lock) return;
-    if (DL) return;
     if (mode) { menu(); return; }
     close();
   }
@@ -378,7 +342,7 @@
   function me() { if (!G) return null; const s = G.squad; if (s[G.lead] && s[G.lead].hp > 0) return s[G.lead]; const i = s.findIndex((c) => c.hp > 0); if (i < 0) return null; G.lead = i; return s[i]; }
 
   /* ---------- battle core ---------- */
-  function ovl(v) { ["av-hud", "av-map", "av-feed", "av-act", "av-party", "av-loc", "av-prompt"].forEach((id) => { const e = $(id); if (e) e.style.visibility = v ? "" : "hidden"; }); }
+  function ovl(v) { ["av-hud", "av-map", "av-feed"].forEach((id) => { const e = $(id); if (e) e.style.visibility = v ? "" : "hidden"; }); }
   function clearBattle() { if (foeH && (!B || !B.o.h)) scene.remove(foeH); foeH = null; B = null; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); }
   function startBattle(foe, o) {
     const m = me(); if (!m) return;
@@ -392,11 +356,11 @@
   function types(c) { return c.t.map((x) => `<span class="av-ty" style="background:#${(TC[x] || 0x667788).toString(16).padStart(6, "0")}">${x.toUpperCase()}</span>`).join(""); }
   function ui() {
     const m = me(), f = B && B.foe; if (!m || !f) return;
-    $("av-mecard").innerHTML = `<div class="nm">${m.n}${m.lv ? " Lv" + m.lv : ""}<small>${m.hp}/${m.max}</small></div><span class="hp"><i style="width:${m.hp / m.max * 100}%"></i></span><div class="av-types">${types(m)}</div>`;
-    $("av-foecard").innerHTML = `<div class="nm">${f.boss ? "👑 " : ""}${f.n}${f.lv ? " Lv" + f.lv : ""}<small>${f.hp}/${f.max}</small></div><span class="hp"><i style="width:${f.hp / f.max * 100}%"></i></span><div class="av-types">${types(f)}</div>`;
+    $("av-mecard").innerHTML = `<div class="nm">${m.n}<small>${m.hp}/${m.max}</small></div><span class="hp"><i style="width:${m.hp / m.max * 100}%"></i></span><div class="av-types">${types(m)}</div>`;
+    $("av-foecard").innerHTML = `<div class="nm">${f.boss ? "👑 " : ""}${f.n}<small>${f.hp}/${f.max}</small></div><span class="hp"><i style="width:${f.hp / f.max * 100}%"></i></span><div class="av-types">${types(f)}</div>`;
     const o = B.o; $("av-a2").disabled = m.cd > 0; $("av-a2").innerHTML = "✦ Special<small>" + (m.cd > 0 ? "ready in " + m.cd : "1.7× damage") + "</small>";
-    $("av-a3").hidden = !o.ball; $("av-a3").disabled = !!f.boss || ballCount() < 1; { const pb = pickBall(); $("av-a3").querySelector("small").textContent = pb ? pb.n + " ×" + ballCount() : "none left"; }
-    $("av-a4").hidden = !o.run; $("av-a4").disabled = !!f.boss; $("av-a5").hidden = !o.swap || G.squad.filter((c) => c.hp > 0).length < 2; $("av-a6").hidden = !o.potion; $("av-a6").disabled = !G.potions; $("av-a6").querySelector("small").textContent = (G.potions || 0) + " left"; refresh();
+    $("av-a3").hidden = !o.ball; $("av-a3").disabled = !!f.boss || ballCount() < 1; $("av-a3").querySelector("small").textContent = ballCount() + " left";
+    $("av-a4").hidden = !o.run; $("av-a4").disabled = !!f.boss; $("av-a5").hidden = !o.swap || G.squad.filter((c) => c.hp > 0).length < 2; refresh();
   }
   function dmg(a, d, mult) { const e = eff(a.t[0], d); return { v: e === 0 ? 0 : Math.max(1, Math.round(a.a * (0.8 + Math.random() * 0.4) * mult * e)), e }; }
   const effTxt = (e) => (e === 0 ? " — no effect!" : e > 1 ? " — super effective!" : e < 1 ? " — not very effective." : ".");
@@ -405,11 +369,10 @@
     if (!B || B.lock) return; const m = me(); if (!m) return; const f = B.foe, o = B.o;
     if (kind === "run") { if (!o.run || f.boss) return; if (Math.random() < 0.65) { log("Got away safely!"); return endBattle("run", 500); } log("Couldn’t escape!"); }
     else if (kind === "swap") { const alt = G.squad.find((c, i) => c.hp > 0 && i !== G.lead); if (!alt) return; G.lead = G.squad.indexOf(alt); setPartner(); log("Go, " + alt.n + "!"); }
-    else if (kind === "potion") { if (!o.potion) return; if (!G.potions) { log("You have no Potions left!"); return; } G.potions--; m.hp = Math.min(m.max, m.hp + 60); float(partnerH, "+60", "g"); log("You used a Potion. " + m.n + " recovered HP!"); }
     else if (kind === "ball") {
-      if (!o.ball || f.boss) return; const bl = pickBall(); if (!bl) { log("You’re out of Poké Balls!"); return; } try { useBall(bl.id); saveInventory(); } catch (e) {}
-      if (Math.random() < Math.min(0.9, 0.12 + 0.75 * (1 - f.hp / f.max)) * (f.k === 3 ? 0.6 : 1) * bl.m) {
-        try { if (!isCaptured(f.s)) capturePokemon({ name: f.s, id: f.id, types: f.t }, bl.id); } catch (e) {}
+      if (!o.ball || f.boss) return; if (!spendBall()) { log("You’re out of Poké Balls!"); return; }
+      if (Math.random() < Math.min(0.9, 0.12 + 0.75 * (1 - f.hp / f.max)) * (f.k === 3 ? 0.6 : 1)) {
+        try { if (!isCaptured(f.s)) capturePokemon({ name: f.s, id: f.id, types: f.t }, "pokeball"); } catch (e) {}
         f.cd = 0; f.hp = Math.max(1, Math.round(f.max * 0.6)); if (G.squad.length < 6) G.squad.push(f);
         log("Gotcha! " + f.n + " joined your squad and your Pokédex!"); float(foeH, "GOTCHA!", "y"); foeH.userData.sink = true; return endBattle("caught", 1200);
       }
@@ -418,7 +381,7 @@
       if (kind === "sp") { if (m.cd > 0) return; m.cd = o.cd || 3; }
       const r = dmg(m, f, kind === "sp" ? 1.7 : 1); f.hp = Math.max(0, f.hp - r.v); lungeTo(partnerH, partnerH.position, foeH.position); foeH.userData.flash = 0.25; foeH.userData.mat.color.set(0xff7070);
       float(foeH, r.e === 0 ? "NO EFFECT" : "-" + r.v, r.e > 1 ? "y" : ""); log(m.n + (kind === "sp" ? " unleashes a special" : " attacks") + " for " + r.v + effTxt(r.e));
-      if (f.hp <= 0) { foeH.userData.sink = true; let ms = 1300; if (G.story) { const xg = gainXp(f); log(f.n + " fainted! " + m.n + " gained " + xg.base + " XP!" + (xg.out.length ? " " + xg.out.join(" ") : "")); ms = 2500; } return endBattle("win", ms); }
+      if (f.hp <= 0) { foeH.userData.sink = true; return endBattle("win", 1300); }
     }
     ui(); foeTurn();
   }
@@ -426,7 +389,7 @@
     B.lock = true;
     later(() => {
       if (!B) return; B.turn++; G.squad.forEach((c) => { c.cd = Math.max(0, (c.cd || 0) - 1); });
-      const m = me(), f = B.foe, big = f.boss && B.turn % 4 === 0, r = dmg(f, m, big ? 1.7 : f.boss ? 1.05 : (B.o.fm || 0.9));
+      const m = me(), f = B.foe, big = f.boss && B.turn % 4 === 0, r = dmg(f, m, big ? 1.7 : f.boss ? 1.05 : 0.9);
       m.hp = Math.max(0, m.hp - r.v); lungeTo(foeH, foeH.position, partnerH.position); partnerH.userData.flash = 0.25; partnerH.userData.mat.color.set(0xff7070);
       float(partnerH, r.e === 0 ? "NO EFFECT" : "-" + r.v, "r");
       log(f.n + (big ? " unleashes Psystrike" : " hits " + m.n) + " for " + r.v + effTxt(r.e) + (m.hp <= 0 ? " " + m.n + " fainted!" : ""));
@@ -434,16 +397,11 @@
       if (!me()) { B.lock = true; later(() => endBattle("lose", 0), 1000); } else if (m.hp <= 0) setPartner();
     }, 650);
   }
-  function gainXp(foe) {
-    const base = Math.round(foe.lv * 4 * (B.o.trainer ? 1.5 : 1) * (B.o.xpMult || 1)), lead = me(), out = [];
-    G.squad.forEach((c) => { if (c.hp <= 0) return; c.xp = (c.xp || 0) + (c === lead ? base : Math.round(base * 0.5)); while (c.xp >= xpNeed(c.lv) && c.lv < 60) { c.xp -= xpNeed(c.lv); c.lv++; const om = c.max; restat(c); c.hp = Math.min(c.max, c.hp + c.max - om); out.push(c.n + " grew to Lv." + c.lv + "!"); } });
-    return { base, out };
-  }
   function endBattle(res, ms) {
     if (!B) return; B.lock = true; const o = B.o, fp = B.foePos.clone(), cb = o.done;
     later(() => {
       if (!(res === "run" && o.h) && foeH) scene.remove(foeH);
-      foeH = null; B = null; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); if (mode && G && !G.over) showPad(true); refresh();
+      foeH = null; B = null; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); if (mode === "survival" && G && !G.over) showPad(true); refresh();
       if (cb) cb(res, fp);
     }, ms);
   }
@@ -544,7 +502,7 @@
       <div class="av-stats"><div class="av-stat"><small>RANK</small><b>#${rank}</b></div><div class="av-stat"><small>KILLS</small><b>${k}</b></div><div class="av-stat"><small>COINS</small><b>+${gain}</b></div></div>${win || rank <= 5 ? "<p>🎁 Bonus: Poké Balls added to your bag.</p>" : ""}
       <div class="av-row2"><button class="av-btn ghost" data-a="menu">LOBBY</button><button class="av-btn" data-a="again">PLAY AGAIN</button></div>`, (m) => { m.querySelector("[data-a=menu]").onclick = menu; m.querySelector("[data-a=again]").onclick = () => { closeModal(); startSurvival(); }; }), 900);
   }
-  function blocked(x, z) { return !inGrassFree(x, z) || (mode === "story" && gateHit(x, z)); }
+  function blocked(x, z) { return !inGrassFree(x, z); }
   function drawMap() {
     const c = $("av-map"), x = c.getContext("2d"), S = c.width, span = W * 2 + 12, k = S / span, X = (v) => (v + span / 2) * k, z = G.zone;
     x.clearRect(0, 0, S, S); x.fillStyle = "#16324a"; x.fillRect(0, 0, S, S); x.fillStyle = "#245a3c"; x.fillRect(X(-W), X(-W), W * 2 * k, W * 2 * k);
@@ -558,282 +516,6 @@
     x.save(); x.translate(X(P.x), X(P.z)); x.rotate(-P.rot + Math.PI); x.fillStyle = "#5de4ff"; x.strokeStyle = "#04121f"; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 9); x.lineTo(-8, 9); x.closePath(); x.fill(); x.stroke(); x.restore();
   }
 
-  /* ============================================================
-     STORY ADVENTURE — a Pokémon-ROM style journey
-     Seedling Town → Route 1 → Stonebrook → Route 2 → Bluewater →
-     Route 3 → Voltport → Champion's Peak. Pick a starter, beat the
-     rival, trainers and 3 gym leaders, then face the Champion.
-  ============================================================ */
-  const RT = [
-    { ids: [19, 133, 43, 41, 25, 39], rare: [63], lv: [3, 6] },
-    { ids: [74, 66, 54, 63, 81, 58, 92], rare: [133], lv: [8, 12] },
-    { ids: [93, 75, 64, 67, 42, 44, 59], rare: [143], lv: [14, 18] },
-  ];
-  const BADGES = [{ ic: "🪨", n: "Stone" }, { ic: "💧", n: "Wave" }, { ic: "⚡", n: "Spark" }];
-  const REG = { trainers: [], npcs: [], inter: [], gates: [], patches: [], builds: [], starters: [] };
-  const SCOL = [];
-  let regionBuilt = false, DL = null;
-  const locName = (x) => (x < -56 ? "Seedling Town" : x < -22 ? "Route 1" : x < 16 ? "Stonebrook City" : x < 52 ? "Route 2" : x < 93 ? "Bluewater City" : x < 128 ? "Route 3" : x < 171 ? "Voltport City" : "Champion’s Peak");
-  const lines = (n, arr) => arr.map((t) => ({ n, t }));
-
-  /* ----- dialogue (white ROM-style text box) ----- */
-  function dialog(arr, cb) { DL = { lines: arr.map((l) => (typeof l === "string" ? { t: l } : l)), i: 0, pos: 0, cb }; const d = $("av-dlg"); d.hidden = false; renderDlg(); }
-  function renderDlg() { const L = DL.lines[DL.i]; DL.pos = 0; $("av-dlg").innerHTML = '<div class="nm">' + (L.n || "") + '</div><div class="tx"></div><i>▼</i>'; }
-  function paintDlg() { if (!DL) return; const L = DL.lines[DL.i], e = $("av-dlg").querySelector(".tx"); if (e) e.textContent = L.t.slice(0, Math.floor(DL.pos)); }
-  function advanceDlg() {
-    if (!DL) return false; const L = DL.lines[DL.i];
-    if (DL.pos < L.t.length) { DL.pos = L.t.length; paintDlg(); return true; }
-    DL.i++;
-    if (DL.i >= DL.lines.length) { const cb = DL.cb; DL = null; $("av-dlg").hidden = true; if (cb) cb(); } else renderDlg();
-    return true;
-  }
-  function interact() { if (DL) { advanceDlg(); return; } if (mode !== "story" || !G || G.cut || B || modalOpen()) return; if (G.near) G.near.fn(); }
-  function transition(cb) { const f = $("av-flash"); f.classList.remove("on"); void f.offsetWidth; f.classList.add("on"); later(() => { cb(); setTimeout(() => f.classList.remove("on"), 60); }, 720); }
-
-  /* ----- save / load ----- */
-  const unpack = (o) => { const c = mkL(SPECIES[o.id], o.lv); c.xp = o.xp || 0; c.hp = Math.max(0, Math.min(c.max, o.hp == null ? c.max : o.hp)); return c; };
-  function saveStory() {
-    if (!G || !G.story) return; const S = A.story;
-    S.squad = G.squad.map((c) => ({ id: c.id, lv: c.lv, xp: c.xp || 0, hp: c.hp })); S.potions = G.potions; S.badges = G.badges; S.def = G.def; S.flags = G.flags; S.pos = { x: P.x, z: P.z }; save();
-  }
-  function healAll() { G.squad.forEach((c) => { c.hp = c.max; c.cd = 0; }); refresh(); setPartner(); saveStory(); }
-  function giveGems(n) { try { gems += n; saveStoredNumber(GEMS_KEY, gems); updateResourcesUI(); } catch (e) {} }
-
-  /* ----- world pieces ----- */
-  function labelSprite(text, w, bg, fg) {
-    const c = document.createElement("canvas"); c.width = 512; c.height = 128; const x = c.getContext("2d");
-    x.fillStyle = bg || "rgba(10,20,40,.88)"; x.fillRect(6, 6, 500, 116); x.lineWidth = 6; x.strokeStyle = fg || "#ffcf45"; x.strokeRect(6, 6, 500, 116);
-    x.fillStyle = fg || "#fff"; x.font = "900 54px Rajdhani, Arial"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(text, 256, 68);
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sp.scale.set(w, w / 4, 1); return sp;
-  }
-  function building(o) {
-    const b = new THREE.Group(), { w, d, h } = o;
-    b.add(mesh(new THREE.BoxGeometry(w, h, d), lam(o.wall), 0, h / 2, 0), mesh(new THREE.BoxGeometry(w + 0.2, 0.35, d + 0.2), lam(o.trim || 0xffffff), 0, h, 0));
-    const rg = new THREE.Group(), rf = mesh(new THREE.ConeGeometry((d / Math.SQRT2) * 1.08, o.rh || 2.4, 4), lam(o.roof), 0, h + (o.rh || 2.4) / 2, 0); rf.rotation.y = Math.PI / 4; rg.add(rf); rg.scale.set(w / d, 1, 1); b.add(rg);
-    b.add(mesh(new THREE.BoxGeometry(1.2, 1.8, 0.14), lam(0x7a5230), 0, 0.9, d / 2 + 0.03));
-    [-1, 1].forEach((k) => { if (w > 4) b.add(mesh(new THREE.BoxGeometry(0.9, 0.9, 0.14), lam(0x8fd0ff, { emissive: 0x16304a }), k * w * 0.3, h * 0.55, d / 2 + 0.03)); });
-    if (o.text) { const l = labelSprite(o.text, Math.max(5, w * 0.9), o.bg, o.tc); l.position.set(0, h + (o.rh || 2.4) + 1.1, d / 2 - 0.5); b.add(l); }
-    b.position.set(o.x, 0, o.z); region.add(b);
-    for (let ox = -w / 2 + 1.4; ox <= w / 2 - 1.2; ox += 2.4) SCOL.push({ x: o.x + ox, z: o.z, r: d / 2 - 0.1 });
-    REG.builds.push({ x: o.x, z: o.z, w, d, col: "#" + o.roof.toString(16).padStart(6, "0") });
-  }
-  function npc(o) {
-    const m = makeTrainer(o.c1 || 0x3d6bff, o.c2 || 0xffffff); m.position.set(o.x, 0, o.z); m.rotation.y = o.rot || 0; region.add(m); o.mesh = m;
-    if (o.tag) { const l = labelSprite(o.tag, 4.6, "rgba(10,20,40,.88)", o.tc || "#ffcf45"); l.position.set(0, 3, 0); m.add(l); }
-    REG.npcs.push(o); SCOL.push({ x: o.x, z: o.z, r: 0.6 });
-    if (o.talk) REG.inter.push({ ref: o, r: 2.7, label: o.label || "Talk", when: o.when, fn: () => { m.rotation.y = Math.atan2(P.x - o.x, P.z - o.z); o.talk(o); } });
-    return o;
-  }
-  const gateHit = (x, z) => REG.gates.some((g) => !g.req() && Math.abs(x - g.x) < 1);
-  function refreshStory() {
-    REG.gates.forEach((g) => { g.mesh.visible = !g.req(); });
-    REG.starters.forEach((s) => { s.visible = !G.flags.starter; });
-    REG.trainers.forEach((T) => { if (T.mesh) T.mesh.visible = true; });
-  }
-
-  /* ----- shops, healing, party ----- */
-  function martMenu() {
-    const items = [{ id: "pokeball", n: "Poké Ball", p: 150, ic: "⚪" }, { id: "great", n: "Great Ball", p: 300, ic: "🔵" }, { id: "ultra", n: "Ultra Ball", p: 600, ic: "🟡" }, { id: "potion", n: "Potion", p: 80, ic: "🧪", d: "Heals 60 HP (use in battle or from the Party menu)" }];
-    const draw = () => { let c = 0; try { c = coins; } catch (e) {}
-      modal(`<h2>POKÉ MART</h2><p>You have <b style="color:#ffcf45">🥮 ${c.toLocaleString()}</b></p><div class="av-shop">${items.map((i) => `<div class="av-item"><span style="font-size:24px">${i.ic}</span><div><b>${i.n}</b><span>${i.d || "Owned: " + (() => { try { return getBallCount(i.id); } catch (e) { return 0; } })()}</span></div><button class="av-btn" data-b="${i.id}" ${c >= i.p ? "" : "disabled"}>🥮 ${i.p}</button></div>`).join("")}</div><div class="av-row2"><button class="av-btn" data-a="x">DONE</button></div>`, (m) => {
-        m.querySelectorAll("[data-b]").forEach((b) => { b.onclick = () => { const it = items.find((x) => x.id === b.dataset.b); let c2 = 0; try { c2 = coins; } catch (e) {} if (c2 < it.p) return; addCoins(-it.p); if (it.id === "potion") G.potions++; else { try { addBalls(it.id, 1); saveInventory(); } catch (e) {} } saveStory(); refresh(); draw(); }; });
-        m.querySelector("[data-a=x]").onclick = closeModal;
-      }); };
-    draw();
-  }
-  function partyMenu() {
-    if (!G || !G.story || B || DL) return;
-    const draw = () => modal(`<h2>PARTY</h2><div class="av-stats"><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/3</b></div><div class="av-stat"><small>POTIONS</small><b>${G.potions}</b></div><div class="av-stat"><small>BALLS</small><b>${ballCount()}</b></div></div>
-      <div class="av-shop">${G.squad.map((c, i) => `<div class="av-item"><img src="${ART + c.id}.png" alt="" style="width:46px;height:46px;object-fit:contain"><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>HP ${c.hp}/${c.max} · ATK ${c.a} · XP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${c.hp / c.max * 100}%"></u></span></div><div style="display:flex;flex-direction:column;gap:4px"><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button><button class="av-btn ghost" data-p="${i}" ${c.hp > 0 && c.hp < c.max && G.potions > 0 ? "" : "disabled"}>🧪</button></div></div>`).join("") || "<p>You have no Pokémon yet.</p>"}</div>
-      <div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button><button class="av-btn" data-a="x">RESUME</button></div>`, (m) => {
-      m.querySelectorAll("[data-l]").forEach((b) => { b.onclick = () => { G.lead = +b.dataset.l; setPartner(true); refresh(); saveStory(); draw(); }; });
-      m.querySelectorAll("[data-p]").forEach((b) => { b.onclick = () => { const c = G.squad[+b.dataset.p]; G.potions--; c.hp = Math.min(c.max, c.hp + 60); refresh(); saveStory(); draw(); }; });
-      m.querySelector("[data-a=x]").onclick = closeModal; m.querySelector("[data-a=exit]").onclick = () => { saveStory(); menu(); };
-    });
-    draw();
-  }
-
-  /* ----- battles ----- */
-  function storyBattle(foe, o) {
-    const fx = Math.sin(P.rot), fz = Math.cos(P.rot);
-    const foePos = new THREE.Vector3(P.x + fx * 4.8, 0, P.z + fz * 4.8), mePos = new THREE.Vector3(P.x + fx * 1.6 - fz * 1.1, 0, P.z + fz * 1.6 + fx * 1.1);
-    startBattle(foe, Object.assign({ mePos, foePos, swap: true, potion: true }, o));
-  }
-  function evolveCheck(cb) {
-    const list = G.squad.filter((c) => EVO[c.id] && c.lv >= EVO[c.id][1]);
-    const step = () => {
-      const c = list.shift(); if (!c) { if (cb) cb(); return; } const to = SPECIES[EVO[c.id][0]]; if (!to) return step();
-      dialog(["What? " + c.n + " is evolving!", c.n + " evolved into " + to.n + "!"], () => { const om = c.max; Object.assign(c, { id: to.id, n: to.n, s: to.s, t: to.t, k: to.k }); restat(c); c.hp = Math.min(c.max, c.hp + c.max - om); try { sfxEvolve(); } catch (e) {} setPartner(true); refresh(); saveStory(); step(); });
-    };
-    step();
-  }
-  function blackout() {
-    G.cut = true; const l = Math.min(100, Math.floor((() => { try { return coins; } catch (e) { return 0; } })() * 0.1)); if (l > 0) addCoins(-l);
-    G.squad.forEach((c) => { c.hp = c.max; c.cd = 0; }); const sp = A.story.spawn || { x: -80, z: 2 }; P.x = sp.x; P.z = sp.z; setPartner(true); refreshStory();
-    dialog(["You blacked out!", "You were rushed back to the nearest healing spot" + (l ? " and lost 🥮 " + l + "." : ".")], () => { G.cut = false; saveStory(); refresh(); });
-  }
-  function storyAfter(res) { G.cut = false; if (res === "lose") return blackout(); saveStory(); refresh(); evolveCheck(); }
-  function wild(ri) {
-    const rt = RT[ri], sp = SPECIES[rnd(Math.random() < 0.07 ? rt.rare : rt.ids)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), foe = mkL(sp, lv);
-    G.cut = true; transition(() => storyBattle(foe, { ball: true, run: true, fm: 0.65, intro: "A wild " + foe.n + " (Lv." + lv + ") appeared!", done: storyAfter }));
-  }
-  function trainerBattle(T) {
-    const team = (typeof T.team === "function" ? T.team() : T.team).map(([id, lv]) => mkL(SPECIES[id], lv)); let i = 0; G.cut = true;
-    const won = () => {
-      T.mesh.visible = true; G.cut = false; if (T.id && !G.def.includes(T.id)) G.def.push(T.id); addCoins(T.reward || 0); saveStory(); refresh();
-      dialog([...lines(T.name, T.win), "You received 🥮 " + (T.reward || 0) + "!"], () => evolveCheck(() => { if (T.after) T.after(); }));
-    };
-    const nextFoe = () => { const foe = team[i++]; storyBattle(foe, { trainer: true, fm: T.fm || 0.72, xpMult: T.xpm || 1, intro: T.name + " sends out " + foe.n + " (Lv." + foe.lv + ")!", done: (res) => { if (res === "lose") { T.mesh.visible = true; return blackout(); } if (i < team.length) evolveCheck(() => later(nextFoe, 400)); else won(); } }); };
-    transition(() => { T.mesh.visible = false; nextFoe(); });
-  }
-  function engageTrainer(T) {
-    G.cut = true; P.moving = false; float(T.mesh, "!", "y"); T.mesh.rotation.y = Math.atan2(P.x - T.x, P.z - T.z); P.rot = Math.atan2(T.x - P.x, T.z - P.z);
-    later(() => { G.walk = { T, then: () => dialog(lines(T.name, T.intro), () => trainerBattle(T)) }; }, 700);
-  }
-
-  /* ----- building the region ----- */
-  function buildRegion() {
-    if (regionBuilt) return; regionBuilt = true;
-    let seed = 23; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-    region = new THREE.Group(); scene.add(region); region.userData.clouds = [];
-    const gt = grassTex(); gt.repeat.set(66, 27); const ground = mesh(new THREE.PlaneGeometry(340, 140), lam(0xffffff, { map: gt }), 50, 0, 0); ground.rotation.x = -Math.PI / 2; region.add(ground);
-    const path = mesh(new THREE.PlaneGeometry(292, 5.5), lam(0xcdb98a), 50, 0.025, 0); path.rotation.x = -Math.PI / 2; region.add(path);
-    const TOWNS = [["SEEDLING TOWN", -95, -56], ["STONEBROOK CITY", -22, 16], ["BLUEWATER CITY", 52, 93], ["VOLTPORT CITY", 128, 171], ["CHAMPION’S PEAK", 171, 195]];
-    TOWNS.forEach(([n, a, b]) => {
-      const pl = mesh(new THREE.PlaneGeometry(b - a, 15), lam(0xdcd2ac), (a + b) / 2, 0.03, -3); pl.rotation.x = -Math.PI / 2; region.add(pl);
-      const sx = a + 5, post = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 6), lam(0x7a5230), sx, 1.2, 5); const lb = labelSprite(n, 8, "rgba(10,20,40,.9)", "#8fe6ff"); lb.position.set(sx, 3.4, 5); region.add(post, lb);
-    });
-    /* buildings */
-    const B0 = { z: -12.5, d: 6, h: 3 };
-    [{ x: -86, w: 5, wall: 0xf0e2c0, roof: 0xc4483c, text: "YOUR HOME" }, { x: -70, w: 8, d: 7, h: 3.6, wall: 0xe8eefc, roof: 0x3d6bb0, text: "PROF. LAB" }, { x: -62, w: 5, wall: 0xf0e2c0, roof: 0x2f8a5a },
-      { x: -15, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: -5, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 7, w: 9, d: 7, h: 4, wall: 0xb9a37a, roof: 0x6b5a3a, text: "STONE GYM", bg: "#3a2d18", tc: "#e6d2a0" },
-      { x: 60, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 70, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 82, w: 9, d: 7, h: 4, wall: 0xb8e2f5, roof: 0x2b7fd0, text: "WAVE GYM", bg: "#0b2a4a", tc: "#8fd0ff" },
-      { x: 136, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 146, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 158, w: 9, d: 7, h: 4, wall: 0xf7e99a, roof: 0xd9a400, text: "SPARK GYM", bg: "#3a3000", tc: "#ffe36b" },
-      { x: 178, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 188, w: 10, d: 8, h: 8, wall: 0x5a4f8a, roof: 0x2a2250, rh: 4, text: "CHAMPION TOWER", bg: "#1e1640", tc: "#c9b8ff" }].forEach((o) => building(Object.assign({}, B0, o, { z: -12.5 })));
-    [[-80, 11], [-68, 12], [-8, 11], [12, 12], [66, 11], [86, 12], [142, 11], [162, 12]].forEach(([x, z]) => { const g = new THREE.Group(); g.add(mesh(new THREE.BoxGeometry(4, 2.6, 4), lam(0xf0e2c0), 0, 1.3, 0), mesh(new THREE.ConeGeometry(3.1, 1.9, 4), lam([0xc4483c, 0x3d6bb0, 0x7a5aa8, 0x2f8a5a][Math.floor(r() * 4)]), 0, 3.5, 0), mesh(new THREE.BoxGeometry(0.9, 1.5, 0.12), lam(0x7a5230), 0, 0.75, -2.03)); g.children[1].rotation.y = Math.PI / 4; g.position.set(x, 0, z); region.add(g); SCOL.push({ x, z, r: 2.6 }); REG.builds.push({ x, z, w: 4, d: 4, col: "#8a6a4a" }); });
-    /* tall grass */
-    const blades = []; [[-52, -24, 0], [18, 50, 1], [94, 126, 2]].forEach(([a, b, ri]) => { for (let i = 0; i < 3; i++) { const w = (b - a) / 3; REG.patches.push({ x: a + (i + 0.5) * w, z: i % 2 ? 3 : -3, w: w + 1.2, d: 11, r: ri }); } });
-    REG.patches.forEach((p) => { const pl = mesh(new THREE.PlaneGeometry(p.w, p.d), lam(0x3f8f3a), p.x, 0.04, p.z); pl.rotation.x = -Math.PI / 2; region.add(pl); for (let i = 0; i < 90; i++) blades.push([p.x + (r() - 0.5) * p.w, p.z + (r() - 0.5) * p.d, 0.7 + r() * 0.7]); });
-    const dm = new THREE.Object3D(), col = new THREE.Color(), bl = new THREE.InstancedMesh(new THREE.ConeGeometry(0.1, 0.9, 4), lam(0xffffff), blades.length);
-    blades.forEach((b, i) => { dm.rotation.set(0, r() * 6, 0); dm.scale.setScalar(b[2]); dm.position.set(b[0], 0.4 * b[2], b[1]); dm.updateMatrix(); bl.setMatrixAt(i, dm.matrix); col.setHSL(0.3 + r() * 0.06, 0.6, 0.28 + r() * 0.12); bl.setColorAt(i, col); });
-    bl.instanceMatrix.needsUpdate = true; bl.instanceColor.needsUpdate = true; region.add(bl);
-    /* gates (guard + barrier, blocks the road until requirement is met) */
-    [{ x: -57, msg: "Hey, wait! It’s dangerous out there without a Pokémon. Go see Prof. Linden and beat your rival first!", req: () => G.flags.starter && G.def.includes("rival") },
-      { x: 16.5, msg: "Stonebrook Gym blocks the way east. Earn the Stone Badge first, then I’ll let you through to Route 2.", req: () => G.badges.includes(0) },
-      { x: 93, msg: "Route 3 is closed to trainers without the Wave Badge. Beat Marina in Bluewater Gym!", req: () => G.badges.includes(1) },
-      { x: 171.5, msg: "Only trainers with 3 badges may climb Champion’s Peak. Beat Volt in Voltport Gym first.", req: () => G.badges.length >= 3 }].forEach((g) => {
-      const m = new THREE.Group(); for (let z = -7; z <= 7; z += 2.8) m.add(mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), lam(Math.abs(z) % 5.6 < 0.1 ? 0x222222 : 0xffd43b), 0, 0.8, z));
-      m.add(mesh(new THREE.BoxGeometry(0.2, 0.3, 15), lam(0xffffff), 0, 1.3, 0)); const gd = makeTrainer(0x3a3a4a, 0xffd43b); gd.position.set(0, 0, 3); gd.rotation.y = -Math.PI / 2; m.add(gd); m.position.x = g.x; region.add(m); g.mesh = m; REG.gates.push(g);
-    });
-    /* starter table + professor + mom */
-    [[1, -73], [4, -70], [7, -67]].forEach(([id, x]) => {
-      const sp = SPECIES[id], b = new THREE.Group(); b.add(mesh(new THREE.SphereGeometry(0.46, 16, 12), lam(0xffffff), 0, 0.5, 0), mesh(new THREE.SphereGeometry(0.47, 16, 8, 0, 6.283, 0, 1.57), lam(0xe53935), 0, 0.5, 0), mesh(new THREE.TorusGeometry(0.46, 0.05, 6, 20), lam(0x222222), 0, 0.5, 0)); b.children[2].rotation.x = Math.PI / 2;
-      const l = labelSprite(sp.n, 3.2, "rgba(10,20,40,.9)", "#fff"); l.position.y = 1.7; b.add(l); b.position.set(x, 0, -3.6); region.add(b); REG.starters.push(b);
-      REG.inter.push({ x, z: -3.6, r: 1.9, label: "Take " + sp.n, when: () => G.flags.intro && !G.flags.starter, fn: () => chooseStarter(id) });
-    });
-    npc({ x: -70, z: -6.6, rot: 0, c1: 0xeeeeee, c2: 0x6b4a2a, tag: "PROF. LINDEN", label: "Talk", talk: () => dialog(G.flags.starter ? lines("Prof. Linden", ["Take care out there! Win badges, catch Pokémon, and become Champion!", "Your Pokémon level up when they win battles. Heal at Pokémon Centers!"]) : lines("Prof. Linden", ["Choose one of the three Pokémon on the table!"])) });
-    npc({ x: -86, z: -8, rot: 0, c1: 0xe0679a, c2: 0x6b3a2a, tag: "MOM", talk: () => dialog(lines("Mom", ["Welcome home, dear! You look tired. Let me heal your Pokémon."]), () => { healAll(); A.story.spawn = { x: -86, z: -5 }; dialog(lines("Mom", ["All better! Do your best out there!"])); }) });
-    const nurse = (x) => npc({ x, z: -8, rot: 0, c1: 0xff8fb1, c2: 0xffffff, tag: "NURSE", talk: (n) => dialog(lines("Nurse", ["Welcome to the Pokémon Center! Let me heal your Pokémon."]), () => { healAll(); A.story.spawn = { x: n.x, z: -5 }; dialog(lines("Nurse", ["Your Pokémon are fully healed! We hope to see you again!"])); }) });
-    const clerk = (x) => npc({ x: x, z: -8, rot: 0, c1: 0x3d6bff, c2: 0x3d6bff, tag: "CLERK", talk: () => martMenu() });
-    nurse(-15); clerk(-5); nurse(60); clerk(70); nurse(136); clerk(146); nurse(178);
-    /* gym leaders + champion */
-    const lead = (o) => { const T = Object.assign({ sight: 0, fm: 0.8, xpm: 1.4, label: "Challenge" }, o); T.talk = () => { if (G.def.includes(T.id)) dialog(lines(T.name, T.done)); else dialog(lines(T.name, T.intro), () => trainerBattle(T)); }; npc(T); REG.trainers.push(T); };
-    lead({ id: "gym0", name: "Flint", tag: "GYM LEADER FLINT", x: 7, z: -8, rot: 0, c1: 0x8a6a3a, c2: 0xcdb98a, team: [[74, 11], [74, 12], [75, 14]], reward: 300, intro: ["I’m Flint, Stonebrook’s Gym Leader!", "My rock-hard Pokémon will crush you!"], win: ["Amazing! You cracked my defense. Take the Stone Badge!"], done: ["The Stone Badge suits you. Keep climbing!"], after: () => { G.badges.push(0); refreshStory(); saveStory(); dialog(["You received the 🪨 Stone Badge!", "The road to Route 2 is now open."]); } });
-    lead({ id: "gym1", name: "Marina", tag: "GYM LEADER MARINA", x: 82, z: -8, rot: 0, c1: 0x2b7fd0, c2: 0xffffff, team: [[54, 16], [8, 18], [130, 20]], reward: 500, intro: ["I’m Marina! Water flows around every attack.", "Let’s see if you can make a splash!"], win: ["You swept me away! Here’s the Wave Badge."], done: ["The Wave Badge looks great on you."], after: () => { G.badges.push(1); refreshStory(); saveStory(); dialog(["You received the 💧 Wave Badge!", "Route 3 is now open."]); } });
-    lead({ id: "gym2", name: "Volt", tag: "GYM LEADER VOLT", x: 158, z: -8, rot: 0, c1: 0xd9a400, c2: 0x222222, team: [[81, 21], [25, 22], [26, 25]], reward: 800, intro: ["Bzzzt! I’m Volt, Voltport’s Gym Leader!", "Prepare to be shocked!"], win: ["Electrifying! The Spark Badge is yours!"], done: ["Go on, the Champion awaits you."], after: () => { G.badges.push(2); refreshStory(); saveStory(); dialog(["You received the ⚡ Spark Badge!", "Champion’s Peak is now open."]); } });
-    lead({ id: "champ", name: "Champion Drake", tag: "CHAMPION DRAKE", x: 188, z: -8, rot: 0, c1: 0x5a4f8a, c2: 0xffd43b, team: [[65, 30], [130, 31], [6, 32], [149, 34]], reward: 2000, fm: 0.85, xpm: 2, intro: ["So you made it all the way here.", "I am Drake, the Champion! Show me everything you’ve got!"], win: ["Incredible... You are the new Champion!"], done: ["Champion! The region is yours. Keep training and catch them all!"], after: () => { G.flags.champ = true; giveGems(25); saveStory(); dialog(["🏆 You are the new POKÉMON CHAMPION!", "You earned 💎 25 gems. Thanks for playing! You can keep exploring and catching Pokémon."]); } });
-    /* rival */
-    const rv = { id: "rival", name: "Rival Ren", x: -61.5, z: 0, rot: -Math.PI / 2, c1: 0x222a44, c2: 0xff8a3d, sight: 9, fm: 0.7, reward: 120, when: () => G.flags.starter, team: () => [[{ 1: 4, 4: 7, 7: 1 }[G.flags.pick] || 4, 5]], intro: ["Hey, wait up! So you got a Pokémon from the Professor too.", "Let’s see who’s stronger — battle me!"], win: ["Whoa, you’re good! I’ll get stronger too. See you on the road!"], talk: (o) => dialog(lines(o.name, G.def.includes("rival") ? ["I’m heading to Stonebrook too. Don’t fall behind!"] : ["Come on, battle me when you’re ready!"])) };
-    npc(rv); REG.trainers.push(rv);
-    /* route trainers */
-    [["r1a", "Youngster Joey", -45, -7, 0, [[19, 4], [19, 5]], 60, 0x3d6bff], ["r1b", "Lass Anna", -31, 7, Math.PI, [[43, 5], [133, 6]], 70, 0xe0679a],
-      ["r2a", "Hiker Gus", 24, -7, 0, [[74, 10], [74, 11], [75, 12]], 120, 0x8a6a3a], ["r2b", "Scientist Ivy", 35, 7, Math.PI, [[81, 11], [63, 11], [64, 13]], 140, 0xeeeeee], ["r2c", "Ace Trainer Rex", 46, -7, 0, [[58, 12], [66, 12]], 130, 0xc03028],
-      ["r3a", "Swimmer Kai", 100, 7, Math.PI, [[54, 16], [130, 17]], 200, 0x2b7fd0], ["r3b", "Psychic Mira", 110, -7, 0, [[64, 17], [93, 18]], 220, 0xab2f61], ["r3c", "Ace Duo Sol", 120, 7, Math.PI, [[59, 18], [68, 18], [44, 17]], 240, 0x222222]].forEach(([id, name, x, z, rot, team, reward, c1]) => {
-      const T = { id, name, x, z, rot, c1, c2: 0xffffff, team, reward, sight: 9, fm: 0.72, intro: ["You’re a trainer? Eyes met — that means we battle!"], win: ["Wow, you’re strong!"], talk: (o) => dialog(lines(name, G.def.includes(id) ? ["You beat me fair and square. Good luck!"] : ["Hey!"])) }; npc(T); REG.trainers.push(T);
-    });
-    /* villagers */
-    [[-80, 4, "Neighbor", "Welcome to Seedling Town! The big building is Professor Linden’s lab."], [-10, 5, "Villager", "Stonebrook’s gym leader Flint uses Rock-type Pokémon. Water and Grass moves work great!"], [75, 5, "Sailor", "Bluewater’s Marina loves Water types. Electric and Grass beat them!"], [150, 5, "Engineer", "Volt’s Electric Pokémon are fast. Ground types don’t take any damage from Electric moves."], [-38, -6, "Hiker", "Tall grass hides wild Pokémon. Weaken them, then throw a Poké Ball!"], [60, 6, "Cooler Kid", "Win battles to level up. Some Pokémon evolve at certain levels!"], [182, 5, "Elite Guard", "Beyond this door waits the Champion. Heal up first!"]].forEach(([x, z, n, t]) => npc({ x, z, rot: Math.PI * r() * 2, c1: 0x58b84a, c2: 0xffcf45, talk: () => dialog(lines(n, [t])) }));
-    /* trees / rocks / flowers (instanced) */
-    const inTown = (x) => TOWNS.some(([n, a, b]) => x > a - 3 && x < b + 3), NT = 1100, col2 = new THREE.Color();
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff, { flatShading: true }), NT), lb = new THREE.InstancedMesh(lg, lam(0xffffff, { flatShading: true }), NT);
-    let n = 0;
-    for (let i = 0; i < 9000 && n < NT; i++) {
-      const x = -96 + r() * 291, z = (r() - 0.5) * 84; if (Math.abs(z) < (inTown(x) ? 20 : 9)) continue; if (REG.builds.some((b) => Math.hypot(x - b.x, z - b.z) < 8) || REG.gates.some((g) => Math.abs(x - g.x) < 3 && Math.abs(z) < 10)) continue;
-      const s = 0.8 + r() * 0.8; dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix);
-      dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb.setMatrixAt(n, dm.matrix);
-      col2.setHSL(0.29 + r() * 0.09, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col2); lb.setColorAt(n, col2); SCOL.push({ x, z, r: 0.9 * s }); n++;
-    }
-    [trunk, la, lb].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; region.add(m); });
-    const NF = 900, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
-    for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(-96 + r() * 291, 0.14, (r() - 0.5) * 80); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col2.setHex(fc[i % 5]); fl.setColorAt(i, col2); }
-    fl.instanceMatrix.needsUpdate = true; fl.instanceColor.needsUpdate = true; region.add(fl);
-    const mG = new THREE.ConeGeometry(1, 1, 6);
-    for (let i = 0; i < 40; i++) { const x = -110 + i * 8, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8, { flatShading: true }), x, h / 2, i % 2 ? -78 : 78); o.scale.set(w, h, w); region.add(o); }
-    for (let i = 0; i < 12; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(-90 + r() * 290, 30 + r() * 10, (r() - 0.5) * 120); region.add(c); region.userData.clouds.push(c); }
-    region.visible = false;
-  }
-
-  /* ----- starting / running the story ----- */
-  function chooseStarter(id) {
-    const sp = SPECIES[id];
-    modal(`<h2>YOUR STARTER</h2><p>Choose <b style="color:#ffcf45">${sp.n}</b> as your first partner?</p><div class="av-squad"><div style="width:130px"><img src="${ART + id}.png" alt="" style="width:110px;height:110px">${sp.n}</div></div><div class="av-row2"><button class="av-btn ghost" data-a="no">NOT YET</button><button class="av-btn" data-a="yes">YES!</button></div>`, (m) => {
-      m.querySelector("[data-a=no]").onclick = closeModal;
-      m.querySelector("[data-a=yes]").onclick = () => {
-        closeModal(); const c = mkL(sp, 5); G.squad = [c]; G.lead = 0; G.flags.starter = true; G.flags.pick = id; G.potions += 3; giveBalls(5);
-        try { if (!isCaptured(sp.s)) capturePokemon({ name: sp.s, id, types: sp.t }, "pokeball"); } catch (e) {}
-        refreshStory(); setPartner(true); refresh(); saveStory();
-        dialog([{ n: "Prof. Linden", t: "A fine choice! " + sp.n + " will be a great partner." }, { n: "Prof. Linden", t: "Take these 5 Poké Balls and 3 Potions too. Your rival is waiting down the road!" }, { n: "", t: "You received 5 Poké Balls and 3 Potions!" }]);
-      };
-    });
-  }
-  function startStory(fresh) {
-    runId++; mode = "story"; buildRegion(); showScene("region"); clearDyn(); closeModal();
-    if (fresh || !A.story) A.story = { squad: [], potions: 0, badges: [], def: [], flags: {}, spawn: { x: -80, z: 2 }, pos: { x: -80, z: 2 } };
-    const S = A.story;
-    G = { story: true, squad: S.squad.map(unpack), lead: 0, potions: S.potions || 0, badges: (S.badges || []).slice(), def: (S.def || []).slice(), flags: Object.assign({}, S.flags), cut: false, gd: 0, near: null, loc: "", walk: null, gcool: 0 };
-    P.x = S.pos.x; P.z = S.pos.z; P.rot = Math.PI / 2; me();
-    if (G.squad.length) setPartner(true); else if (partnerH) { scene.remove(partnerH); partnerH = null; }
-    refreshStory(); DL = null; $("av-dlg").hidden = true; hudLast = null;
-    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-party").hidden = false; showPad(true); $("av-feed").innerHTML = ""; refresh();
-    if (!G.flags.intro) { G.cut = true; later(() => dialog([{ n: "Prof. Linden", t: "Welcome to the world of Pokémon! I’m Professor Linden." }, { n: "Prof. Linden", t: "This region is full of wild Pokémon, tough trainers and three Gym Leaders guarding the road to the Champion." }, { n: "Prof. Linden", t: "First, choose your partner from the three Pokémon on the table next to me. Walk up and press E / the A button!" }], () => { G.flags.intro = true; G.cut = false; saveStory(); }), 600); }
-  }
-  function story(dt) {
-    const busy = DL || G.cut || modalOpen();
-    REG.npcs.forEach((n, i) => { if (n.mesh) n.mesh.position.y = Math.sin(t * 2 + i) * 0.03; });
-    if (DL && DL.pos < DL.lines[DL.i].t.length) { DL.pos += dt * 60; paintDlg(); }
-    if (G.walk) { const w = G.walk, dx = P.x - w.T.x, dz = P.z - w.T.z, d = Math.hypot(dx, dz); w.T.mesh.rotation.y = Math.atan2(dx, dz); if (d > 2.9) { w.T.x += (dx / d) * 6 * dt; w.T.z += (dz / d) * 6 * dt; w.T.mesh.position.set(w.T.x, 0, w.T.z); } else { const f = w.then; G.walk = null; f(); } }
-    P.moving = false; G.near = null; G.gcool = Math.max(0, G.gcool - dt);
-    if (!busy) {
-      let dx = 0, dz = 0;
-      if (held.ArrowLeft || held.a || pad.left) dx -= 1; if (held.ArrowRight || held.d || pad.right) dx += 1;
-      if (held.ArrowUp || held.w || pad.up) dz -= 1; if (held.ArrowDown || held.s || pad.down) dz += 1;
-      P.moving = !!(dx || dz);
-      if (P.moving) {
-        const l = Math.hypot(dx, dz), st = (held.Shift ? 11.5 : 8) * dt, nx = P.x + (dx / l) * st, nz = P.z + (dz / l) * st; if (!blocked(nx, P.z)) P.x = nx; if (!blocked(P.x, nz)) P.z = nz; P.rot = Math.atan2(dx, dz);
-        const pt = REG.patches.find((p) => Math.abs(P.x - p.x) < p.w / 2 && Math.abs(P.z - p.z) < p.d / 2);
-        if (pt && me()) { G.gd += st; if (G.gd > 2.1) { G.gd = 0; if (Math.random() < 0.2) return wild(pt.r); } } else if (!pt) G.gd = 0;
-      }
-      const gt = REG.gates.find((g) => !g.req() && Math.abs(P.x - g.x) < 2);
-      if (gt && G.gcool <= 0) { G.gcool = 2; const side = P.x < gt.x ? -1 : 1; G.cut = true; P.x = gt.x + side * 3; dialog(lines("Guard", [gt.msg]), () => { G.cut = false; }); return; }
-      for (const T of REG.trainers) { if (!T.sight || G.def.includes(T.id) || (T.when && !T.when()) || !G.squad.length) continue; const tx = P.x - T.x, tz = P.z - T.z, d = Math.hypot(tx, tz); if (d < T.sight && tx * Math.sin(T.rot) + tz * Math.cos(T.rot) > d * 0.55) return engageTrainer(T); }
-      let best = null, bd = 99; REG.inter.forEach((I) => { if (I.when && !I.when()) return; const q = I.ref || I, d = Math.hypot(P.x - q.x, P.z - q.z); if (d < I.r && d < bd) { best = I; bd = d; } }); G.near = best;
-    }
-    const pr = $("av-prompt"); pr.hidden = !G.near || busy; if (G.near && !busy) pr.textContent = "▶ " + G.near.label + "  (E / A)"; $("av-act").hidden = !G.near || busy;
-    const loc = locName(P.x); if (loc !== G.loc) { G.loc = loc; const lb = $("av-loc"); lb.textContent = loc; lb.classList.remove("show"); void lb.offsetWidth; lb.classList.add("show"); }
-    setHud(`<div class="av-hbox"><small>BADGES</small><b>${BADGES.map((b, i) => (G.badges.includes(i) ? b.ic : "▫️")).join("")}</b></div><div class="av-zbar"><span>LOCATION</span><b>${loc}</b></div><div class="av-hbox"><small>PARTY</small><b>${G.squad.filter((c) => c.hp > 0).length}/${G.squad.length}</b></div>`);
-    drawMapStory();
-  }
-  function drawMapStory() {
-    const c = $("av-map"), x = c.getContext("2d"), S = c.width, big = c.classList.contains("big"), k = S / (big ? 240 : 110), X = (v) => (v - P.x) * k + S / 2, Z = (v) => (v - P.z) * k + S / 2;
-    x.fillStyle = "#245a3c"; x.fillRect(0, 0, S, S); x.fillStyle = "#cdb98a"; x.fillRect(X(-96), Z(-2.75), 292 * k, 5.5 * k);
-    x.fillStyle = "#2f7a35"; REG.patches.forEach((p) => x.fillRect(X(p.x - p.w / 2), Z(p.z - p.d / 2), p.w * k, p.d * k));
-    REG.builds.forEach((b) => { x.fillStyle = b.col; x.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * k, b.d * k); });
-    x.strokeStyle = "#ff3b3b"; x.lineWidth = 4; REG.gates.forEach((g) => { if (!g.req()) { x.beginPath(); x.moveTo(X(g.x), 0); x.lineTo(X(g.x), S); x.stroke(); } });
-    REG.trainers.forEach((T) => { if (T.sight && !G.def.includes(T.id)) { x.fillStyle = "#ff5a5a"; x.beginPath(); x.arc(X(T.x), Z(T.z), 6, 0, 6.283); x.fill(); } });
-    x.fillStyle = "#ffcf45"; REG.inter.forEach((I) => { if (I.ref && (!I.when || I.when())) { x.fillRect(X(I.ref.x) - 3, Z(I.ref.z) - 3, 6, 6); } });
-    x.save(); x.translate(S / 2, S / 2); x.rotate(-P.rot + Math.PI); x.fillStyle = "#5de4ff"; x.strokeStyle = "#04121f"; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 9); x.lineTo(-8, 9); x.closePath(); x.fill(); x.stroke(); x.restore();
-  }
-
   /* ---------- loop ---------- */
   function frame(now) {
     if (!running) return; const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) { running = false; return; }
@@ -842,11 +524,8 @@
   function update(dt) {
     [partnerH, foeH].forEach((h) => h && tickMon(h, dt));
     meadow.userData.clouds.forEach((c) => { c.position.x += dt * 0.8; if (c.position.x > W + 80) c.position.x = -W - 80; });
-    if (region) region.userData.clouds.forEach((c) => { c.position.x += dt * 0.8; if (c.position.x > 210) c.position.x = -110; });
     if (mode === "survival" && !G.over && !B && !modalOpen()) surv(dt);
-    else if (mode === "story" && !B) story(dt);
     else if (mode === "survival") { G.roamers.forEach((r) => { if (!B || r.h !== foeH) tickMon(r.h, dt); }); if (!$("av-map").hidden) drawMap(); }
-    else if (mode === "story") { $("av-prompt").hidden = true; $("av-act").hidden = true; }
     trainer.position.set(P.x, 0, P.z); trainer.rotation.y = P.rot;
     const lg = trainer.userData.legs, sw = P.moving && !B ? Math.sin(t * 12) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw;
     if (partnerH) {
@@ -858,9 +537,8 @@
       }
     }
     let cx, cy, cz, lx, ly, lz;
-    if (mode && B) { const mxp = (P.x + B.foePos.x) / 2, mzp = (P.z + B.foePos.z) / 2; cx = mxp; cy = 6.2; cz = mzp + 8.5; lx = mxp; ly = 1.3; lz = mzp; }
+    if (mode === "survival" && B) { const mxp = (P.x + B.foePos.x) / 2, mzp = (P.z + B.foePos.z) / 2; cx = mxp; cy = 6.2; cz = mzp + 8.5; lx = mxp; ly = 1.3; lz = mzp; }
     else if (mode === "survival") { const i = G.intro > 0 ? G.intro : 0; cx = P.x; cy = 9.5 + i * 60; cz = P.z + 11.5 + i * 30; lx = P.x; ly = 1; lz = P.z; }
-    else if (mode === "story") { cx = P.x; cy = 9; cz = P.z + 11; lx = P.x; ly = 1; lz = P.z; }
     else { const a = t * 0.12; cx = P.x + Math.sin(a) * 11; cy = 5; cz = P.z + Math.cos(a) * 11; lx = P.x; ly = 1.5; lz = P.z; }
     const k = camSnap ? 1 : 1 - Math.exp(-4.5 * dt); camSnap = false;
     camera.position.x += (cx - camera.position.x) * k; camera.position.y += (cy - camera.position.y) * k; camera.position.z += (cz - camera.position.z) * k;
@@ -873,11 +551,10 @@
     setup(() => { resize(); menu(); if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } });
   }
   function close() {
-    if (G && G.story) saveStory();
     running = false; runId++; save(); $("adventure-page").classList.add("hidden");
     if (typeof showHomeScreen === "function") showHomeScreen(); else $("home-page").classList.remove("hidden");
   }
-  addEventListener("keydown", (e) => { const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) return; held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault(); if (!e.repeat && mode === "story" && (e.key === "e" || e.key === "E" || e.key === " " || e.key === "Enter")) { e.preventDefault(); interact(); } });
+  addEventListener("keydown", (e) => { const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) return; held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true; if (e.key.startsWith("Arrow")) e.preventDefault(); });
   addEventListener("keyup", (e) => { held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
   addEventListener("blur", () => { Object.keys(held).forEach((k) => { held[k] = false; }); });
   document.addEventListener("DOMContentLoaded", () => { const b = $("btn-adventure"); if (b) b.onclick = open; });
