@@ -16,7 +16,7 @@
 ============================================================
 */
 
-const CACHE_VERSION = "v38";
+const CACHE_VERSION = "v40";
 const SHELL_CACHE = `fighter-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fighter-runtime-${CACHE_VERSION}`;
 
@@ -26,6 +26,7 @@ const SHELL_FILES = [
   "./app.js",
   "./friends.js",
   "./game.js",
+  "./adventure.js",
   "./style.css",
   "./manifest.webmanifest",
   "./icon-192.png",
