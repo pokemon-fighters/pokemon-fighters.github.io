@@ -69,9 +69,6 @@
   let A, THREE, renderer, scene, camera, meadow, region = null, zoneG, zoneWall, zoneRing, nextRing;
   let trainer, partnerH, foeH, mode = null, G = null, B = null;
   let built = false, running = false, last = 0, t = 0, runId = 0, camSnap = true;
-  // Active collision bounds are switched between the open-world and story maps.
-  // Declare these explicitly because this file runs in strict mode.
-  let COLA = [], BND = { x0: -W + 2, x1: W - 2, z0: -W + 2, z1: W - 2 };
   const P = { x: 0, z: 24, rot: Math.PI, moving: false };
   const held = {}, pad = {}, COL = [], camLook = { x: 0, y: 1, z: 0 };
   const later = (fn, ms) => { const r = runId; setTimeout(() => { if (r === runId) fn(); }, ms); };
@@ -248,7 +245,7 @@
     /* trees / rocks / flowers are instanced so a huge map stays fast */
     const dm = new THREE.Object3D(), col = new THREE.Color(), NT = 560;
     const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT);
-    const leafG = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(leafG, lam(0xffffff, { flatShading: true }), NT), lb = new THREE.InstancedMesh(leafG, lam(0xffffff, { flatShading: true }), NT);
+    const leafG = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(leafG, lam(0xffffff), NT), lb = new THREE.InstancedMesh(leafG, lam(0xffffff), NT);
     let n = 0;
     for (let i = 0; i < 6000 && n < NT; i++) {
       const x = (r() - 0.5) * 2 * (W - 3), z = (r() - 0.5) * 2 * (W - 3); if (!freeSpot(x, z, 2)) continue; const s = 0.8 + r() * 0.8;
@@ -258,14 +255,14 @@
       col.setHSL(0.29 + r() * 0.09, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col); lb.setColorAt(n, col); COL.push({ x, z, r: 0.9 * s }); n++;
     }
     [trunk, la, lb].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; meadow.add(m); });
-    const NR = 110, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.8, 0), lam(0x9a9aa8, { flatShading: true }), NR); n = 0;
+    const NR = 110, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.8, 0), lam(0x9a9aa8), NR); n = 0;
     for (let i = 0; i < 1500 && n < NR; i++) { const x = (r() - 0.5) * 2 * (W - 3), z = (r() - 0.5) * 2 * (W - 3); if (!freeSpot(x, z, 1)) continue; const s = 0.6 + r() * 1.1; dm.rotation.set(0, r() * 6, 0); dm.scale.set(s, s * 0.8, s); dm.position.set(x, 0.4 * s, z); dm.updateMatrix(); rocks.setMatrixAt(n, dm.matrix); COL.push({ x, z, r: 0.8 * s }); n++; }
     rocks.count = n; rocks.instanceMatrix.needsUpdate = true; meadow.add(rocks);
     const NF = 1100, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
     for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set((r() - 0.5) * 2 * W, 0.14, (r() - 0.5) * 2 * W); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col.setHex(fc[i % 5]); fl.setColorAt(i, col); }
     fl.instanceMatrix.needsUpdate = true; fl.instanceColor.needsUpdate = true; meadow.add(fl);
     const mG = new THREE.ConeGeometry(1, 1, 6);
-    for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2, d = W + 55 + r() * 12, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8, { flatShading: true }), Math.cos(a) * d, h / 2, Math.sin(a) * d); o.scale.set(w, h, w); meadow.add(o); }
+    for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2, d = W + 55 + r() * 12, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8), Math.cos(a) * d, h / 2, Math.sin(a) * d); o.scale.set(w, h, w); meadow.add(o); }
     meadow.userData.clouds = [];
     for (let i = 0; i < 16; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set((r() - 0.5) * 2 * (W + 60), 30 + r() * 10, (r() - 0.5) * 2 * (W + 60)); meadow.add(c); meadow.userData.clouds.push(c); }
     zoneG = new THREE.Group(); scene.add(zoneG);
@@ -746,7 +743,7 @@
     lead({ id: "gym2", name: "Volt", tag: "GYM LEADER VOLT", x: 158, z: -8, rot: 0, c1: 0xd9a400, c2: 0x222222, team: [[81, 21], [25, 22], [26, 25]], reward: 800, intro: ["Bzzzt! I’m Volt, Voltport’s Gym Leader!", "Prepare to be shocked!"], win: ["Electrifying! The Spark Badge is yours!"], done: ["Go on, the Champion awaits you."], after: () => { G.badges.push(2); refreshStory(); saveStory(); dialog(["You received the ⚡ Spark Badge!", "Champion’s Peak is now open."]); } });
     lead({ id: "champ", name: "Champion Drake", tag: "CHAMPION DRAKE", x: 188, z: -8, rot: 0, c1: 0x5a4f8a, c2: 0xffd43b, team: [[65, 30], [130, 31], [6, 32], [149, 34]], reward: 2000, fm: 0.85, xpm: 2, intro: ["So you made it all the way here.", "I am Drake, the Champion! Show me everything you’ve got!"], win: ["Incredible... You are the new Champion!"], done: ["Champion! The region is yours. Keep training and catch them all!"], after: () => { G.flags.champ = true; giveGems(25); saveStory(); dialog(["🏆 You are the new POKÉMON CHAMPION!", "You earned 💎 25 gems. Thanks for playing! You can keep exploring and catching Pokémon."]); } });
     /* rival */
-    const rv = { id: "rival", name: "Rival Ren", x: -61.5, z: 0, rot: -Math.PI / 2, c1: 0x222a44, c2: 0xff8a3d, sight: 9, fm: 0.7, reward: 120, when: () => G.flags.starter, team: () => [[{ 1: 4, 4: 7, 7: 1 }[G.flags.pick] || 4, 5]], intro: ["Hey, wait up! So you got a Pokémon from the Professor too.", "Let’s see who’s stronger — battle me!"], win: ["Whoa, you’re good! I’ll get stronger too. See you on the road!"], talk: (o) => dialog(lines(o.name, G.def.includes("rival") ? ["I’m heading to Stonebrook too. Don’t fall behind!"] : ["Come on, battle me when you’re ready!"])) };
+    const rv = { id: "rival", name: "Rival Ren", x: -61.5, z: 0, rot: -Math.PI / 2, c1: 0x222a44, c2: 0xff8a3d, sight: 9, fm: 0.7, reward: 120, when: () => G.flags.starter, team: () => [[{ 1: 7, 4: 1, 7: 4 }[G.flags.pick] || 4, 5]], intro: ["Hey, wait up! So you got a Pokémon from the Professor too.", "Let’s see who’s stronger — battle me!"], win: ["Whoa, you’re good! I’ll get stronger too. See you on the road!"], talk: (o) => dialog(lines(o.name, G.def.includes("rival") ? ["I’m heading to Stonebrook too. Don’t fall behind!"] : ["Come on, battle me when you’re ready!"])) };
     npc(rv); REG.trainers.push(rv);
     /* route trainers */
     [["r1a", "Youngster Joey", -45, -7, 0, [[19, 4], [19, 5]], 60, 0x3d6bff], ["r1b", "Lass Anna", -31, 7, Math.PI, [[43, 5], [133, 6]], 70, 0xe0679a],
@@ -758,7 +755,7 @@
     [[-80, 4, "Neighbor", "Welcome to Seedling Town! The big building is Professor Linden’s lab."], [-10, 5, "Villager", "Stonebrook’s gym leader Flint uses Rock-type Pokémon. Water and Grass moves work great!"], [75, 5, "Sailor", "Bluewater’s Marina loves Water types. Electric and Grass beat them!"], [150, 5, "Engineer", "Volt’s Electric Pokémon are fast. Ground types don’t take any damage from Electric moves."], [-38, -6, "Hiker", "Tall grass hides wild Pokémon. Weaken them, then throw a Poké Ball!"], [60, 6, "Cooler Kid", "Win battles to level up. Some Pokémon evolve at certain levels!"], [182, 5, "Elite Guard", "Beyond this door waits the Champion. Heal up first!"]].forEach(([x, z, n, t]) => npc({ x, z, rot: Math.PI * r() * 2, c1: 0x58b84a, c2: 0xffcf45, talk: () => dialog(lines(n, [t])) }));
     /* trees / rocks / flowers (instanced) */
     const inTown = (x) => TOWNS.some(([n, a, b]) => x > a - 3 && x < b + 3), NT = 1100, col2 = new THREE.Color();
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff, { flatShading: true }), NT), lb = new THREE.InstancedMesh(lg, lam(0xffffff, { flatShading: true }), NT);
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff), NT), lb = new THREE.InstancedMesh(lg, lam(0xffffff), NT);
     let n = 0;
     for (let i = 0; i < 9000 && n < NT; i++) {
       const x = -96 + r() * 291, z = (r() - 0.5) * 84; if (Math.abs(z) < (inTown(x) ? 20 : 9)) continue; if (REG.builds.some((b) => Math.hypot(x - b.x, z - b.z) < 8) || REG.gates.some((g) => Math.abs(x - g.x) < 3 && Math.abs(z) < 10)) continue;
@@ -771,7 +768,7 @@
     for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(-96 + r() * 291, 0.14, (r() - 0.5) * 80); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col2.setHex(fc[i % 5]); fl.setColorAt(i, col2); }
     fl.instanceMatrix.needsUpdate = true; fl.instanceColor.needsUpdate = true; region.add(fl);
     const mG = new THREE.ConeGeometry(1, 1, 6);
-    for (let i = 0; i < 40; i++) { const x = -110 + i * 8, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8, { flatShading: true }), x, h / 2, i % 2 ? -78 : 78); o.scale.set(w, h, w); region.add(o); }
+    for (let i = 0; i < 40; i++) { const x = -110 + i * 8, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8), x, h / 2, i % 2 ? -78 : 78); o.scale.set(w, h, w); region.add(o); }
     for (let i = 0; i < 12; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(-90 + r() * 290, 30 + r() * 10, (r() - 0.5) * 120); region.add(c); region.userData.clouds.push(c); }
     region.visible = false;
   }
