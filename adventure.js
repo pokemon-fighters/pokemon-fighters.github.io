@@ -71,9 +71,7 @@
   let built = false, running = false, last = 0, t = 0, runId = 0, camSnap = true;
   const P = { x: 0, z: 24, rot: Math.PI, moving: false };
   const held = {}, pad = {}, COL = [], camLook = { x: 0, y: 1, z: 0 };
-  // Active collision list and movement bounds are switched by showScene().
-  // Declare them here because this file runs in strict mode.
-  let COLA = COL, BND = null;
+  let COLA = COL, BND = { x0: -118, x1: 118, z0: -118, z1: 118 };
   const later = (fn, ms) => { const r = runId; setTimeout(() => { if (r === runId) fn(); }, ms); };
   const modalOpen = () => !$("av-modal").hidden;
 
@@ -126,6 +124,19 @@
 .av-fl{position:absolute;transform:translate(-50%,-50%);font:900 24px var(--font-display);color:#fff;text-shadow:0 2px 0 #000,0 0 10px rgba(0,0,0,.7);animation:avfl .95s ease-out forwards;white-space:nowrap}
 .av-fl.g{color:#55e6a0}.av-fl.y{color:#ffcf45;font-size:15px}.av-fl.r{color:#ff9b93}
 @keyframes avfl{0%{opacity:0;margin-top:10px}15%{opacity:1}100%{opacity:0;margin-top:-60px}}
+#av-move-fx{position:absolute;inset:0;z-index:8;pointer-events:none;overflow:hidden}
+.av-move-burst{position:absolute;width:clamp(100px,22vw,180px);height:clamp(100px,22vw,180px);transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;animation:avburst .72s ease-out forwards;filter:drop-shadow(0 0 16px var(--move-color))}
+.av-move-burst:before{content:"";position:absolute;inset:8%;border-radius:50%;border:5px solid var(--move-color);box-shadow:0 0 20px var(--move-color),inset 0 0 22px var(--move-color);animation:avring .72s ease-out forwards}
+.av-move-burst:after{content:"";position:absolute;inset:25%;border-radius:50%;background:radial-gradient(circle,var(--move-color),transparent 72%);opacity:.65;animation:avcore .72s ease-out forwards}
+.av-move-burst b{position:relative;z-index:2;font:900 clamp(20px,5vw,34px) var(--font-display);color:#fff;text-shadow:0 2px 4px #000,0 0 14px var(--move-color);animation:avlabel .72s ease-out forwards}
+.av-move-particle{position:absolute;left:50%;top:50%;font-size:clamp(15px,3vw,25px);text-shadow:0 2px 5px #000;animation:avparticle .68s cubic-bezier(.12,.7,.2,1) forwards}
+@keyframes avburst{0%{opacity:0;scale:.15}18%{opacity:1;scale:1.08}100%{opacity:0;scale:1.5}}
+@keyframes avring{0%{transform:scale(.25);opacity:1}100%{transform:scale(1.3);opacity:0}}
+@keyframes avcore{0%{transform:scale(.1);opacity:.9}45%{transform:scale(1.2);opacity:.7}100%{transform:scale(.2);opacity:0}}
+@keyframes avlabel{0%{opacity:0;transform:scale(.5) translateY(8px)}25%{opacity:1;transform:scale(1) translateY(0)}100%{opacity:0;transform:scale(1.15) translateY(-12px)}}
+@keyframes avparticle{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}15%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.25)}}
+#av-3d.av-camera-hit{animation:avcamerahit .24s ease-out}
+@keyframes avcamerahit{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 #av-modal{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,10,18,.78);backdrop-filter:blur(7px);animation:modal-backdrop-in .2s}
 .av-sheet{width:min(560px,100%);max-height:92%;overflow-y:auto;background:linear-gradient(180deg,#11253b,#0a1729);border:1px solid #2f4d6b;border-radius:22px;padding:22px 18px 18px;text-align:center;box-shadow:0 25px 60px #000a,0 0 40px rgba(79,179,255,.1);animation:modal-card-in .3s cubic-bezier(.16,1,.3,1)}
 .av-sheet h2{font:900 26px var(--font-display);letter-spacing:2px;background:linear-gradient(90deg,#fff,#63c7ff);-webkit-background-clip:text;color:transparent;font-style:italic}
@@ -170,6 +181,16 @@
 #av-flash.on{animation:avflash .72s steps(1,end) forwards}@keyframes avflash{0%{opacity:1;background:#fff}12%{opacity:0}24%{opacity:1;background:#fff}36%{opacity:0}48%{opacity:1;background:#fff}60%{opacity:0}72%{opacity:1;background:#000}100%{opacity:1;background:#000}}
 @media(max-width:560px){#av-act{right:78px;bottom:calc(140px + env(safe-area-inset-bottom))}#av-loc{font-size:19px}#av-dlg{font-size:13.5px}}
 @media(max-width:560px){.av-zbar{min-width:130px;padding:5px 8px 11px}.av-hbox{min-width:54px;padding:5px 7px}#av-map{width:104px;height:104px}.av-chip{min-width:128px}}
+`;
+    s.textContent += `
+.av-idpanel{display:grid;gap:6px;padding:12px;margin:12px 0;background:#0c1b2d;border:1px solid #36506b;border-radius:12px;color:#b9d5ef;font:700 12px var(--font-display)}.av-idpanel b{color:#ffcf45;letter-spacing:1.5px}
+.av-room{padding:18px;border-radius:16px;border:4px solid var(--gym-trim);background:linear-gradient(145deg,var(--gym-bg),#101b2c);color:#fff;box-shadow:inset 0 0 0 5px rgba(255,255,255,.06)}.av-room h2{color:var(--gym-accent);text-align:center}.av-room-floor{height:95px;margin:12px 0;border:3px solid var(--gym-trim);border-radius:10px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 28px,transparent 28px 56px),repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 28px,transparent 28px 56px),var(--gym-floor);display:flex;align-items:center;justify-content:space-around;font-size:27px}.av-task{display:flex;gap:10px;align-items:center;padding:10px;margin:7px 0;background:#10253a;border:1px solid #36506b;border-radius:10px;color:#dcecff;font-size:13px}
+`;
+    s.textContent += `
+#av-home-preview{position:fixed;z-index:30;right:18px;bottom:18px;width:min(330px,calc(100vw - 28px));padding:14px;border:1px solid #36506b;border-radius:18px;background:linear-gradient(145deg,#132c46,#081522);box-shadow:0 16px 45px #0009;color:#eaf3ff;font-family:var(--font-body);display:flex;gap:12px;align-items:center;text-align:left}
+#av-home-preview .av-home-avatar{width:62px;height:72px;flex:none;border-radius:14px;background:linear-gradient(160deg,#244b70,#0b1c30);display:grid;place-items:center;border:1px solid #4b7598}#av-home-preview .av-home-avatar svg{width:52px;height:62px}
+#av-home-preview .av-home-info{min-width:0;flex:1}#av-home-preview b{display:block;color:#ffcf45;font:900 14px var(--font-display);letter-spacing:1px}#av-home-preview small{display:block;color:#a9bed3;font-size:10px;margin-top:3px;overflow-wrap:anywhere}#av-home-preview .av-home-places{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}#av-home-preview .av-home-places span{font-size:9px;color:#cfe6ff;background:#0b1b2d;border:1px solid #29415b;border-radius:7px;padding:4px 6px}#av-home-preview button{margin-top:8px;width:100%;min-height:34px;border:0;border-radius:9px;background:linear-gradient(145deg,#ffcf45,#ff762e);color:#172235;font-weight:900;cursor:pointer}
+@media(max-width:560px){#av-home-preview{left:12px;right:12px;bottom:12px;width:auto}}
 `;
     document.head.appendChild(s);
   }
@@ -276,7 +297,7 @@
   }
   function showScene(kind) {
     const st = kind === "region"; meadow.visible = !st; if (region) region.visible = st; zoneG.visible = false;
-    COLA = st ? SCOL : COL; BND = st ? { x0: -94, x1: 194, z0: -41, z1: 41 } : { x0: -W + 2, x1: W - 2, z0: -W + 2, z1: W - 2 };
+    COLA = st ? SCOL : COL; BND = st ? { x0: -98, x1: 478, z0: -41, z1: 41 } : { x0: -W + 2, x1: W - 2, z0: -W + 2, z1: W - 2 };
     scene.background = new THREE.Color(0x8fd0ff); scene.fog = new THREE.Fog(0x8fd0ff, 70, 230); trainer.visible = true; camSnap = true;
   }
   const inGrassFree = (x, z) => !(x < BND.x0 || x > BND.x1 || z < BND.z0 || z > BND.z1 || COLA.some((c) => (x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + 0.4) ** 2));
@@ -293,7 +314,7 @@
           <button class="av-btn" id="av-a1">⚔ Attack<small>Basic hit</small></button><button class="av-btn" id="av-a2">✦ Special<small>1.7× damage</small></button>
           <button class="av-btn ghost" id="av-a3">⚪ Poké Ball<small></small></button><button class="av-btn ghost" id="av-a4">🏃 Run<small>Escape</small></button>
           <button class="av-btn ghost" id="av-a5">⇄ Swap<small>Change creature</small></button><button class="av-btn ghost" id="av-a6">🧪 Potion<small></small></button></div></div></div>
-      <div id="av-float"></div><div id="av-dlg" hidden></div><div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-loc"></div><div id="av-flash"></div><div id="av-modal" hidden></div>`;
+      <div id="av-float"></div><div id="av-move-fx"></div><div id="av-dlg" hidden></div><div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-loc"></div><div id="av-flash"></div><div id="av-modal" hidden></div>`;
     $("av-back").onclick = onBack; $("av-party").onclick = partyMenu; $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); if (G) drawMap(); };
     document.querySelectorAll("#av-pad button").forEach((b) => { const k = b.dataset.k; b.addEventListener("pointerdown", (e) => { e.preventDefault(); pad[k] = true; }); ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { pad[k] = false; })); });
     [["a1", "atk"], ["a2", "sp"], ["a3", "ball"], ["a4", "run"], ["a5", "swap"], ["a6", "potion"]].forEach(([id, k]) => { $("av-" + id).onclick = () => act(k); });
@@ -325,6 +346,25 @@
     const p = $("adventure-page"), d = document.createElement("div"); d.className = "av-fl " + (cls || ""); d.textContent = txt;
     d.style.left = ((v.x * 0.5 + 0.5) * p.clientWidth) + "px"; d.style.top = ((-v.y * 0.5 + 0.5) * p.clientHeight) + "px"; $("av-float").appendChild(d); setTimeout(() => d.remove(), 950);
   }
+  const MOVE_FX = {
+    normal:["#e8e2c8","✦","✧","➤"], fire:["#ff642e","🔥","✹","✦"], water:["#43b9ff","💧","〰","✧"],
+    electric:["#ffe34a","⚡","✦","ϟ"], grass:["#75dc62","🍃","✿","❋"], ice:["#9cf5ff","❄","✧","❅"],
+    fighting:["#ff654f","✊","✦","➤"], poison:["#c46bdf","☠","●","✧"], ground:["#d8ad62","◆","〰","✦"],
+    flying:["#b7d8ff","🪽","〰","✧"], psychic:["#ff72c5","✧","◉","✦"], bug:["#b6d94d","✿","❋","●"],
+    rock:["#c8ad75","◆","▪","✦"], ghost:["#a88aff","👻","◉","✧"], dragon:["#9b79ff","🐉","✦","◆"],
+    dark:["#9b8aaf","◈","●","✧"], steel:["#c7d7e8","⚙","◆","✦"], fairy:["#ffb8df","✿","♡","✧"]
+  };
+  function moveEffect(type, target, moveName) {
+    if (!target || !camera) return;
+    const p = $("adventure-page"), v = new THREE.Vector3(target.position.x, 2.4 * ((target.userData.s || 2.1) / 2.1), target.position.z).project(camera);
+    const x = (v.x * .5 + .5) * p.clientWidth, y = (-v.y * .5 + .5) * p.clientHeight;
+    const fx = MOVE_FX[type] || MOVE_FX.normal, root = document.createElement("div");
+    root.className = "av-move-burst"; root.style.left = x + "px"; root.style.top = y + "px"; root.style.setProperty("--move-color", fx[0]);
+    const label = document.createElement("b"); label.textContent = moveName || (type.toUpperCase() + " MOVE"); root.appendChild(label);
+    for (let i=0;i<9;i++) { const bit=document.createElement("span"); bit.className="av-move-particle"; bit.textContent=fx[1+(i%3)]; const a=Math.PI*2*i/9,d=48+(i%3)*17; bit.style.setProperty("--dx",Math.cos(a)*d+"px"); bit.style.setProperty("--dy",Math.sin(a)*d+"px"); root.appendChild(bit); }
+    $("av-move-fx").appendChild(root); setTimeout(()=>root.remove(),800);
+    const stage=$("av-3d"); stage.classList.remove("av-camera-hit"); void stage.offsetWidth; stage.classList.add("av-camera-hit");
+  }
   const hpCls = (c) => { const f = c.hp / c.max; return f < 0.25 ? "low" : f < 0.55 ? "mid" : ""; };
   function refresh() {
     let c = 0; try { c = coins; } catch (e) {}
@@ -339,15 +379,16 @@
     runId++; mode = null; G = null; DL = null; clearBattle(); clearDyn(); showScene("meadow");
     ["av-dlg", "av-prompt", "av-act", "av-party"].forEach((id) => { $(id).hidden = true; }); $("av-loc").classList.remove("show");
     P.x = 0; P.z = 26; P.rot = Math.PI; setPartner(true, siteTeam()); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "ADVENTURE"; $("adventure-page").classList.remove("danger"); say(""); refresh(); zoneG.visible = false;
-    const S = A.story, sub = S ? "💾 " + S.badges.length + "/3 BADGES · " + S.squad.length + " POKÉMON" + (S.flags && S.flags.champ ? " · 🏆 CHAMPION" : "") : "NEW JOURNEY";
-    modal(`<h2>CHOOSE YOUR ADVENTURE</h2><p>Your rewards go straight to your coins and Poké Balls.</p><div class="av-modes">
-      <button class="av-mode" data-m="story" style="--c:#4fb3ff"><div class="ic">🗺️</div><div><b>STORY ADVENTURE</b><span>A classic Pokémon journey: pick a starter, beat your rival and route trainers, level up, evolve, win 3 gym badges and challenge the Champion.</span><i>${sub}</i></div></button>
-      <button class="av-mode" data-m="royale" style="--c:#ff6b3d"><div class="ic">🔥</div><div><b>STORM ROYALE</b><span>20 trainers, one shrinking storm. Loot, fight and be the last one standing.</span><i>🏆 ${A.s.booyah} BOOYAH · BEST ${A.s.best ? "#" + A.s.best : "—"}</i></div></button></div>
-      <div class="av-row2">${S ? '<button class="av-btn ghost" data-m="new">NEW STORY GAME</button>' : ""}<button class="av-btn ghost" data-m="home">← HOME</button></div>`, (m) => {
+    const S = A.story, sub = S ? "💾 " + (S.badges || []).length + "/6 BADGES · " + (S.squad || []).length + " POKÉMON" + (S.flags && S.flags.champ ? " · 🏆 TOURNAMENT CHAMPION" : "") : "CREATE YOUR TRAINER";
+    const profile = S && S.profile ? S.profile : null;
+    const ids = S ? `<div class="av-idpanel"><b>TRAINER REGISTRY</b><span>YOUR ID: ${profile && profile.id || "NOT CREATED"}</span><span>FRIEND IDs: ${profile && profile.friends ? profile.friends.map(f => f.id).join(" · ") : "NPC-MAYA-01 · NPC-LEO-01"}</span></div>` : "";
+    modal(`<h2>REGION ADVENTURE</h2><p>Explore a much larger region, complete city requests, earn six badges with your two friends, then enter the Grand League tournament.</p>
+      <div class="av-modes"><button class="av-mode" data-m="story" style="--c:#4fb3ff"><div class="ic">🗺️</div><div><b>${S ? "CONTINUE JOURNEY" : "NEW STORY ADVENTURE"}</b><span>Six cities, six themed Gym rooms, side quests, two rival friends and a championship tournament.</span><i>${sub}</i></div></button></div>${ids}
+      <div class="av-row2">${S ? '<button class="av-btn ghost" data-m="new">CREATE NEW STORY</button>' : ""}<button class="av-btn ghost" data-m="home">← HOME</button></div>`, (m) => {
       m.querySelectorAll("[data-m]").forEach((b) => { b.onclick = () => {
         const k = b.dataset.m;
-        if (k === "story") { closeModal(); startStory(false); } else if (k === "royale") royaleLobby(); else if (k === "home") { closeModal(); close(); }
-        else modal(`<h2 class="lose">ERASE STORY SAVE?</h2><p>Your story progress, badges and party will be deleted and you will start over.</p><div class="av-row2"><button class="av-btn ghost" data-a="no">CANCEL</button><button class="av-btn" data-a="yes">ERASE & START</button></div>`, (m2) => { m2.querySelector("[data-a=no]").onclick = menu; m2.querySelector("[data-a=yes]").onclick = () => { closeModal(); startStory(true); }; });
+        if (k === "story") { closeModal(); if (!S) startStory(true); else startStory(false); } else if (k === "home") { closeModal(); close(); }
+        else modal(`<h2 class="lose">CREATE A NEW STORY?</h2><p>This replaces the current story save, badges, trainer profile and party.</p><div class="av-row2"><button class="av-btn ghost" data-a="no">CANCEL</button><button class="av-btn" data-a="yes">CONTINUE</button></div>`, (m2) => { m2.querySelector("[data-a=no]").onclick = menu; m2.querySelector("[data-a=yes]").onclick = () => { closeModal(); startStory(true); }; });
       }; });
     });
   }
@@ -382,7 +423,7 @@
 
   /* ---------- battle core ---------- */
   function ovl(v) { ["av-hud", "av-map", "av-feed", "av-act", "av-party", "av-loc", "av-prompt"].forEach((id) => { const e = $(id); if (e) e.style.visibility = v ? "" : "hidden"; }); }
-  function clearBattle() { if (foeH && (!B || !B.o.h)) scene.remove(foeH); foeH = null; B = null; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); }
+  function clearBattle() { if (foeH && (!B || !B.o.h)) scene.remove(foeH); foeH = null; B = null; if ($("av-move-fx")) $("av-move-fx").innerHTML = ""; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); }
   function startBattle(foe, o) {
     const m = me(); if (!m) return;
     B = { foe, o, lock: false, turn: 0, mePos: o.mePos, foePos: o.foePos };
@@ -419,7 +460,7 @@
       log("It broke free!"); float(foeH, "BROKE FREE", "r");
     } else {
       if (kind === "sp") { if (m.cd > 0) return; m.cd = o.cd || 3; }
-      const r = dmg(m, f, kind === "sp" ? 1.7 : 1); f.hp = Math.max(0, f.hp - r.v); lungeTo(partnerH, partnerH.position, foeH.position); foeH.userData.flash = 0.25; foeH.userData.mat.color.set(0xff7070);
+      const r = dmg(m, f, kind === "sp" ? 1.7 : 1); f.hp = Math.max(0, f.hp - r.v); moveEffect(m.t[0] || "normal", foeH, kind === "sp" ? "POWER " + cap(m.t[0] || "normal") : cap(m.t[0] || "normal") + " HIT"); lungeTo(partnerH, partnerH.position, foeH.position); foeH.userData.flash = 0.25; foeH.userData.mat.color.set(0xff7070);
       float(foeH, r.e === 0 ? "NO EFFECT" : "-" + r.v, r.e > 1 ? "y" : ""); log(m.n + (kind === "sp" ? " unleashes a special" : " attacks") + " for " + r.v + effTxt(r.e));
       if (f.hp <= 0) { foeH.userData.sink = true; let ms = 1300; if (G.story) { const xg = gainXp(f); log(f.n + " fainted! " + m.n + " gained " + xg.base + " XP!" + (xg.out.length ? " " + xg.out.join(" ") : "")); ms = 2500; } return endBattle("win", ms); }
     }
@@ -430,12 +471,12 @@
     later(() => {
       if (!B) return; B.turn++; G.squad.forEach((c) => { c.cd = Math.max(0, (c.cd || 0) - 1); });
       const m = me(), f = B.foe, big = f.boss && B.turn % 4 === 0, r = dmg(f, m, big ? 1.7 : f.boss ? 1.05 : (B.o.fm || 0.9));
-      m.hp = Math.max(0, m.hp - r.v); lungeTo(foeH, foeH.position, partnerH.position); partnerH.userData.flash = 0.25; partnerH.userData.mat.color.set(0xff7070);
+      m.hp = Math.max(0, m.hp - r.v); moveEffect(f.t[0] || "normal", partnerH, big ? "ULTIMATE " + cap(f.t[0] || "psychic") : cap(f.t[0] || "normal") + " STRIKE"); lungeTo(foeH, foeH.position, partnerH.position); partnerH.userData.flash = 0.25; partnerH.userData.mat.color.set(0xff7070);
       float(partnerH, r.e === 0 ? "NO EFFECT" : "-" + r.v, "r");
       log(f.n + (big ? " unleashes Psystrike" : " hits " + m.n) + " for " + r.v + effTxt(r.e) + (m.hp <= 0 ? " " + m.n + " fainted!" : ""));
       B.lock = false; ui();
       if (!me()) { B.lock = true; later(() => endBattle("lose", 0), 1000); } else if (m.hp <= 0) setPartner();
-    }, 650);
+    }, 820);
   }
   function gainXp(foe) {
     const base = Math.round(foe.lv * 4 * (B.o.trainer ? 1.5 : 1) * (B.o.xpMult || 1)), lead = me(), out = [];
@@ -563,20 +604,23 @@
 
   /* ============================================================
      STORY ADVENTURE — a Pokémon-ROM style journey
-     Seedling Town → Route 1 → Stonebrook → Route 2 → Bluewater →
-     Route 3 → Voltport → Champion's Peak. Pick a starter, beat the
-     rival, trainers and 3 gym leaders, then face the Champion.
+     Seedling Town → six cities → Victory Road → Championship Stadium.
+     Build a trainer profile, travel with Maya and Leo, complete city
+     tasks, earn six badges and win the Grand League tournament.
   ============================================================ */
   const RT = [
     { ids: [19, 133, 43, 41, 25, 39], rare: [63], lv: [3, 6] },
     { ids: [74, 66, 54, 63, 81, 58, 92], rare: [133], lv: [8, 12] },
     { ids: [93, 75, 64, 67, 42, 44, 59], rare: [143], lv: [14, 18] },
+    { ids: [43, 44, 59, 1, 2, 3], rare: [143], lv: [20, 25] },
+    { ids: [58, 59, 5, 6, 74, 75], rare: [130], lv: [25, 30] },
+    { ids: [63, 64, 65, 92, 93, 94, 149], rare: [150], lv: [30, 36] },
   ];
-  const BADGES = [{ ic: "🪨", n: "Stone" }, { ic: "💧", n: "Wave" }, { ic: "⚡", n: "Spark" }];
+  const BADGES = [{ ic: "🪨", n: "Stone" }, { ic: "💧", n: "Wave" }, { ic: "⚡", n: "Spark" }, { ic: "🍃", n: "Grove" }, { ic: "🔥", n: "Ember" }, { ic: "🌙", n: "Lunar" }];
   const REG = { trainers: [], npcs: [], inter: [], gates: [], patches: [], builds: [], starters: [] };
   const SCOL = [];
   let regionBuilt = false, DL = null;
-  const locName = (x) => (x < -56 ? "Seedling Town" : x < -22 ? "Route 1" : x < 16 ? "Stonebrook City" : x < 52 ? "Route 2" : x < 93 ? "Bluewater City" : x < 128 ? "Route 3" : x < 171 ? "Voltport City" : "Champion’s Peak");
+  const locName = (x) => (x < -56 ? "Seedling Town" : x < -22 ? "Route 1" : x < 16 ? "Stonebrook City" : x < 52 ? "Route 2" : x < 93 ? "Bluewater City" : x < 128 ? "Route 3" : x < 171 ? "Voltport City" : x < 210 ? "Route 4" : x < 248 ? "Verdant City" : x < 286 ? "Route 5" : x < 325 ? "Cinder City" : x < 363 ? "Route 6" : x < 402 ? "Moonfall City" : x < 445 ? "Victory Road" : "Championship Stadium");
   const lines = (n, arr) => arr.map((t) => ({ n, t }));
 
   /* ----- dialogue (white ROM-style text box) ----- */
@@ -646,7 +690,7 @@
   }
   function partyMenu() {
     if (!G || !G.story || B || DL) return;
-    const draw = () => modal(`<h2>PARTY</h2><div class="av-stats"><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/3</b></div><div class="av-stat"><small>POTIONS</small><b>${G.potions}</b></div><div class="av-stat"><small>BALLS</small><b>${ballCount()}</b></div></div>
+    const draw = () => modal(`<h2>PARTY</h2><div class="av-stats"><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>POTIONS</small><b>${G.potions}</b></div><div class="av-stat"><small>BALLS</small><b>${ballCount()}</b></div></div>
       <div class="av-shop">${G.squad.map((c, i) => `<div class="av-item"><img src="${ART + c.id}.png" alt="" style="width:46px;height:46px;object-fit:contain"><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>HP ${c.hp}/${c.max} · ATK ${c.a} · XP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${c.hp / c.max * 100}%"></u></span></div><div style="display:flex;flex-direction:column;gap:4px"><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button><button class="av-btn ghost" data-p="${i}" ${c.hp > 0 && c.hp < c.max && G.potions > 0 ? "" : "disabled"}>🧪</button></div></div>`).join("") || "<p>You have no Pokémon yet.</p>"}</div>
       <div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button><button class="av-btn" data-a="x">RESUME</button></div>`, (m) => {
       m.querySelectorAll("[data-l]").forEach((b) => { b.onclick = () => { G.lead = +b.dataset.l; setPartner(true); refresh(); saveStory(); draw(); }; });
@@ -694,14 +738,42 @@
     later(() => { G.walk = { T, then: () => dialog(lines(T.name, T.intro), () => trainerBattle(T)) }; }, 700);
   }
 
+  function leagueRoom() {
+    if (G.badges.length < 6) return dialog(lines("League Host", ["The Grand League is not open yet. Earn all six Gym Badges first."]));
+    if (G.flags.champ) return dialog(lines("League Host", ["Welcome back, Champion " + (A.story.profile.name || "Trainer") + "! Your title is safe for now."]));
+    modal(`<div class="av-room" style="--gym-bg:#101a36;--gym-trim:#53649a;--gym-accent:#ffcf45;--gym-floor:#202d50"><div class="av-tag">GRAND LEAGUE · CHAMPIONSHIP STADIUM</div><h2>🏆 THE SIX-BADGE TOURNAMENT</h2><div class="av-room-floor"><span>🥇</span><span>⚔️</span><span>🏆</span></div><p>Four rounds stand between you and the title. Your friends Maya and Leo are also competing.</p><div class="av-task">1 · Qualifier — Kai</div><div class="av-task">2 · Semi-final — Maya</div><div class="av-task">3 · Finalist — Leo</div><div class="av-task">4 · Championship — Orion</div><div class="av-row2"><button class="av-btn ghost" data-a="leave">NOT YET</button><button class="av-btn" data-a="start">ENTER TOURNAMENT</button></div></div>`, (m) => { m.querySelector('[data-a=leave]').onclick = closeModal; m.querySelector('[data-a=start]').onclick = () => { closeModal(); runLeagueTournament(); }; });
+  }
+  function runLeagueTournament() {
+    const rounds = [
+      { name:"Qualifier Kai", team:[[54,34],[130,35]], reward:500, intro:["Round one! Show us your skill."], win:["You advanced to the semi-final!"] },
+      { name:"Maya", team:[[133,36],[43,37],[3,38]], reward:700, intro:["We made it to the tournament! May the best friend win."], win:["You edged past Maya. One more friend to face!"] },
+      { name:"Leo", team:[[58,37],[26,39],[6,40]], reward:900, intro:["I promised I would give you my best. Here it comes!"], win:["You defeated Leo and reached the championship match!"] },
+      { name:"Orion", team:[[65,40],[130,41],[248,42],[6,43],[149,44],[150,46]], reward:3000, intro:["I am Orion, the reigning League finalist.","This is the championship battle. Give it everything!"], win:["You did it! You are the new champion of the region!"] }
+    ];
+    let round = 0;
+    const next = () => {
+      const data = rounds[round++];
+      const T = Object.assign({ id:"league_round_"+round, mesh:{visible:true}, fm:0.86, xpm:2 }, data);
+      T.after = () => { if (round < rounds.length) dialog(lines("League Host", ["Round " + round + " complete! Prepare for the next match."]), () => later(next, 450)); else { G.flags.champ = true; giveGems(50); saveStory(); dialog(["🏆 YOU ARE THE GRAND LEAGUE CHAMPION!", "Your trainer ID " + A.story.profile.id + " is now recorded in the Hall of Fame.", "You earned 💎 50 gems!"]); } };
+      trainerBattle(T);
+    };
+    next();
+  }
+
+  function gymRoom(T) {
+    const themes = { gym0:["#342817","#806238","#d7bd83","🪨","Rock cavern"], gym1:["#092b45","#247db1","#8fd0ff","💧","Tidal arena"], gym2:["#332900","#b28a00","#ffe36b","⚡","Power plant"], gym3:["#17391d","#388a45","#9be89b","🍃","Forest sanctuary"], gym4:["#4a2014","#b64a28","#ffb17a","🔥","Magma chamber"], gym5:["#211d48","#554a9b","#c9c0ff","🌙","Moonlit observatory"] };
+    const th = themes[T.id] || themes.gym0, done = G.def.includes(T.id), badgeIndex = Number(T.id.replace("gym", ""));
+    modal(`<div class="av-room" style="--gym-bg:${th[0]};--gym-trim:${th[1]};--gym-accent:${th[2]};--gym-floor:${th[0]}"><div class="av-tag">${th[4]} · CITY GYM</div><h2>${th[3]} ${T.name.toUpperCase()}’S GYM</h2><div class="av-room-floor"><span>🏟️</span><span>${th[3]}</span><span>🏆</span></div><p style="text-align:center">${done ? "You have already earned this badge." : "Enter the battle floor and challenge the Gym Leader."}</p><div class="av-task"><span>👤</span><span><b>Gym Leader ${T.name}</b><br>${T.intro[0]}</span></div><div class="av-task"><span>🎖️</span><span>Badge reward: <b>${BADGES[badgeIndex] ? BADGES[badgeIndex].n : "League"} Badge</b></span></div><div class="av-row2"><button class="av-btn ghost" data-a="leave">LEAVE ROOM</button><button class="av-btn" data-a="battle" ${done ? "disabled" : ""}>${done ? "BADGE EARNED" : "CHALLENGE LEADER"}</button></div></div>`, (m) => { m.querySelector('[data-a=leave]').onclick = closeModal; const b=m.querySelector('[data-a=battle]'); if (b) b.onclick = () => { closeModal(); if (G.def.includes(T.id)) return; dialog(lines(T.name, T.intro), () => trainerBattle(T)); }; });
+  }
+
   /* ----- building the region ----- */
   function buildRegion() {
     if (regionBuilt) return; regionBuilt = true;
     let seed = 23; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
     region = new THREE.Group(); scene.add(region); region.userData.clouds = [];
-    const gt = grassTex(); gt.repeat.set(66, 27); const ground = mesh(new THREE.PlaneGeometry(340, 140), lam(0xffffff, { map: gt }), 50, 0, 0); ground.rotation.x = -Math.PI / 2; region.add(ground);
-    const path = mesh(new THREE.PlaneGeometry(292, 5.5), lam(0xcdb98a), 50, 0.025, 0); path.rotation.x = -Math.PI / 2; region.add(path);
-    const TOWNS = [["SEEDLING TOWN", -95, -56], ["STONEBROOK CITY", -22, 16], ["BLUEWATER CITY", 52, 93], ["VOLTPORT CITY", 128, 171], ["CHAMPION’S PEAK", 171, 195]];
+    const gt = grassTex(); gt.repeat.set(66, 27); const ground = mesh(new THREE.PlaneGeometry(580, 180), lam(0xffffff, { map: gt }), 190, 0, 0); ground.rotation.x = -Math.PI / 2; region.add(ground);
+    const path = mesh(new THREE.PlaneGeometry(552, 5.5), lam(0xcdb98a), 176, 0.025, 0); path.rotation.x = -Math.PI / 2; region.add(path);
+    const TOWNS = [["SEEDLING TOWN", -95, -56], ["STONEBROOK CITY", -22, 16], ["BLUEWATER CITY", 52, 93], ["VOLTPORT CITY", 128, 171], ["VERDANT CITY", 210, 248], ["CINDER CITY", 286, 325], ["MOONFALL CITY", 363, 402], ["CHAMPIONSHIP STADIUM", 445, 475]];
     TOWNS.forEach(([n, a, b]) => {
       const pl = mesh(new THREE.PlaneGeometry(b - a, 15), lam(0xdcd2ac), (a + b) / 2, 0.03, -3); pl.rotation.x = -Math.PI / 2; region.add(pl);
       const sx = a + 5, post = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 6), lam(0x7a5230), sx, 1.2, 5); const lb = labelSprite(n, 8, "rgba(10,20,40,.9)", "#8fe6ff"); lb.position.set(sx, 3.4, 5); region.add(post, lb);
@@ -712,10 +784,14 @@
       { x: -15, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: -5, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 7, w: 9, d: 7, h: 4, wall: 0xb9a37a, roof: 0x6b5a3a, text: "STONE GYM", bg: "#3a2d18", tc: "#e6d2a0" },
       { x: 60, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 70, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 82, w: 9, d: 7, h: 4, wall: 0xb8e2f5, roof: 0x2b7fd0, text: "WAVE GYM", bg: "#0b2a4a", tc: "#8fd0ff" },
       { x: 136, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 146, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 158, w: 9, d: 7, h: 4, wall: 0xf7e99a, roof: 0xd9a400, text: "SPARK GYM", bg: "#3a3000", tc: "#ffe36b" },
-      { x: 178, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 188, w: 10, d: 8, h: 8, wall: 0x5a4f8a, roof: 0x2a2250, rh: 4, text: "CHAMPION TOWER", bg: "#1e1640", tc: "#c9b8ff" }].forEach((o) => building(Object.assign({}, B0, o, { z: -12.5 })));
+      { x: 178, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 188, w: 10, d: 8, h: 8, wall: 0x5a4f8a, roof: 0x2a2250, rh: 4, text: "CHAMPION TOWER", bg: "#1e1640", tc: "#c9b8ff" },
+      { x: 218, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 228, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 235, w: 9, d: 7, h: 4, wall: 0xcce8c4, roof: 0x388a45, text: "GROVE GYM", bg: "#17391d", tc: "#9be89b" },
+      { x: 294, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 304, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 310, w: 9, d: 7, h: 4, wall: 0xf4c5a0, roof: 0xd85a32, text: "EMBER GYM", bg: "#4a2014", tc: "#ffb17a" },
+      { x: 371, w: 5, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER" }, { x: 381, w: 5, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART" }, { x: 385, w: 9, d: 7, h: 4, wall: 0xbcb9df, roof: 0x554a9b, text: "LUNAR GYM", bg: "#211d48", tc: "#c9c0ff" },
+      { x: 458, w: 18, d: 12, h: 10, rh: 5, wall: 0xd8e3f0, roof: 0x3b456d, text: "GRAND LEAGUE", bg: "#101a36", tc: "#ffcf45" }].forEach((o) => building(Object.assign({}, B0, o, { z: -12.5 })));
     [[-80, 11], [-68, 12], [-8, 11], [12, 12], [66, 11], [86, 12], [142, 11], [162, 12]].forEach(([x, z]) => { const g = new THREE.Group(); g.add(mesh(new THREE.BoxGeometry(4, 2.6, 4), lam(0xf0e2c0), 0, 1.3, 0), mesh(new THREE.ConeGeometry(3.1, 1.9, 4), lam([0xc4483c, 0x3d6bb0, 0x7a5aa8, 0x2f8a5a][Math.floor(r() * 4)]), 0, 3.5, 0), mesh(new THREE.BoxGeometry(0.9, 1.5, 0.12), lam(0x7a5230), 0, 0.75, -2.03)); g.children[1].rotation.y = Math.PI / 4; g.position.set(x, 0, z); region.add(g); SCOL.push({ x, z, r: 2.6 }); REG.builds.push({ x, z, w: 4, d: 4, col: "#8a6a4a" }); });
     /* tall grass */
-    const blades = []; [[-52, -24, 0], [18, 50, 1], [94, 126, 2]].forEach(([a, b, ri]) => { for (let i = 0; i < 3; i++) { const w = (b - a) / 3; REG.patches.push({ x: a + (i + 0.5) * w, z: i % 2 ? 3 : -3, w: w + 1.2, d: 11, r: ri }); } });
+    const blades = []; [[-52, -24, 0], [18, 50, 1], [94, 126, 2], [180, 205, 3], [256, 281, 4], [333, 358, 5]].forEach(([a, b, ri]) => { for (let i = 0; i < 3; i++) { const w = (b - a) / 3; REG.patches.push({ x: a + (i + 0.5) * w, z: i % 2 ? 3 : -3, w: w + 1.2, d: 11, r: ri }); } });
     REG.patches.forEach((p) => { const pl = mesh(new THREE.PlaneGeometry(p.w, p.d), lam(0x3f8f3a), p.x, 0.04, p.z); pl.rotation.x = -Math.PI / 2; region.add(pl); for (let i = 0; i < 90; i++) blades.push([p.x + (r() - 0.5) * p.w, p.z + (r() - 0.5) * p.d, 0.7 + r() * 0.7]); });
     const dm = new THREE.Object3D(), col = new THREE.Color(), bl = new THREE.InstancedMesh(new THREE.ConeGeometry(0.1, 0.9, 4), lam(0xffffff), blades.length);
     blades.forEach((b, i) => { dm.rotation.set(0, r() * 6, 0); dm.scale.setScalar(b[2]); dm.position.set(b[0], 0.4 * b[2], b[1]); dm.updateMatrix(); bl.setMatrixAt(i, dm.matrix); col.setHSL(0.3 + r() * 0.06, 0.6, 0.28 + r() * 0.12); bl.setColorAt(i, col); });
@@ -724,7 +800,10 @@
     [{ x: -57, msg: "Hey, wait! It’s dangerous out there without a Pokémon. Go see Prof. Linden and beat your rival first!", req: () => G.flags.starter && G.def.includes("rival") },
       { x: 16.5, msg: "Stonebrook Gym blocks the way east. Earn the Stone Badge first, then I’ll let you through to Route 2.", req: () => G.badges.includes(0) },
       { x: 93, msg: "Route 3 is closed to trainers without the Wave Badge. Beat Marina in Bluewater Gym!", req: () => G.badges.includes(1) },
-      { x: 171.5, msg: "Only trainers with 3 badges may climb Champion’s Peak. Beat Volt in Voltport Gym first.", req: () => G.badges.length >= 3 }].forEach((g) => {
+      { x: 171.5, msg: "The western road is closed. Earn the Spark Badge in Voltport Gym!", req: () => G.badges.length >= 3 },
+      { x: 248.5, msg: "Verdant Pass is sealed. Earn the Grove Badge!", req: () => G.badges.length >= 4 },
+      { x: 325.5, msg: "Cinder Road is sealed. Earn the Ember Badge!", req: () => G.badges.length >= 5 },
+      { x: 402.5, msg: "Victory Road is reserved for six-badge trainers. Earn the Lunar Badge!", req: () => G.badges.length >= 6 }].forEach((g) => {
       const m = new THREE.Group(); for (let z = -7; z <= 7; z += 2.8) m.add(mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), lam(Math.abs(z) % 5.6 < 0.1 ? 0x222222 : 0xffd43b), 0, 0.8, z));
       m.add(mesh(new THREE.BoxGeometry(0.2, 0.3, 15), lam(0xffffff), 0, 1.3, 0)); const gd = makeTrainer(0x3a3a4a, 0xffd43b); gd.position.set(0, 0, 3); gd.rotation.y = -Math.PI / 2; m.add(gd); m.position.x = g.x; region.add(m); g.mesh = m; REG.gates.push(g);
     });
@@ -738,41 +817,71 @@
     npc({ x: -86, z: -8, rot: 0, c1: 0xe0679a, c2: 0x6b3a2a, tag: "MOM", talk: () => dialog(lines("Mom", ["Welcome home, dear! You look tired. Let me heal your Pokémon."]), () => { healAll(); A.story.spawn = { x: -86, z: -5 }; dialog(lines("Mom", ["All better! Do your best out there!"])); }) });
     const nurse = (x) => npc({ x, z: -8, rot: 0, c1: 0xff8fb1, c2: 0xffffff, tag: "NURSE", talk: (n) => dialog(lines("Nurse", ["Welcome to the Pokémon Center! Let me heal your Pokémon."]), () => { healAll(); A.story.spawn = { x: n.x, z: -5 }; dialog(lines("Nurse", ["Your Pokémon are fully healed! We hope to see you again!"])); }) });
     const clerk = (x) => npc({ x: x, z: -8, rot: 0, c1: 0x3d6bff, c2: 0x3d6bff, tag: "CLERK", talk: () => martMenu() });
-    nurse(-15); clerk(-5); nurse(60); clerk(70); nurse(136); clerk(146); nurse(178);
+    nurse(-15); clerk(-5); nurse(60); clerk(70); nurse(136); clerk(146); nurse(178); nurse(218); clerk(228); nurse(294); clerk(304); nurse(371); clerk(381);
     /* gym leaders + champion */
-    const lead = (o) => { const T = Object.assign({ sight: 0, fm: 0.8, xpm: 1.4, label: "Challenge" }, o); T.talk = () => { if (G.def.includes(T.id)) dialog(lines(T.name, T.done)); else dialog(lines(T.name, T.intro), () => trainerBattle(T)); }; npc(T); REG.trainers.push(T); };
+    const lead = (o) => { const T = Object.assign({ sight: 0, fm: 0.8, xpm: 1.4, label: "Enter Gym" }, o); T.talk = () => { if (T.when && !T.when()) return dialog(lines("League Official", ["The Grand League opens only after you earn all six Gym Badges."])); gymRoom(T); }; npc(T); REG.trainers.push(T); };
     lead({ id: "gym0", name: "Flint", tag: "GYM LEADER FLINT", x: 7, z: -8, rot: 0, c1: 0x8a6a3a, c2: 0xcdb98a, team: [[74, 11], [74, 12], [75, 14]], reward: 300, intro: ["I’m Flint, Stonebrook’s Gym Leader!", "My rock-hard Pokémon will crush you!"], win: ["Amazing! You cracked my defense. Take the Stone Badge!"], done: ["The Stone Badge suits you. Keep climbing!"], after: () => { G.badges.push(0); refreshStory(); saveStory(); dialog(["You received the 🪨 Stone Badge!", "The road to Route 2 is now open."]); } });
     lead({ id: "gym1", name: "Marina", tag: "GYM LEADER MARINA", x: 82, z: -8, rot: 0, c1: 0x2b7fd0, c2: 0xffffff, team: [[54, 16], [8, 18], [130, 20]], reward: 500, intro: ["I’m Marina! Water flows around every attack.", "Let’s see if you can make a splash!"], win: ["You swept me away! Here’s the Wave Badge."], done: ["The Wave Badge looks great on you."], after: () => { G.badges.push(1); refreshStory(); saveStory(); dialog(["You received the 💧 Wave Badge!", "Route 3 is now open."]); } });
     lead({ id: "gym2", name: "Volt", tag: "GYM LEADER VOLT", x: 158, z: -8, rot: 0, c1: 0xd9a400, c2: 0x222222, team: [[81, 21], [25, 22], [26, 25]], reward: 800, intro: ["Bzzzt! I’m Volt, Voltport’s Gym Leader!", "Prepare to be shocked!"], win: ["Electrifying! The Spark Badge is yours!"], done: ["Go on, the Champion awaits you."], after: () => { G.badges.push(2); refreshStory(); saveStory(); dialog(["You received the ⚡ Spark Badge!", "Champion’s Peak is now open."]); } });
-    lead({ id: "champ", name: "Champion Drake", tag: "CHAMPION DRAKE", x: 188, z: -8, rot: 0, c1: 0x5a4f8a, c2: 0xffd43b, team: [[65, 30], [130, 31], [6, 32], [149, 34]], reward: 2000, fm: 0.85, xpm: 2, intro: ["So you made it all the way here.", "I am Drake, the Champion! Show me everything you’ve got!"], win: ["Incredible... You are the new Champion!"], done: ["Champion! The region is yours. Keep training and catch them all!"], after: () => { G.flags.champ = true; giveGems(25); saveStory(); dialog(["🏆 You are the new POKÉMON CHAMPION!", "You earned 💎 25 gems. Thanks for playing! You can keep exploring and catching Pokémon."]); } });
+    lead({ id: "gym3", name: "Fern", tag: "GYM LEADER FERN", x: 235, z: -8, rot: 0, c1: 0x388a45, c2: 0x9be89b, team: [[43, 25], [3, 27], [59, 28]], reward: 1000, intro: ["Welcome to Grove Gym! I am Fern.", "Let nature show you its strength!"], win: ["You have grown into a fine trainer. Take the Grove Badge!"], done: ["The Grove Badge is yours. Keep going!"], after: () => { if (!G.badges.includes(3)) G.badges.push(3); refreshStory(); saveStory(); dialog(["You received the 🍃 Grove Badge!"]); } });
+    lead({ id: "gym4", name: "Cinder", tag: "GYM LEADER CINDER", x: 310, z: -8, rot: 0, c1: 0xd85a32, c2: 0xffb17a, team: [[5, 29], [59, 30], [6, 32]], reward: 1200, intro: ["I am Cinder, the Ember Gym Leader!", "Can you withstand the heat?"], win: ["You burned bright! Accept the Ember Badge!"], done: ["Keep that fire burning, challenger!"], after: () => { if (!G.badges.includes(4)) G.badges.push(4); refreshStory(); saveStory(); dialog(["You received the 🔥 Ember Badge!"]); } });
+    lead({ id: "gym5", name: "Selene", tag: "GYM LEADER SELENE", x: 385, z: -8, rot: 0, c1: 0x554a9b, c2: 0xc9c0ff, team: [[64, 32], [94, 34], [65, 36]], reward: 1500, intro: ["I am Selene of Moonfall Gym.", "Your final badge awaits beneath the stars!"], win: ["Your journey has reached its brightest point. Take the Lunar Badge!"], done: ["Six badges. The Grand League awaits!"], after: () => { if (!G.badges.includes(5)) G.badges.push(5); refreshStory(); saveStory(); dialog(["You received the 🌙 Lunar Badge!", "The Grand League Tournament is now open at Championship Stadium!"]); } });
+    npc({ x: 450, z: -5, rot: 0, c1: 0x5a4f8a, c2: 0xffd43b, tag: "LEAGUE HOST", label: "Tournament", talk: () => leagueRoom() });
     /* rival */
     const rv = { id: "rival", name: "Rival Ren", x: -61.5, z: 0, rot: -Math.PI / 2, c1: 0x222a44, c2: 0xff8a3d, sight: 9, fm: 0.7, reward: 120, when: () => G.flags.starter, team: () => [[{ 1: 7, 4: 1, 7: 4 }[G.flags.pick] || 4, 5]], intro: ["Hey, wait up! So you got a Pokémon from the Professor too.", "Let’s see who’s stronger — battle me!"], win: ["Whoa, you’re good! I’ll get stronger too. See you on the road!"], talk: (o) => dialog(lines(o.name, G.def.includes("rival") ? ["I’m heading to Stonebrook too. Don’t fall behind!"] : ["Come on, battle me when you’re ready!"])) };
     npc(rv); REG.trainers.push(rv);
+    /* Two recurring friends who travel the region with you */
+    const friends = [
+      { id: "friend_maya", name: "Maya", x: -53, z: 7, rot: Math.PI, c1: 0xe0679a, c2: 0xffffff, team: [[133, 5], [43, 8], [54, 14], [3, 28]], reward: 180, intro: ["I’m Maya! I chose a different path, but we’ll reach the League together.", "Let’s have a friendly battle!"], win: ["Great match! I’ll keep training beside you."], done: ["We’re both getting stronger!"] },
+      { id: "friend_leo", name: "Leo", x: -49, z: -7, rot: 0, c1: 0x2b7fd0, c2: 0xffcf45, team: [[58, 5], [81, 9], [26, 16], [6, 29]], reward: 180, intro: ["Hey! I’m Leo. The three of us are going to the Grand League.", "Show me what your team can do!"], win: ["Awesome battle! Let’s meet again at the next city."], done: ["I’ll see you at the tournament!"] }
+    ];
+    friends.forEach((f) => { const T = Object.assign({ sight: 0, fm: 0.72, xpm: 1.2 }, f); T.talk = () => dialog(lines(T.name, G.def.includes(T.id) ? T.done : T.intro), () => { if (!G.def.includes(T.id)) trainerBattle(T); }); npc(T); REG.trainers.push(T); });
+    /* City side quests: complete each request once for coins and supplies */
+    let taskStage = 0;
+    const taskNpc = (id, name, x, z, request, reward) => { const target = 2 + taskStage++ * 2; return npc({ x, z, rot: 0, c1: 0x4b8b76, c2: 0xffcf45, tag: "CITY TASK", label: "Task", talk: () => {
+      G.flags.tasks = G.flags.tasks || {}; if (G.flags.tasks[id]) return dialog(lines(name, ["Thanks again for helping our city!"]));
+      const cleared = G.def.filter(v => /^r[1-6]/.test(v)).length;
+      if (cleared < target) return dialog(lines(name, [request, "Task progress: " + cleared + "/" + target + " route trainers defeated. Come back when you have cleared " + target + " trainers!"]));
+      G.flags.tasks[id] = true; addCoins(reward); giveBalls(2); saveStory(); dialog(lines(name, ["Task complete! Here is your reward: " + reward + " coins and 2 Poké Balls."]));
+    } }); };
+    taskNpc("seedling_delivery", "Mira", -82, 7, "Help the town by proving yourself against local trainers.", 150);
+    taskNpc("stonebrook_cleanup", "Bram", -12, 7, "Clear the trainer challenge and help keep the city safe.", 220);
+    taskNpc("bluewater_rescue", "Sailor Nia", 68, 7, "Win more route battles so our rescue crew can travel safely.", 300);
+    taskNpc("voltport_power", "Engineer Pax", 144, 7, "Test your strength against the route trainers near the power station.", 380);
+    taskNpc("verdant_herbs", "Herbalist Fern", 222, 7, "Show your field experience by defeating the local trainers.", 460);
+    taskNpc("cinder_festival", "Cook Ash", 298, 7, "Help prepare the festival by clearing the nearby trainer challenge.", 540);
+    taskNpc("moonfall_archive", "Archivist Sol", 375, 7, "Verify the guardian legends by proving your trainer skill.", 650);
     /* route trainers */
     [["r1a", "Youngster Joey", -45, -7, 0, [[19, 4], [19, 5]], 60, 0x3d6bff], ["r1b", "Lass Anna", -31, 7, Math.PI, [[43, 5], [133, 6]], 70, 0xe0679a],
       ["r2a", "Hiker Gus", 24, -7, 0, [[74, 10], [74, 11], [75, 12]], 120, 0x8a6a3a], ["r2b", "Scientist Ivy", 35, 7, Math.PI, [[81, 11], [63, 11], [64, 13]], 140, 0xeeeeee], ["r2c", "Ace Trainer Rex", 46, -7, 0, [[58, 12], [66, 12]], 130, 0xc03028],
       ["r3a", "Swimmer Kai", 100, 7, Math.PI, [[54, 16], [130, 17]], 200, 0x2b7fd0], ["r3b", "Psychic Mira", 110, -7, 0, [[64, 17], [93, 18]], 220, 0xab2f61], ["r3c", "Ace Duo Sol", 120, 7, Math.PI, [[59, 18], [68, 18], [44, 17]], 240, 0x222222]].forEach(([id, name, x, z, rot, team, reward, c1]) => {
       const T = { id, name, x, z, rot, c1, c2: 0xffffff, team, reward, sight: 9, fm: 0.72, intro: ["You’re a trainer? Eyes met — that means we battle!"], win: ["Wow, you’re strong!"], talk: (o) => dialog(lines(name, G.def.includes(id) ? ["You beat me fair and square. Good luck!"] : ["Hey!"])) }; npc(T); REG.trainers.push(T);
     });
+    /* extra route trainers across the expanded eastern region */
+    [["r4a", "Ranger Willow", 185, -7, 0, [[43, 23], [3, 25]], 280, 0x388a45], ["r4b", "Gardener Moss", 198, 7, Math.PI, [[44, 24], [59, 26]], 300, 0x4b8b55],
+      ["r5a", "Firebreather Ash", 260, 7, Math.PI, [[5, 27], [59, 29]], 340, 0xd85a32], ["r5b", "Hiker Coal", 273, -7, 0, [[75, 28], [76, 30]], 360, 0x8a6a3a],
+      ["r6a", "Stargazer Lyra", 337, -7, 0, [[64, 31], [65, 33]], 420, 0x554a9b], ["r6b", "Night Ace Noct", 350, 7, Math.PI, [[94, 34], [149, 35]], 450, 0x39305f]].forEach(([id, name, x, z, rot, team, reward, c1]) => {
+      const T = { id, name, x, z, rot, c1, c2: 0xffffff, team, reward, sight: 9, fm: 0.78, intro: ["The eastern routes are no place for an unprepared trainer!"], win: ["You have earned your way forward!"], talk: () => dialog(lines(name, G.def.includes(id) ? ["You already defeated me. Good luck at the League!"] : ["Ready for a battle?"])) }; npc(T); REG.trainers.push(T);
+    });
     /* villagers */
     [[-80, 4, "Neighbor", "Welcome to Seedling Town! The big building is Professor Linden’s lab."], [-10, 5, "Villager", "Stonebrook’s gym leader Flint uses Rock-type Pokémon. Water and Grass moves work great!"], [75, 5, "Sailor", "Bluewater’s Marina loves Water types. Electric and Grass beat them!"], [150, 5, "Engineer", "Volt’s Electric Pokémon are fast. Ground types don’t take any damage from Electric moves."], [-38, -6, "Hiker", "Tall grass hides wild Pokémon. Weaken them, then throw a Poké Ball!"], [60, 6, "Cooler Kid", "Win battles to level up. Some Pokémon evolve at certain levels!"], [182, 5, "Elite Guard", "Beyond this door waits the Champion. Heal up first!"]].forEach(([x, z, n, t]) => npc({ x, z, rot: Math.PI * r() * 2, c1: 0x58b84a, c2: 0xffcf45, talk: () => dialog(lines(n, [t])) }));
     /* trees / rocks / flowers (instanced) */
-    const inTown = (x) => TOWNS.some(([n, a, b]) => x > a - 3 && x < b + 3), NT = 1100, col2 = new THREE.Color();
+    const inTown = (x) => TOWNS.some(([n, a, b]) => x > a - 3 && x < b + 3), NT = 1900, col2 = new THREE.Color();
     const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff), NT), lb = new THREE.InstancedMesh(lg, lam(0xffffff), NT);
     let n = 0;
-    for (let i = 0; i < 9000 && n < NT; i++) {
-      const x = -96 + r() * 291, z = (r() - 0.5) * 84; if (Math.abs(z) < (inTown(x) ? 20 : 9)) continue; if (REG.builds.some((b) => Math.hypot(x - b.x, z - b.z) < 8) || REG.gates.some((g) => Math.abs(x - g.x) < 3 && Math.abs(z) < 10)) continue;
+    for (let i = 0; i < 18000 && n < NT; i++) {
+      const x = -96 + r() * 570, z = (r() - 0.5) * 84; if (Math.abs(z) < (inTown(x) ? 20 : 9)) continue; if (REG.builds.some((b) => Math.hypot(x - b.x, z - b.z) < 8) || REG.gates.some((g) => Math.abs(x - g.x) < 3 && Math.abs(z) < 10)) continue;
       const s = 0.8 + r() * 0.8; dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix);
       dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb.setMatrixAt(n, dm.matrix);
       col2.setHSL(0.29 + r() * 0.09, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col2); lb.setColorAt(n, col2); SCOL.push({ x, z, r: 0.9 * s }); n++;
     }
     [trunk, la, lb].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; region.add(m); });
-    const NF = 900, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
-    for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(-96 + r() * 291, 0.14, (r() - 0.5) * 80); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col2.setHex(fc[i % 5]); fl.setColorAt(i, col2); }
+    const NF = 1500, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
+    for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(-96 + r() * 570, 0.14, (r() - 0.5) * 80); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col2.setHex(fc[i % 5]); fl.setColorAt(i, col2); }
     fl.instanceMatrix.needsUpdate = true; fl.instanceColor.needsUpdate = true; region.add(fl);
     const mG = new THREE.ConeGeometry(1, 1, 6);
-    for (let i = 0; i < 40; i++) { const x = -110 + i * 8, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8), x, h / 2, i % 2 ? -78 : 78); o.scale.set(w, h, w); region.add(o); }
-    for (let i = 0; i < 12; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(-90 + r() * 290, 30 + r() * 10, (r() - 0.5) * 120); region.add(c); region.userData.clouds.push(c); }
+    for (let i = 0; i < 72; i++) { const x = -110 + i * 8, h = 22 + r() * 26, w = 16 + r() * 12, o = mesh(mG, lam(0x6f8fb8), x, h / 2, i % 2 ? -78 : 78); o.scale.set(w, h, w); region.add(o); }
+    for (let i = 0; i < 22; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(-90 + r() * 570, 30 + r() * 10, (r() - 0.5) * 120); region.add(c); region.userData.clouds.push(c); }
     region.visible = false;
   }
 
@@ -789,16 +898,25 @@
       };
     });
   }
+  function profileColor(name) { return ({ ocean: 0x2878c8, crimson: 0xc83242, forest: 0x31804b, violet: 0x7953b8, gold: 0xd6a526, charcoal: 0x303744 })[name] || 0x2878c8; }
+  function customizeTrainer(done) {
+    const makeId = () => "PF-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+    modal(`<h2>CREATE YOUR TRAINER</h2><p>Set up your character before starting the six-badge journey.</p><label style="display:block;text-align:left;color:#9fc1df;font-size:12px">TRAINER NAME</label><input id="av-trainer-name" maxlength="16" value="Trainer" style="width:100%;padding:13px;border-radius:10px;border:1px solid #36506b;background:#0c1b2d;color:#fff;margin:6px 0 12px"><label style="display:block;text-align:left;color:#9fc1df;font-size:12px">OUTFIT</label><select id="av-trainer-outfit" style="width:100%;padding:13px;border-radius:10px;background:#0c1b2d;color:#fff;border:1px solid #36506b"><option value="ocean">Ocean Blue</option><option value="crimson">Crimson Red</option><option value="forest">Forest Green</option><option value="violet">Royal Violet</option><option value="gold">Champion Gold</option><option value="charcoal">Charcoal</option></select><div class="av-task">🧢 Your trainer ID will be generated automatically. Friends: Maya and Leo.</div><button class="av-btn av-drop" data-a="create">CREATE STORY</button>`, (m) => { m.querySelector('[data-a=create]').onclick = () => { const name = (m.querySelector('#av-trainer-name').value || 'Trainer').trim().slice(0,16); done({ name, outfit: m.querySelector('#av-trainer-outfit').value, id: makeId(), friends: [{ name: 'Maya', id: 'NPC-MAYA-01' }, { name: 'Leo', id: 'NPC-LEO-01' }] }); }; });
+  }
+
   function startStory(fresh) {
     runId++; mode = "story"; buildRegion(); showScene("region"); clearDyn(); closeModal();
-    if (fresh || !A.story) A.story = { squad: [], potions: 0, badges: [], def: [], flags: {}, spawn: { x: -80, z: 2 }, pos: { x: -80, z: 2 } };
-    const S = A.story;
+    if (fresh || !A.story) A.story = { squad: [], potions: 0, badges: [], def: [], flags: {}, spawn: { x: -80, z: 2 }, pos: { x: -80, z: 2 }, profile: null };
+    const S = A.story; S.badges = (S.badges || []).slice(0, 6); S.flags = S.flags || {};
+    if (!S.profile) { customizeTrainer((profile) => { S.profile = profile; save(); startStory(false); }); return; }
+    if (trainer && trainer.children) { const outfit = profileColor(S.profile.outfit), shirt = trainer.children[2], armA = trainer.children[4], armB = trainer.children[6], capMesh = trainer.children[8], brim = trainer.children[9], bag = trainer.children[10]; [shirt, armA, armB, capMesh, brim, bag].forEach((o) => { if (o && o.material && o.material.color) o.material.color.set(outfit); }); }
+
     G = { story: true, squad: S.squad.map(unpack), lead: 0, potions: S.potions || 0, badges: (S.badges || []).slice(), def: (S.def || []).slice(), flags: Object.assign({}, S.flags), cut: false, gd: 0, near: null, loc: "", walk: null, gcool: 0 };
     P.x = S.pos.x; P.z = S.pos.z; P.rot = Math.PI / 2; me();
     if (G.squad.length) setPartner(true); else if (partnerH) { scene.remove(partnerH); partnerH = null; }
     refreshStory(); DL = null; $("av-dlg").hidden = true; hudLast = null;
-    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-party").hidden = false; showPad(true); $("av-feed").innerHTML = ""; refresh();
-    if (!G.flags.intro) { G.cut = true; later(() => dialog([{ n: "Prof. Linden", t: "Welcome to the world of Pokémon! I’m Professor Linden." }, { n: "Prof. Linden", t: "This region is full of wild Pokémon, tough trainers and three Gym Leaders guarding the road to the Champion." }, { n: "Prof. Linden", t: "First, choose your partner from the three Pokémon on the table next to me. Walk up and press E / the A button!" }], () => { G.flags.intro = true; G.cut = false; saveStory(); }), 600); }
+    $("av-title").textContent = (S.profile && S.profile.name ? S.profile.name.toUpperCase() + " · " : "") + "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-party").hidden = false; showPad(true); $("av-feed").innerHTML = ""; refresh();
+    if (!G.flags.intro) { G.cut = true; later(() => dialog([{ n: "Prof. Linden", t: "Welcome to the world of Pokémon! I’m Professor Linden." }, { n: "Prof. Linden", t: "This region is full of wild Pokémon, tough trainers and six Gym Leaders guarding the road to the Grand League Tournament." }, { n: "Prof. Linden", t: "First, choose your partner from the three Pokémon on the table next to me. Maya and Leo will travel the region with you! Walk up and press E / the A button!" }], () => { G.flags.intro = true; G.cut = false; saveStory(); }), 600); }
   }
   function story(dt) {
     const busy = DL || G.cut || modalOpen();
@@ -827,8 +945,8 @@
     drawMapStory();
   }
   function drawMapStory() {
-    const c = $("av-map"), x = c.getContext("2d"), S = c.width, big = c.classList.contains("big"), k = S / (big ? 240 : 110), X = (v) => (v - P.x) * k + S / 2, Z = (v) => (v - P.z) * k + S / 2;
-    x.fillStyle = "#245a3c"; x.fillRect(0, 0, S, S); x.fillStyle = "#cdb98a"; x.fillRect(X(-96), Z(-2.75), 292 * k, 5.5 * k);
+    const c = $("av-map"), x = c.getContext("2d"), S = c.width, big = c.classList.contains("big"), k = S / (big ? 600 : 110), X = (v) => big ? (v + 100) * k : (v - P.x) * k + S / 2, Z = (v) => big ? (v + 80) * (S / 160) : (v - P.z) * k + S / 2;
+    x.fillStyle = "#245a3c"; x.fillRect(0, 0, S, S); x.fillStyle = "#cdb98a"; x.fillRect(X(-96), Z(-2.75), (big ? 552 : 292) * k, 5.5 * (big ? S / 160 : k));
     x.fillStyle = "#2f7a35"; REG.patches.forEach((p) => x.fillRect(X(p.x - p.w / 2), Z(p.z - p.d / 2), p.w * k, p.d * k));
     REG.builds.forEach((b) => { x.fillStyle = b.col; x.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * k, b.d * k); });
     x.strokeStyle = "#ff3b3b"; x.lineWidth = 4; REG.gates.forEach((g) => { if (!g.req()) { x.beginPath(); x.moveTo(X(g.x), 0); x.lineTo(X(g.x), S); x.stroke(); } });
@@ -875,14 +993,26 @@
     A = load(); $("home-page").classList.add("hidden"); $("adventure-page").classList.remove("hidden");
     setup(() => { resize(); menu(); if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } });
   }
+  function renderHomePreview() {
+    const home = $("home-page"); if (!home) return;
+    const d = load(), st = d.story, p = st && st.profile; let card = $("av-home-preview");
+    if (!p) { if (card) card.remove(); return; }
+    if (!card) { card = document.createElement("div"); card.id = "av-home-preview"; home.appendChild(card); }
+    const color = "#" + profileColor(p.outfit).toString(16).padStart(6, "0");
+    card.innerHTML = `<div class="av-home-avatar" style="border-color:${color}"><svg viewBox="0 0 64 76" aria-label="${p.name} trainer avatar"><path d="M12 72 Q13 48 32 46 Q51 48 52 72Z" fill="${color}" stroke="#dcecff" stroke-width="2"/><circle cx="32" cy="31" r="15" fill="#e9b995" stroke="#5d3d35" stroke-width="1.5"/><path d="M15 27 Q16 8 34 9 Q48 10 50 25 L43 22 L17 24Z" fill="${color}" stroke="#dcecff" stroke-width="2"/><path d="M13 25 Q31 18 52 25 L49 30 Q29 24 14 31Z" fill="#17283d"/><circle cx="27" cy="32" r="1.5" fill="#17283d"/><circle cx="38" cy="32" r="1.5" fill="#17283d"/></svg></div><div class="av-home-info"><b>${p.name.replace(/[&<>"]/g, "")}</b><small>TRAINER ID · ${p.id}</small><small>${(st.badges || []).length}/6 BADGES ${st.flags && st.flags.champ ? "· 🏆 CHAMPION" : ""}</small><div class="av-home-places"><span>🏥 Pokémon Center</span><span>🏟️ Next Gym</span></div><button type="button" data-av-resume>CONTINUE STORY</button></div>`;
+    card.querySelector("[data-av-resume]").onclick = open;
+  }
   function close() {
     if (G && G.story) saveStory();
     running = false; runId++; save(); $("adventure-page").classList.add("hidden");
     if (typeof showHomeScreen === "function") showHomeScreen(); else $("home-page").classList.remove("hidden");
+    renderHomePreview();
   }
   addEventListener("keydown", (e) => { const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) return; held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault(); if (!e.repeat && mode === "story" && (e.key === "e" || e.key === "E" || e.key === " " || e.key === "Enter")) { e.preventDefault(); interact(); } });
   addEventListener("keyup", (e) => { held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
   addEventListener("blur", () => { Object.keys(held).forEach((k) => { held[k] = false; }); });
-  document.addEventListener("DOMContentLoaded", () => { const b = $("btn-adventure"); if (b) b.onclick = open; });
+  const initHome = () => { injectCSS(); const b = $("btn-adventure"); if (b) b.onclick = open; renderHomePreview(); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initHome); else initHome();
   window.openAdventure = open;
+  window.getAdventureHomePreview = function () { const d = load(), st = d.story, p = st && st.profile; return p ? { name: p.name, id: p.id, outfit: p.outfit, badges: (st.badges || []).length, champion: !!(st.flags && st.flags.champ), centerLabel: "Pokémon Center", gymLabel: "Next Gym", avatarColor: "#" + profileColor(p.outfit).toString(16).padStart(6, "0") } : null; };
 })();
