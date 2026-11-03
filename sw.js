@@ -13,7 +13,7 @@
 ============================================================
 */
 
-const CACHE_VERSION = "v44";
+const CACHE_VERSION = "v46";
 const SHELL_CACHE = `fighter-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fighter-runtime-${CACHE_VERSION}`;
 
