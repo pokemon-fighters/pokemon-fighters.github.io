@@ -15,9 +15,6 @@
 
   const KEY = "pf_adventure3d_v2";
   const ART = "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/official-artwork/";
-  // Item icons are real transparent Pokémon item sprites hosted by Pokémon Showdown.
-  const ITEM_ART = "https://play.pokemonshowdown.com/sprites/itemicons/";
-  const itemImg = (name, size = 34) => `<img class="av-item-icon" src="${ITEM_ART}${name}.png" alt="${name.replace(/-/g, " ")}" width="${size}" height="${size}" loading="lazy" onerror="this.style.display='none'">`;
   const $ = (id) => document.getElementById(id);
   const cap = (s) => String(s || "").replace(/(^|-)([a-z])/g, (m, a, b) => (a ? " " : "") + b.toUpperCase());
   const has = (str, t) => (str || "").split(",").includes(t);
@@ -72,21 +69,11 @@
   let A, THREE, renderer, scene, camera, meadow, region = null, zoneG, zoneWall, zoneRing, nextRing;
   let trainer, partnerH, foeH, mode = null, G = null, B = null;
   let built = false, running = false, last = 0, t = 0, runId = 0, camSnap = true;
-  let threeLoading = false, threeWaiters = [], homePreviewRenderer = null, homePreviewScene = null, homePreviewCamera = null, homePreviewTrainer = null, homePreviewPokemon = null, homePreviewFrame = 0, homePreviewLast = 0;
   const P = { x: 0, z: 24, rot: Math.PI, moving: false };
   const held = {}, pad = {}, COL = [], camLook = { x: 0, y: 1, z: 0 };
   let COLA = COL, BND = { x0: -118, x1: 118, z0: -118, z1: 118 };
   const later = (fn, ms) => { const r = runId; setTimeout(() => { if (r === runId) fn(); }, ms); };
   const modalOpen = () => !$("av-modal").hidden;
-
-  function loadThree(done, failed) {
-    if (window.THREE) { THREE = window.THREE; done && done(); return; }
-    threeWaiters.push({ done, failed }); if (threeLoading) return; threeLoading = true;
-    const script = document.createElement("script"); script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-    script.onload = () => { THREE = window.THREE; threeLoading = false; const q = threeWaiters.splice(0); q.forEach((w) => w.done && w.done()); };
-    script.onerror = () => { threeLoading = false; const q = threeWaiters.splice(0); q.forEach((w) => w.failed && w.failed()); };
-    document.head.appendChild(script);
-  }
 
   /* ---------- styles ---------- */
   function injectCSS() {
@@ -123,31 +110,8 @@
 #av-pad .u{grid-column:2}#av-pad .l{grid-row:2}#av-pad .d{grid-row:2;grid-column:2}#av-pad .r{grid-row:2;grid-column:3}
 #adventure-page.danger::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;box-shadow:inset 0 0 130px rgba(255,40,40,.6);animation:avpulse 1s infinite}
 @keyframes avpulse{50%{opacity:.35}}
-#av-battle{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;padding:calc(66px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(5,14,27,.18),rgba(5,14,27,.06) 42%,rgba(5,12,22,.28))}
-#av-battle>*{pointer-events:auto}.av-cards{display:flex;justify-content:space-between;gap:10px;position:relative;z-index:3}
-.av-battle-field{position:absolute;inset:0;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,rgba(120,190,226,.08),transparent 46%,rgba(8,22,29,.22))}
-.av-battle-field:before{content:"";position:absolute;left:-12%;right:-12%;top:36%;height:44%;border-radius:50%;background:radial-gradient(ellipse,rgba(93,161,106,.45),rgba(42,101,76,.28) 48%,transparent 72%);transform:perspective(260px) rotateX(16deg)}
-.av-battle-field:after{content:"";position:absolute;left:0;right:0;bottom:0;height:28%;background:linear-gradient(180deg,transparent,rgba(4,13,21,.6))}
-.av-battle-mon{position:absolute;object-fit:contain;filter:drop-shadow(0 18px 12px rgba(0,0,0,.35));z-index:2;animation:av-idle 2.8s ease-in-out infinite}
-#av-foe-art{width:clamp(130px,25vw,245px);height:clamp(130px,25vw,245px);right:7%;top:22%}
-#av-player-art{width:clamp(155px,30vw,285px);height:clamp(155px,30vw,285px);left:5%;bottom:19%;animation-delay:-1.1s}
-.av-battle-trainer{position:absolute;z-index:1;width:clamp(58px,10vw,100px);height:auto;filter:drop-shadow(0 10px 8px #0007);opacity:.94}
-#av-player-trainer{left:2%;bottom:17%}#av-foe-trainer{right:1%;top:18%;transform:scaleX(-1)}
-@keyframes av-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-#av-battle .av-card{backdrop-filter:blur(8px);box-shadow:0 9px 26px #0005;border-radius:12px;min-height:68px}
-#av-battle .av-card .nm{font-size:13px}.av-card .hp{height:11px}
-.av-panel{max-width:600px;width:100%;margin:0 auto;background:linear-gradient(155deg,rgba(18,39,62,.97),rgba(5,15,29,.97));border:1px solid #7090ad;border-radius:15px;padding:10px 12px;box-shadow:0 18px 48px #0009;position:relative;z-index:4}
-.av-battle-command{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;color:#dcecff;font:900 11px var(--font-display);letter-spacing:1.2px}
-.av-battle-command span:last-child{color:#8faac5;font-size:9px}
-.av-acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-.av-acts .av-btn{min-height:48px;padding:6px 4px;font-size:12px;border-radius:9px;line-height:1.15;white-space:normal}
-.av-acts .av-btn small{font-size:8px;display:block;margin-top:3px}
-.av-acts .av-btn.move{background:linear-gradient(145deg,#284d70,#122a45);border:1px solid #54799a;box-shadow:inset 0 1px #ffffff1c}
-.av-acts .av-btn.move em{display:inline-block;font-style:normal;font-size:8px;letter-spacing:.7px;padding:2px 5px;border-radius:99px;background:#ffffff20;margin-top:3px}
-.av-utility{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:7px}
-.av-utility .av-btn{min-height:36px;padding:4px 3px;font-size:10px;border-radius:8px}
-@media(max-width:560px){#av-battle{padding-left:8px;padding-right:8px}#av-foe-art{right:2%;top:27%}#av-player-art{left:0;bottom:24%}.av-panel{padding:8px}.av-acts{gap:5px}.av-acts .av-btn{font-size:10px;min-height:46px}.av-utility .av-btn{font-size:9px}}
-
+#av-battle{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;padding:calc(62px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom))}
+#av-battle>*{pointer-events:auto}.av-cards{display:flex;justify-content:space-between;gap:10px}
 .av-card{width:min(46%,230px);background:rgba(7,17,31,.88);border:1px solid #36506b;border-radius:14px;padding:9px 11px}.av-card.foe{text-align:right;border-color:#ff685e55}
 .av-card .nm{font:800 14px var(--font-display);color:#fff;letter-spacing:.4px}.av-card .nm small{color:#8ba3bd;font-weight:600;font-size:10px;margin-left:4px}
 .av-card .hp{display:block;height:9px;border-radius:6px;background:#1b2b40;overflow:hidden;margin-top:6px}.av-card .hp i{display:block;height:100%;background:linear-gradient(90deg,#55e6a0,#b9f36c);transition:width .3s}.av-card.foe .hp i{background:linear-gradient(90deg,#ffcc55,#ff685e)}
@@ -155,7 +119,7 @@
 .av-panel{max-width:520px;width:100%;margin:0 auto;background:linear-gradient(180deg,#11253b,#0a1729);border:1px solid #2f4d6b;border-radius:18px;padding:12px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
 #av-log{min-height:2.7em;color:#b7c8da;font-size:13px;line-height:1.4;margin-bottom:10px}
 .av-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}.av-acts .av-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px}.av-acts small{font:600 9px var(--font-body);opacity:.85;letter-spacing:.3px}
-.av-acts .ghost small{opacity:.7}.av-item-icon{width:34px;height:34px;object-fit:contain;vertical-align:middle;image-rendering:auto;flex:0 0 auto}.av-acts .av-item-icon{width:30px;height:30px;margin-bottom:1px}.av-item>.av-item-icon{width:42px;height:42px}
+.av-acts .ghost small{opacity:.7}
 #av-float{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
 .av-fl{position:absolute;transform:translate(-50%,-50%);font:900 24px var(--font-display);color:#fff;text-shadow:0 2px 0 #000,0 0 10px rgba(0,0,0,.7);animation:avfl .95s ease-out forwards;white-space:nowrap}
 .av-fl.g{color:#55e6a0}.av-fl.y{color:#ffcf45;font-size:15px}.av-fl.r{color:#ff9b93}
@@ -223,35 +187,10 @@
 .av-room{padding:18px;border-radius:16px;border:4px solid var(--gym-trim);background:linear-gradient(145deg,var(--gym-bg),#101b2c);color:#fff;box-shadow:inset 0 0 0 5px rgba(255,255,255,.06)}.av-room h2{color:var(--gym-accent);text-align:center}.av-room-floor{height:95px;margin:12px 0;border:3px solid var(--gym-trim);border-radius:10px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 28px,transparent 28px 56px),repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 28px,transparent 28px 56px),var(--gym-floor);display:flex;align-items:center;justify-content:space-around;font-size:27px}.av-task{display:flex;gap:10px;align-items:center;padding:10px;margin:7px 0;background:#10253a;border:1px solid #36506b;border-radius:10px;color:#dcecff;font-size:13px}
 `;
     s.textContent += `
-#av-home-preview{position:fixed;z-index:30;right:16px;bottom:16px;top:auto;width:min(370px,38vw);min-width:285px;height:224px;overflow:hidden;border:1px solid #58718a;border-radius:22px;background:radial-gradient(ellipse at 35% 42%,#315d75 0%,#18364c 48%,#0a1726 100%);box-shadow:0 14px 42px #0009;color:#eaf3ff;font-family:var(--font-body);text-align:left;isolation:isolate}
-#av-home-preview:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0a182455,transparent 42%,#050c18cc),radial-gradient(ellipse at 35% 90%,#8cb6a033,transparent 52%);pointer-events:none;z-index:0}
-#av-home-preview .av-lobby-top{position:absolute;z-index:5;top:10px;left:13px;right:13px;display:flex;justify-content:space-between;align-items:center;gap:8px;font:900 8px var(--font-display);letter-spacing:1px;color:#d9edff}
-#av-home-preview .av-lobby-top span:last-child{color:#ffcf45;white-space:nowrap}
-#av-home-preview .av-home-avatar{position:absolute;z-index:1;left:0;bottom:0;width:58%;height:88%;display:flex;align-items:flex-end;justify-content:center;filter:drop-shadow(0 12px 12px #0008)}
-#av-home-preview .av-home-avatar svg{width:100%;height:100%;max-height:205px;overflow:visible}
-#av-home-3d{position:absolute;inset:0;z-index:2}#av-home-3d canvas{display:block;width:100%;height:100%;outline:0}
-#av-home-preview .av-home-pokemon-fallback{position:absolute;z-index:3;right:2%;bottom:8%;width:36%;height:45%;object-fit:contain;filter:drop-shadow(0 8px 7px #0009);animation:av-lobby-bob 3s ease-in-out infinite}
-@keyframes av-lobby-bob{50%{transform:translateY(-6px)}}
-#av-home-preview .av-home-info{position:absolute;z-index:4;right:10px;top:43px;width:42%;min-width:0;padding:9px 9px;border:1px solid #ffffff30;border-radius:13px;background:linear-gradient(145deg,#071626d9,#0b1b2ddd);backdrop-filter:blur(9px)}
-#av-home-preview .av-home-info b{display:block;color:#ffcf45;font:900 12px var(--font-display);letter-spacing:.5px;overflow-wrap:anywhere}
-#av-home-preview .av-home-info small{display:block;color:#b9cde0;font-size:8px;margin-top:4px;overflow-wrap:anywhere;line-height:1.25}
-#av-home-preview .av-home-places{display:flex;flex-direction:column;gap:3px;margin-top:6px}
-#av-home-preview .av-home-places span{font-size:8px;color:#d8eaff;background:#ffffff0c;border:1px solid #ffffff20;border-radius:6px;padding:4px 5px}
-#av-home-preview button{margin-top:7px;width:100%;min-height:28px;border:0;border-radius:8px;background:linear-gradient(145deg,#ffcf45,#ff762e);color:#172235;font-weight:900;cursor:pointer;box-shadow:0 4px 12px #ff922e44;font-size:9px}
-@media(max-width:760px){#av-home-preview{right:8px;bottom:8px;width:min(360px,calc(100vw - 16px));min-width:0;height:190px;border-radius:18px}#av-home-preview .av-home-avatar{left:0;width:55%;height:91%}#av-home-preview .av-home-avatar svg{max-height:180px}#av-home-preview .av-home-info{right:8px;top:37px;width:44%;padding:7px}#av-home-preview .av-home-info small{font-size:7.5px}#av-home-preview .av-home-pokemon-fallback{width:34%;height:42%;right:1%;bottom:7%}#av-home-preview .av-lobby-top{top:9px;left:10px;right:10px;font-size:7px}}
-
-
-/* final lobby/battle overrides */
-#av-battle .av-acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-#av-battle .av-acts .av-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 3px}
-#av-battle .av-acts small{font:600 8px var(--font-body);opacity:.9;letter-spacing:.2px}
-#av-battle .av-utility{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:7px}
-#av-battle .av-utility .av-btn{display:flex;align-items:center;justify-content:center;gap:3px;flex-wrap:wrap}
-#av-battle .av-utility small{width:100%;font:600 8px var(--font-body);opacity:.8}
-#av-battle .av-battle-command{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
-#adventure-page.battle-mode #av-3d canvas{filter:brightness(.38) saturate(.72) blur(1px)}
-#av-battle .av-battle-mon[ src=""]{display:none}
-@media(max-width:560px){#av-battle .av-acts{gap:4px}#av-battle .av-acts .av-btn{font-size:10px}#av-battle .av-utility{gap:4px}}
+#av-home-preview{position:fixed;z-index:30;right:18px;bottom:18px;width:min(330px,calc(100vw - 28px));padding:14px;border:1px solid #36506b;border-radius:18px;background:linear-gradient(145deg,#132c46,#081522);box-shadow:0 16px 45px #0009;color:#eaf3ff;font-family:var(--font-body);display:flex;gap:12px;align-items:center;text-align:left}
+#av-home-preview .av-home-avatar{width:62px;height:72px;flex:none;border-radius:14px;background:linear-gradient(160deg,#244b70,#0b1c30);display:grid;place-items:center;border:1px solid #4b7598}#av-home-preview .av-home-avatar svg{width:52px;height:62px}
+#av-home-preview .av-home-info{min-width:0;flex:1}#av-home-preview b{display:block;color:#ffcf45;font:900 14px var(--font-display);letter-spacing:1px}#av-home-preview small{display:block;color:#a9bed3;font-size:10px;margin-top:3px;overflow-wrap:anywhere}#av-home-preview .av-home-places{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}#av-home-preview .av-home-places span{font-size:9px;color:#cfe6ff;background:#0b1b2d;border:1px solid #29415b;border-radius:7px;padding:4px 6px}#av-home-preview button{margin-top:8px;width:100%;min-height:34px;border:0;border-radius:9px;background:linear-gradient(145deg,#ffcf45,#ff762e);color:#172235;font-weight:900;cursor:pointer}
+@media(max-width:560px){#av-home-preview{left:12px;right:12px;bottom:12px;width:auto}}
 `;
     document.head.appendChild(s);
   }
@@ -370,16 +309,19 @@
       <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><button class="av-btn ghost" id="av-party" hidden>☰ PARTY</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
       <div id="av-hud" hidden></div><canvas id="av-map" width="300" height="300" hidden></canvas><div id="av-feed"></div><div id="av-msg"></div>
       <div id="av-bottom"><div id="av-team"></div><div id="av-pad" hidden><button class="av-btn u" data-k="up">▲</button><button class="av-btn l" data-k="left">◀</button><button class="av-btn d" data-k="down">▼</button><button class="av-btn r" data-k="right">▶</button></div></div>
-      <div id="av-battle" hidden><div class="av-battle-field"><svg id="av-player-trainer" class="av-battle-trainer" viewBox="0 0 90 150" aria-hidden="true"><path d="M22 146 26 94 17 80 22 52 40 42 58 49 69 83 61 97 67 146Z" fill="#2878c8" stroke="#14283d" stroke-width="4"/><path d="M29 95 20 145M58 96 66 145" stroke="#26384d" stroke-width="9"/><circle cx="45" cy="28" r="17" fill="#e8b58e"/><path d="M25 23Q25 2 49 5Q67 8 65 25L55 20 30 25Z" fill="#2878c8" stroke="#15283e" stroke-width="3"/><path d="M25 24Q45 16 66 25L62 32Q44 25 27 33Z" fill="#17283d"/><path d="M25 58 10 82 22 89 35 68M61 58 80 77 70 87 55 69" fill="#e8b58e" stroke="#14283d" stroke-width="4"/><path d="M34 53 45 65 56 53" fill="none" stroke="#fff" stroke-width="4"/></svg><svg id="av-foe-trainer" class="av-battle-trainer" viewBox="0 0 90 150" aria-hidden="true"><path d="M22 146 26 94 17 80 22 52 40 42 58 49 69 83 61 97 67 146Z" fill="#bd394b" stroke="#351a29" stroke-width="4"/><path d="M29 95 20 145M58 96 66 145" stroke="#26384d" stroke-width="9"/><circle cx="45" cy="28" r="17" fill="#e8b58e"/><path d="M25 23Q25 2 49 5Q67 8 65 25L55 20 30 25Z" fill="#e7bd4a" stroke="#422d26" stroke-width="3"/><path d="M25 24Q45 16 66 25L62 32Q44 25 27 33Z" fill="#17283d"/></svg><img id="av-foe-art" class="av-battle-mon" alt="Opponent Pokémon" onerror="this.style.display='none'"><img id="av-player-art" class="av-battle-mon" alt="Your Pokémon" onerror="this.style.display='none'"></div>
-        <div class="av-cards"><div class="av-card" id="av-foecard"></div><div class="av-card foe" id="av-mecard"></div></div>
-        <div class="av-panel"><div class="av-battle-command"><span>WHAT WILL YOU DO?</span><span>CHOOSE A MOVE</span></div><div id="av-log"></div><div class="av-acts">
-          <button class="av-btn move" id="av-a1">Tackle<small>40 power</small></button><button class="av-btn move" id="av-a2">Quick Attack<small>40 power</small></button><button class="av-btn move" id="av-a7">Power Move<small>60 power</small></button><button class="av-btn move" id="av-a8">Final Move<small>80 power</small></button></div><div class="av-utility">
-          <button class="av-btn ghost" id="av-a3">${itemImg("poke-ball", 24)} Ball<small></small></button><button class="av-btn ghost" id="av-a6">${itemImg("potion", 24)} Potion<small></small></button><button class="av-btn ghost" id="av-a5">⇄ Pokémon</button><button class="av-btn ghost" id="av-a4">↩ Run</button></div></div></div>
+      <div id="av-battle" hidden><div class="av-cards"><div class="av-card" id="av-mecard"></div><div class="av-card foe" id="av-foecard"></div></div>
+        <div class="av-panel"><div id="av-log"></div><div class="av-acts">
+          <button class="av-btn" id="av-a1">⚔ Attack<small>Basic hit</small></button><button class="av-btn" id="av-a2">✦ Special<small>1.7× damage</small></button>
+          <button class="av-btn ghost" id="av-a3">⚪ Poké Ball<small></small></button><button class="av-btn ghost" id="av-a4">🏃 Run<small>Escape</small></button>
+          <button class="av-btn ghost" id="av-a5">⇄ Swap<small>Change creature</small></button><button class="av-btn ghost" id="av-a6">🧪 Potion<small></small></button></div></div></div>
       <div id="av-float"></div><div id="av-move-fx"></div><div id="av-dlg" hidden></div><div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-loc"></div><div id="av-flash"></div><div id="av-modal" hidden></div>`;
     $("av-back").onclick = onBack; $("av-party").onclick = partyMenu; $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); if (G) drawMap(); };
     document.querySelectorAll("#av-pad button").forEach((b) => { const k = b.dataset.k; b.addEventListener("pointerdown", (e) => { e.preventDefault(); pad[k] = true; }); ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { pad[k] = false; })); });
-    [["a1", "move0"], ["a2", "move1"], ["a7", "move2"], ["a8", "move3"], ["a3", "ball"], ["a4", "run"], ["a5", "swap"], ["a6", "potion"]].forEach(([id, k]) => { $("av-" + id).onclick = () => act(k); });
-    loadThree(() => { init3d(); cb(); }, () => { built = false; $("av-msg").textContent = "Couldn’t load the 3D engine — check your connection and try again."; });
+    [["a1", "atk"], ["a2", "sp"], ["a3", "ball"], ["a4", "run"], ["a5", "swap"], ["a6", "potion"]].forEach(([id, k]) => { $("av-" + id).onclick = () => act(k); });
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    s.onload = () => { THREE = window.THREE; init3d(); cb(); };
+    s.onerror = () => { built = false; $("av-msg").textContent = "Couldn’t load the 3D engine — check your connection and try again."; };
+    document.head.appendChild(s);
   }
   function init3d() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -479,21 +421,16 @@
   }
   function me() { if (!G) return null; const s = G.squad; if (s[G.lead] && s[G.lead].hp > 0) return s[G.lead]; const i = s.findIndex((c) => c.hp > 0); if (i < 0) return null; G.lead = i; return s[i]; }
 
-  const MOVESETS = {
-    normal: [["Tackle",40],["Quick Attack",40],["Slam",65],["Hyper Beam",85]], fire: [["Ember",40],["Flame Charge",50],["Flamethrower",75],["Fire Blast",85]], water: [["Water Gun",40],["Bubble Beam",55],["Surf",75],["Hydro Pump",85]], electric: [["Thunder Shock",40],["Spark",55],["Thunderbolt",75],["Thunder",85]], grass: [["Vine Whip",45],["Razor Leaf",55],["Energy Ball",75],["Solar Beam",85]], ice: [["Powder Snow",40],["Ice Shard",45],["Ice Beam",75],["Blizzard",85]], fighting: [["Rock Smash",40],["Brick Break",60],["Aura Sphere",75],["Close Combat",85]], poison: [["Poison Sting",40],["Venoshock",55],["Sludge Bomb",75],["Toxic Burst",85]], ground: [["Mud-Slap",40],["Bulldoze",60],["Dig",70],["Earthquake",85]], flying: [["Gust",40],["Aerial Ace",55],["Air Slash",70],["Hurricane",85]], psychic: [["Confusion",40],["Psybeam",55],["Psychic",75],["Future Sight",85]], bug: [["Bug Bite",40],["U-turn",55],["X-Scissor",75],["Bug Buzz",85]], rock: [["Rock Throw",45],["Rock Tomb",55],["Rock Slide",75],["Stone Edge",85]], ghost: [["Lick",40],["Hex",55],["Shadow Ball",75],["Phantom Force",85]], dragon: [["Dragon Breath",45],["Dragon Claw",60],["Dragon Pulse",75],["Draco Meteor",85]], dark: [["Bite",40],["Night Slash",55],["Crunch",70],["Dark Pulse",85]], steel: [["Metal Claw",45],["Iron Head",60],["Flash Cannon",75],["Meteor Mash",85]], fairy: [["Fairy Wind",40],["Draining Kiss",55],["Dazzling Gleam",75],["Moonblast",85]]
-  };
-  function movesFor(c) { const t = c.t && c.t[0] || "normal", list = MOVESETS[t] || MOVESETS.normal; return list.map((m) => ({ name:m[0], power:m[1], type:t })); }
-
   /* ---------- battle core ---------- */
   function ovl(v) { ["av-hud", "av-map", "av-feed", "av-act", "av-party", "av-loc", "av-prompt"].forEach((id) => { const e = $(id); if (e) e.style.visibility = v ? "" : "hidden"; }); }
-  function clearBattle() { if (foeH && (!B || !B.o.h)) scene.remove(foeH); foeH = null; B = null; if ($("av-move-fx")) $("av-move-fx").innerHTML = ""; $("adventure-page").classList.remove("battle-mode"); $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); }
+  function clearBattle() { if (foeH && (!B || !B.o.h)) scene.remove(foeH); foeH = null; B = null; if ($("av-move-fx")) $("av-move-fx").innerHTML = ""; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); }
   function startBattle(foe, o) {
     const m = me(); if (!m) return;
     B = { foe, o, lock: false, turn: 0, mePos: o.mePos, foePos: o.foePos };
     if (o.h) foeH = o.h; else { foeH = makeMon(foe, foe.boss ? 3.6 : 2.1); foeH.position.copy(o.foePos); scene.add(foeH); }
     foeH.userData.sink = false; if (!o.h) foeH.userData.pop = 0;
     setPartner(); partnerH.userData.pop = 0.4;
-    $("av-battle").hidden = false; $("adventure-page").classList.add("battle-mode"); $("av-bottom").style.display = "none"; showPad(false); ovl(false);
+    $("av-battle").hidden = false; $("av-bottom").style.display = "none"; showPad(false); ovl(false);
     log(foe.boss ? "The final rival " + foe.n + " blocks your path!" : (o.intro || "A wild " + foe.n + " appeared!")); ui();
   }
   function types(c) { return c.t.map((x) => `<span class="av-ty" style="background:#${(TC[x] || 0x667788).toString(16).padStart(6, "0")}">${x.toUpperCase()}</span>`).join(""); }
@@ -501,13 +438,11 @@
     const m = me(), f = B && B.foe; if (!m || !f) return;
     $("av-mecard").innerHTML = `<div class="nm">${m.n}${m.lv ? " Lv" + m.lv : ""}<small>${m.hp}/${m.max}</small></div><span class="hp"><i style="width:${m.hp / m.max * 100}%"></i></span><div class="av-types">${types(m)}</div>`;
     $("av-foecard").innerHTML = `<div class="nm">${f.boss ? "👑 " : ""}${f.n}${f.lv ? " Lv" + f.lv : ""}<small>${f.hp}/${f.max}</small></div><span class="hp"><i style="width:${f.hp / f.max * 100}%"></i></span><div class="av-types">${types(f)}</div>`;
-    const artMe = $("av-player-art"), artFoe = $("av-foe-art"); if (artMe) artMe.src = ART + m.id + ".png"; if (artFoe) artFoe.src = ART + f.id + ".png";
-    const moves = movesFor(m); ["av-a1","av-a2","av-a7","av-a8"].forEach((id,i) => { const b = $(id), mv = moves[i]; if (b && mv) { b.innerHTML = `${mv.name}<small>${mv.power} power</small><em>${mv.type.toUpperCase()}</em>`; b.style.borderColor = "#" + (TC[mv.type] || 0x54799a).toString(16).padStart(6,"0"); } });
-    const o = B.o;
+    const o = B.o; $("av-a2").disabled = m.cd > 0; $("av-a2").innerHTML = "✦ Special<small>" + (m.cd > 0 ? "ready in " + m.cd : "1.7× damage") + "</small>";
     $("av-a3").hidden = !o.ball; $("av-a3").disabled = !!f.boss || ballCount() < 1; { const pb = pickBall(); $("av-a3").querySelector("small").textContent = pb ? pb.n + " ×" + ballCount() : "none left"; }
     $("av-a4").hidden = !o.run; $("av-a4").disabled = !!f.boss; $("av-a5").hidden = !o.swap || G.squad.filter((c) => c.hp > 0).length < 2; $("av-a6").hidden = !o.potion; $("av-a6").disabled = !G.potions; $("av-a6").querySelector("small").textContent = (G.potions || 0) + " left"; refresh();
   }
-  function dmg(a, d, mult, moveType) { const e = eff(moveType || a.t[0], d); return { v: e === 0 ? 0 : Math.max(1, Math.round(a.a * (0.8 + Math.random() * 0.4) * mult * e)), e }; }
+  function dmg(a, d, mult) { const e = eff(a.t[0], d); return { v: e === 0 ? 0 : Math.max(1, Math.round(a.a * (0.8 + Math.random() * 0.4) * mult * e)), e }; }
   const effTxt = (e) => (e === 0 ? " — no effect!" : e > 1 ? " — super effective!" : e < 1 ? " — not very effective." : ".");
   function lungeTo(h, from, to) { const dx = to.x - from.x, dz = to.z - from.z, l = Math.hypot(dx, dz) || 1; h.userData.lx = dx / l; h.userData.lz = dz / l; h.userData.lunge = 0.0001; }
   function act(kind) {
@@ -524,9 +459,9 @@
       }
       log("It broke free!"); float(foeH, "BROKE FREE", "r");
     } else {
-      const moveIndex = Math.max(0, Math.min(3, Number(String(kind).replace("move", "")) || 0)), move = movesFor(m)[moveIndex];
-      const r = dmg(m, f, move.power / 50, move.type); f.hp = Math.max(0, f.hp - r.v); moveEffect(move.type, foeH, move.name.toUpperCase()); lungeTo(partnerH, partnerH.position, foeH.position); foeH.userData.flash = 0.25; foeH.userData.mat.color.set(0xff7070);
-      float(foeH, r.e === 0 ? "NO EFFECT" : "-" + r.v, r.e > 1 ? "y" : ""); log(m.n + " used " + move.name + " for " + r.v + effTxt(r.e));
+      if (kind === "sp") { if (m.cd > 0) return; m.cd = o.cd || 3; }
+      const r = dmg(m, f, kind === "sp" ? 1.7 : 1); f.hp = Math.max(0, f.hp - r.v); moveEffect(m.t[0] || "normal", foeH, kind === "sp" ? "POWER " + cap(m.t[0] || "normal") : cap(m.t[0] || "normal") + " HIT"); lungeTo(partnerH, partnerH.position, foeH.position); foeH.userData.flash = 0.25; foeH.userData.mat.color.set(0xff7070);
+      float(foeH, r.e === 0 ? "NO EFFECT" : "-" + r.v, r.e > 1 ? "y" : ""); log(m.n + (kind === "sp" ? " unleashes a special" : " attacks") + " for " + r.v + effTxt(r.e));
       if (f.hp <= 0) { foeH.userData.sink = true; let ms = 1300; if (G.story) { const xg = gainXp(f); log(f.n + " fainted! " + m.n + " gained " + xg.base + " XP!" + (xg.out.length ? " " + xg.out.join(" ") : "")); ms = 2500; } return endBattle("win", ms); }
     }
     ui(); foeTurn();
@@ -552,7 +487,7 @@
     if (!B) return; B.lock = true; const o = B.o, fp = B.foePos.clone(), cb = o.done;
     later(() => {
       if (!(res === "run" && o.h) && foeH) scene.remove(foeH);
-      foeH = null; B = null; $("adventure-page").classList.remove("battle-mode"); $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); if (mode && G && !G.over) showPad(true); refresh();
+      foeH = null; B = null; $("av-battle").hidden = true; $("av-bottom").style.display = ""; ovl(true); if (mode && G && !G.over) showPad(true); refresh();
       if (cb) cb(res, fp);
     }, ms);
   }
@@ -745,9 +680,9 @@
 
   /* ----- shops, healing, party ----- */
   function martMenu() {
-    const items = [{ id: "pokeball", n: "Poké Ball", p: 150, art: "poke-ball" }, { id: "great", n: "Great Ball", p: 300, art: "great-ball" }, { id: "ultra", n: "Ultra Ball", p: 600, art: "ultra-ball" }, { id: "potion", n: "Potion", p: 80, art: "potion", d: "Heals 60 HP (use in battle or from the Party menu)" }];
+    const items = [{ id: "pokeball", n: "Poké Ball", p: 150, ic: "⚪" }, { id: "great", n: "Great Ball", p: 300, ic: "🔵" }, { id: "ultra", n: "Ultra Ball", p: 600, ic: "🟡" }, { id: "potion", n: "Potion", p: 80, ic: "🧪", d: "Heals 60 HP (use in battle or from the Party menu)" }];
     const draw = () => { let c = 0; try { c = coins; } catch (e) {}
-      modal(`<h2>POKÉ MART</h2><p>You have <b style="color:#ffcf45">🥮 ${c.toLocaleString()}</b></p><div class="av-shop">${items.map((i) => `<div class="av-item">${itemImg(i.art, 42)}<div><b>${i.n}</b><span>${i.d || "Owned: " + (() => { try { return getBallCount(i.id); } catch (e) { return 0; } })()}</span></div><button class="av-btn" data-b="${i.id}" ${c >= i.p ? "" : "disabled"}>🥮 ${i.p}</button></div>`).join("")}</div><div class="av-row2"><button class="av-btn" data-a="x">DONE</button></div>`, (m) => {
+      modal(`<h2>POKÉ MART</h2><p>You have <b style="color:#ffcf45">🥮 ${c.toLocaleString()}</b></p><div class="av-shop">${items.map((i) => `<div class="av-item"><span style="font-size:24px">${i.ic}</span><div><b>${i.n}</b><span>${i.d || "Owned: " + (() => { try { return getBallCount(i.id); } catch (e) { return 0; } })()}</span></div><button class="av-btn" data-b="${i.id}" ${c >= i.p ? "" : "disabled"}>🥮 ${i.p}</button></div>`).join("")}</div><div class="av-row2"><button class="av-btn" data-a="x">DONE</button></div>`, (m) => {
         m.querySelectorAll("[data-b]").forEach((b) => { b.onclick = () => { const it = items.find((x) => x.id === b.dataset.b); let c2 = 0; try { c2 = coins; } catch (e) {} if (c2 < it.p) return; addCoins(-it.p); if (it.id === "potion") G.potions++; else { try { addBalls(it.id, 1); saveInventory(); } catch (e) {} } saveStory(); refresh(); draw(); }; });
         m.querySelector("[data-a=x]").onclick = closeModal;
       }); };
@@ -756,7 +691,7 @@
   function partyMenu() {
     if (!G || !G.story || B || DL) return;
     const draw = () => modal(`<h2>PARTY</h2><div class="av-stats"><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>POTIONS</small><b>${G.potions}</b></div><div class="av-stat"><small>BALLS</small><b>${ballCount()}</b></div></div>
-      <div class="av-shop">${G.squad.map((c, i) => `<div class="av-item"><img src="${ART + c.id}.png" alt="" style="width:46px;height:46px;object-fit:contain"><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>HP ${c.hp}/${c.max} · ATK ${c.a} · XP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${c.hp / c.max * 100}%"></u></span></div><div style="display:flex;flex-direction:column;gap:4px"><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button><button class="av-btn ghost" data-p="${i}" ${c.hp > 0 && c.hp < c.max && G.potions > 0 ? "" : "disabled"}>${itemImg("potion", 26)}</button></div></div>`).join("") || "<p>You have no Pokémon yet.</p>"}</div>
+      <div class="av-shop">${G.squad.map((c, i) => `<div class="av-item"><img src="${ART + c.id}.png" alt="" style="width:46px;height:46px;object-fit:contain"><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>HP ${c.hp}/${c.max} · ATK ${c.a} · XP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${c.hp / c.max * 100}%"></u></span></div><div style="display:flex;flex-direction:column;gap:4px"><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button><button class="av-btn ghost" data-p="${i}" ${c.hp > 0 && c.hp < c.max && G.potions > 0 ? "" : "disabled"}>🧪</button></div></div>`).join("") || "<p>You have no Pokémon yet.</p>"}</div>
       <div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button><button class="av-btn" data-a="x">RESUME</button></div>`, (m) => {
       m.querySelectorAll("[data-l]").forEach((b) => { b.onclick = () => { G.lead = +b.dataset.l; setPartner(true); refresh(); saveStory(); draw(); }; });
       m.querySelectorAll("[data-p]").forEach((b) => { b.onclick = () => { const c = G.squad[+b.dataset.p]; G.potions--; c.hp = Math.min(c.max, c.hp + 60); refresh(); saveStory(); draw(); }; });
@@ -1055,7 +990,7 @@
 
   /* ---------- open / close ---------- */
   function open() {
-    A = load(); stopLobbyPreview(); $("home-page").classList.add("hidden"); $("adventure-page").classList.remove("hidden");
+    A = load(); $("home-page").classList.add("hidden"); $("adventure-page").classList.remove("hidden");
     setup(() => { resize(); menu(); if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } });
   }
   function renderHomePreview() {
@@ -1063,31 +998,9 @@
     const d = load(), st = d.story, p = st && st.profile; let card = $("av-home-preview");
     if (!p) { if (card) card.remove(); return; }
     if (!card) { card = document.createElement("div"); card.id = "av-home-preview"; home.appendChild(card); }
-    const color = "#" + profileColor(p.outfit).toString(16).padStart(6, "0"), safeName = String(p.name || "Trainer").replace(/[&<>"]/g, ""), squad = (st.squad || []), starter = squad[0] || { id: 25 }, starterData = SPECIES[starter.id] || { n: "Pikachu" }, starterName = starterData.n, badgeCount = (st.badges || []).length;
-    card.innerHTML = `<div class="av-lobby-top"><span>TRAINER LOBBY · KANTO STYLE</span><span>✦ ${badgeCount}/6 BADGES</span></div><div class="av-home-avatar" style="color:${color}"><div id="av-home-3d" aria-label="3D trainer lobby preview"></div><svg viewBox="0 0 260 520" role="img" aria-label="${safeName} full body trainer avatar"><defs><linearGradient id="av-skin" x2="0" y2="1"><stop stop-color="#ffd9b6"/><stop offset="1" stop-color="#bd8062"/></linearGradient><linearGradient id="av-shirt" x2="1" y2="1"><stop stop-color="#ffffff" stop-opacity=".32"/><stop offset=".45" stop-color="currentColor"/><stop offset="1" stop-color="#071b2b" stop-opacity=".8"/></linearGradient><linearGradient id="av-pants" x2="0" y2="1"><stop stop-color="#52657b"/><stop offset="1" stop-color="#172638"/></linearGradient></defs><ellipse cx="132" cy="500" rx="83" ry="12" fill="#020811" opacity=".5"/><path d="M88 324 76 427 69 488Q88 502 111 490L130 390 145 490Q168 502 189 488L177 421 174 320Z" fill="url(#av-pants)" stroke="#0b1828" stroke-width="7"/><path d="M70 483Q89 475 114 488L111 508 56 508Q51 496 70 483ZM145 488Q169 475 190 484L208 504Q208 510 192 510L145 507Z" fill="#111b28" stroke="#080f18" stroke-width="5"/><path d="M78 182Q55 196 57 249L66 333Q128 358 192 333L199 245Q198 198 170 181L151 166 103 166Z" fill="url(#av-shirt)" stroke="#10253b" stroke-width="7"/><path d="M103 169 130 201 154 168 167 184 145 235 130 217 111 237 89 184Z" fill="#f2f6fa" opacity=".9"/><path d="M78 193 48 244 61 278 85 269 102 220M177 193 211 240 199 279 176 269 158 220" fill="url(#av-shirt)" stroke="#10253b" stroke-width="7"/><path d="M51 265Q63 256 81 267L79 289Q62 298 49 282Z M181 267Q199 255 213 266L215 283Q199 299 181 289Z" fill="url(#av-skin)"/><path d="M105 154Q104 126 130 124Q157 125 157 156L153 181Q131 207 108 181Z" fill="url(#av-skin)" stroke="#855d4d" stroke-width="3"/><path d="M101 150Q92 115 119 101Q150 88 164 119L159 147 148 133 130 141 112 133Z" fill="#382d2c"/><path d="M95 117Q105 83 145 88Q173 92 174 121L158 128 112 121Z" fill="currentColor" stroke="#12263a" stroke-width="5"/><path d="M91 119Q130 105 174 121L167 135Q130 121 96 136Z" fill="#16283c"/><path d="M112 151Q117 155 122 151M140 151Q145 155 150 151" stroke="#273342" stroke-width="3" fill="none"/><path d="M119 168Q131 176 143 168" stroke="#8e4e48" stroke-width="2.5" fill="none"/><path d="M74 205Q35 221 35 289L52 322 82 309 97 238ZM183 204Q220 221 223 286L205 322 177 309 163 238Z" fill="currentColor" opacity=".85"/><path d="M76 211 91 225 82 305 65 310 52 282ZM183 211 168 225 178 305 195 310 207 282Z" fill="#ffffff" opacity=".13"/><path d="M93 332 167 332 174 355 85 355Z" fill="#f4f7fb" opacity=".2"/><path d="M95 360 166 360" stroke="#dbe7f2" stroke-width="3" opacity=".5"/></svg></div><img class="av-home-pokemon-fallback" src="${ART}${starter.id || 25}.png" alt="${String(starterName || "Partner Pokémon").replace(/[&<>"]/g, "")}" onerror="this.style.display='none'"><div class="av-home-info"><b>${safeName}</b><small>TRAINER ID · ${p.id}</small><small>${badgeCount}/6 GYM BADGES ${st.flags && st.flags.champ ? "· 🏆 CHAMPION" : "· JOURNEY IN PROGRESS"}</small><div class="av-home-places"><span>⚡ PARTNER · ${cap(starterName || "Pikachu")}</span><span>🏥 Pokémon Center</span><span>🏟️ Next Gym</span></div><button type="button" data-av-resume>▶ CONTINUE STORY</button></div>`;
+    const color = "#" + profileColor(p.outfit).toString(16).padStart(6, "0");
+    card.innerHTML = `<div class="av-home-avatar" style="border-color:${color}"><svg viewBox="0 0 64 76" aria-label="${p.name} trainer avatar"><path d="M12 72 Q13 48 32 46 Q51 48 52 72Z" fill="${color}" stroke="#dcecff" stroke-width="2"/><circle cx="32" cy="31" r="15" fill="#e9b995" stroke="#5d3d35" stroke-width="1.5"/><path d="M15 27 Q16 8 34 9 Q48 10 50 25 L43 22 L17 24Z" fill="${color}" stroke="#dcecff" stroke-width="2"/><path d="M13 25 Q31 18 52 25 L49 30 Q29 24 14 31Z" fill="#17283d"/><circle cx="27" cy="32" r="1.5" fill="#17283d"/><circle cx="38" cy="32" r="1.5" fill="#17283d"/></svg></div><div class="av-home-info"><b>${p.name.replace(/[&<>"]/g, "")}</b><small>TRAINER ID · ${p.id}</small><small>${(st.badges || []).length}/6 BADGES ${st.flags && st.flags.champ ? "· 🏆 CHAMPION" : ""}</small><div class="av-home-places"><span>🏥 Pokémon Center</span><span>🏟️ Next Gym</span></div><button type="button" data-av-resume>CONTINUE STORY</button></div>`;
     card.querySelector("[data-av-resume]").onclick = open;
-    loadThree(startLobbyPreview, () => { const fallback = card.querySelector(".av-home-avatar svg"); if (fallback) fallback.style.display = "block"; const pokemonFallback = card.querySelector(".av-home-pokemon-fallback"); if (pokemonFallback) pokemonFallback.style.display = "block"; });
-  }
-  function stopLobbyPreview() {
-    if (homePreviewFrame) cancelAnimationFrame(homePreviewFrame); homePreviewFrame = 0;
-    if (homePreviewRenderer) { try { homePreviewRenderer.dispose(); } catch (e) {} const c = homePreviewRenderer.domElement; if (c && c.parentNode) c.parentNode.removeChild(c); }
-    homePreviewRenderer = null; homePreviewScene = null; homePreviewCamera = null; homePreviewTrainer = null; homePreviewPokemon = null;
-  }
-  function startLobbyPreview() {
-    const host = $("av-home-3d"), d = load(), st = d.story, p = st && st.profile, home = $("home-page"); if (!host || !p || !THREE || (home && home.classList.contains("hidden"))) return;
-    stopLobbyPreview();
-    try {
-      const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
-      homePreviewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); homePreviewRenderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); homePreviewRenderer.setSize(w, h); homePreviewRenderer.setClearColor(0x000000, 0); host.appendChild(homePreviewRenderer.domElement);
-      homePreviewScene = new THREE.Scene(); homePreviewCamera = new THREE.PerspectiveCamera(34, w / h, 0.1, 80); homePreviewCamera.position.set(0, 2.0, 7.4); homePreviewCamera.lookAt(0, 1.0, 0);
-      homePreviewScene.add(new THREE.HemisphereLight(0xd9efff, 0x263448, 1.65)); const keyLight = new THREE.DirectionalLight(0xffffff, 1.35); keyLight.position.set(-3, 7, 5); homePreviewScene.add(keyLight); const rimLight = new THREE.DirectionalLight(0x6ac8ff, 0.65); rimLight.position.set(4, 3, -4); homePreviewScene.add(rimLight);
-      const platform = mesh(new THREE.CylinderGeometry(1.65, 1.82, 0.16, 48), lam(0x203d55), 0, 0.08, 0); homePreviewScene.add(platform); const trim = mesh(new THREE.TorusGeometry(1.66, 0.035, 8, 64), new THREE.MeshBasicMaterial({ color: 0x65d5ff }), 0, 0.17, 0); trim.rotation.x = Math.PI / 2; homePreviewScene.add(trim);
-      homePreviewTrainer = makeTrainer(profileColor(p.outfit), 0xf4f7ff); homePreviewTrainer.position.set(-0.35, 0.17, 0); homePreviewTrainer.scale.setScalar(1.48); homePreviewTrainer.rotation.y = 0.28; homePreviewScene.add(homePreviewTrainer);
-      const first = (st.squad || [])[0] || { id: 25 }, species = SPECIES[first.id] || SPECIES[25]; homePreviewPokemon = makeMon(species, 1.55); homePreviewPokemon.userData.pop = 1; homePreviewPokemon.position.set(1.08, 0.12, 0.38); homePreviewPokemon.rotation.y = -0.35; homePreviewScene.add(homePreviewPokemon);
-      const fallback = host.parentNode && host.parentNode.querySelector("svg"); if (fallback) fallback.style.display = "none"; const pokemonFallback = host.querySelector(".av-home-pokemon-fallback"); if (pokemonFallback) pokemonFallback.style.display = "none";
-      homePreviewLast = performance.now(); const animate = (now) => { if (!homePreviewRenderer || !host.isConnected || $("home-page").classList.contains("hidden")) { homePreviewFrame = 0; return; } const dt = Math.min(0.05, (now - homePreviewLast) / 1000 || 0.016); homePreviewLast = now; const seconds = now / 1000; if (homePreviewTrainer) { homePreviewTrainer.rotation.y = 0.22 + Math.sin(seconds * 0.45) * 0.10; homePreviewTrainer.position.y = 0.17 + Math.sin(seconds * 1.5) * 0.025; const legs = homePreviewTrainer.userData.legs; if (legs) { legs[0].rotation.x = Math.sin(seconds * 1.5) * 0.025; legs[1].rotation.x = -legs[0].rotation.x; } } if (homePreviewPokemon && homePreviewPokemon.userData.sp) homePreviewPokemon.userData.sp.position.y = homePreviewPokemon.userData.s * 0.46 + Math.sin(seconds * 2.2) * 0.055; homePreviewRenderer.render(homePreviewScene, homePreviewCamera); homePreviewFrame = requestAnimationFrame(animate); };
-      homePreviewFrame = requestAnimationFrame(animate);
-    } catch (e) { stopLobbyPreview(); const fallback = host.parentNode && host.parentNode.querySelector("svg"); if (fallback) fallback.style.display = "block"; const pokemonFallback = host.querySelector(".av-home-pokemon-fallback"); if (pokemonFallback) pokemonFallback.style.display = "block"; }
   }
   function close() {
     if (G && G.story) saveStory();
