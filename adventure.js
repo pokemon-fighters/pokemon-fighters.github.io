@@ -71,6 +71,9 @@
   let built = false, running = false, last = 0, t = 0, runId = 0, camSnap = true;
   const P = { x: 0, z: 24, rot: Math.PI, moving: false };
   const held = {}, pad = {}, COL = [], camLook = { x: 0, y: 1, z: 0 };
+  // Active collision list and movement bounds are switched by showScene().
+  // Declare them here because this file runs in strict mode.
+  let COLA = COL, BND = null;
   const later = (fn, ms) => { const r = runId; setTimeout(() => { if (r === runId) fn(); }, ms); };
   const modalOpen = () => !$("av-modal").hidden;
 
