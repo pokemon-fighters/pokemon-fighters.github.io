@@ -100,6 +100,7 @@
   const hx = (s) => parseInt(s.slice(1), 16);
   function npcLook(seed) { let h = 0; String(seed).split("").forEach((c) => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); const r = (n) => { h = (h * 1103515245 + 12345) >>> 0; return (h >>> 8) % n; }; return { g: r(2) ? "g" : "b", skin: r(5), hairS: r(4), hairC: r(6), jacket: r(8), pants: r(6), capOn: r(3) === 0, capC: r(8), bag: r(8) }; }
 
+  const shade = (hexc, f) => { const n = parseInt(hexc.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, k = f < 0 ? 0 : 255, a = Math.abs(f); return "rgb(" + Math.round(r + (k - r) * a) + "," + Math.round(g + (k - g) * a) + "," + Math.round(b + (k - b) * a) + ")"; };
   function drawAvatar(c, look, t, o) {
     o = o || {}; const x = c.getContext("2d"), w = c.width, h = c.height; if (!o.noClear) x.clearRect(0, 0, w, h);
     const L = look || DEF_LOOK, skin = SKIN[L.skin], hair = HAIR[L.hairC], jk = CLOTH[L.jacket], pn = PANTS[L.pants], bg = CLOTH[L.bag], cp = CLOTH[L.capC];
@@ -115,11 +116,10 @@
     [-1, 1].forEach((k) => { x.fillStyle = grad(pn, "#101420", fy - 140 * s, fy - 12 * s); rr(cx + k * 24 * s - 20 * s, fy - 140 * s, 40 * s, 124 * s, 14 * s); x.fill(); x.fillStyle = "#f2f2f2"; x.beginPath(); x.ellipse(cx + k * 26 * s + k * 4 * s, fy - 8 * s, 28 * s, 14 * s, 0, 0, 6.283); x.fill(); x.fillStyle = "#c93b3b"; x.fillRect(cx + k * 26 * s - 14 * s, fy - 12 * s, 36 * s, 4 * s); });
     if (L.g === "g") { x.fillStyle = grad(pn, "#101420", fy - 160 * s, fy - 80 * s); x.beginPath(); x.moveTo(cx - 64 * s, fy - 140 * s); x.lineTo(cx + 64 * s, fy - 140 * s); x.lineTo(cx + 78 * s, fy - 78 * s); x.lineTo(cx - 78 * s, fy - 78 * s); x.closePath(); x.fill(); }
     /* arms + hands */
-    [-1, 1].forEach((k) => { x.fillStyle = grad(jk, "#00000066", fy - 268 * s, fy - 150 * s); rr(cx + k * 78 * s - 16 * s, fy - 268 * s + bob, 32 * s, 124 * s, 16 * s); x.fill(); x.fillStyle = skin; x.beginPath(); x.arc(cx + k * 78 * s, fy - 140 * s + bob, 16 * s, 0, 6.283); x.fill(); });
+    [-1, 1].forEach((k) => { x.fillStyle = grad(jk, shade(jk, -0.35), fy - 268 * s, fy - 150 * s); rr(cx + k * 78 * s - 16 * s, fy - 268 * s + bob, 32 * s, 124 * s, 16 * s); x.fill(); x.fillStyle = skin; x.beginPath(); x.arc(cx + k * 78 * s, fy - 140 * s + bob, 16 * s, 0, 6.283); x.fill(); });
     /* torso */
-    x.fillStyle = grad(jk, "#00000088", fy - 270 * s, fy - 120 * s); rr(cx - 62 * s, fy - 270 * s + bob, 124 * s, 150 * s, 24 * s); x.fill();
-    x.fillStyle = "#ffffffcc"; rr(cx - 12 * s, fy - 262 * s + bob, 24 * s, 138 * s, 8 * s); x.fill(); x.strokeStyle = "#00000033"; x.lineWidth = 2 * s; x.beginPath(); x.moveTo(cx, fy - 256 * s + bob); x.lineTo(cx, fy - 128 * s + bob); x.stroke();
-    x.fillStyle = "#ffffff55"; x.beginPath(); x.arc(cx - 36 * s, fy - 196 * s + bob, 10 * s, 0, 6.283); x.fill();
+    x.fillStyle = grad(jk, shade(jk, -0.4), fy - 270 * s, fy - 120 * s); rr(cx - 62 * s, fy - 270 * s + bob, 124 * s, 150 * s, 24 * s); x.fill();
+    x.fillStyle = "#f4f4f4"; rr(cx - 12 * s, fy - 262 * s + bob, 24 * s, 138 * s, 8 * s); x.fill(); x.strokeStyle = "#00000033"; x.lineWidth = 2 * s; x.beginPath(); x.moveTo(cx, fy - 256 * s + bob); x.lineTo(cx, fy - 128 * s + bob); x.stroke();
     /* neck + head */
     x.fillStyle = skin; rr(cx - 13 * s, fy - 292 * s + bob, 26 * s, 28 * s, 8 * s); x.fill();
     x.beginPath(); x.ellipse(cx, fy - 326 * s + bob, 50 * s, 56 * s, 0, 0, 6.283); x.fill();
@@ -1039,27 +1039,27 @@
   }
 
   /* ----- home screen: draw the active character + a Pokémon Center backdrop ----- */
+  let HB = null;
   function drawHome(c, look, t) {
     const x = c.getContext("2d"), w = c.width, h = c.height; x.clearRect(0, 0, w, h);
-    const sky = x.createLinearGradient(0, 0, 0, h * 0.62); sky.addColorStop(0, "#3d86e0"); sky.addColorStop(1, "#bfe3ff"); x.fillStyle = sky; x.fillRect(0, 0, w, h * 0.64);
-    x.fillStyle = "rgba(255,255,255,.85)"; [[0.15, 0.1, 60], [0.7, 0.07, 80], [0.5, 0.17, 50]].forEach(([cx, cy, r], i) => { const ox = ((t * 6 + i * 120) % (w + 200)) - 100; x.beginPath(); x.ellipse((cx * w + ox) % (w + 100), cy * h, r, r * 0.35, 0, 0, 6.283); x.fill(); });
-    const bx = w * 0.1, bw = w * 0.8, by = h * 0.3, bh = h * 0.34; x.fillStyle = "#f8f3ec"; x.fillRect(bx, by, bw, bh);
-    x.fillStyle = "#e84a5f"; x.beginPath(); x.moveTo(bx - 14, by); x.lineTo(bx + bw + 14, by); x.lineTo(bx + bw - 22, by - h * 0.12); x.lineTo(bx + 22, by - h * 0.12); x.closePath(); x.fill(); x.fillStyle = "#c93b4f"; x.fillRect(bx - 14, by - 6, bw + 28, 10);
-    x.fillStyle = "#fff"; x.beginPath(); x.arc(w / 2, by - h * 0.06, 28, 0, 6.283); x.fill(); x.fillStyle = "#e84a5f"; x.beginPath(); x.arc(w / 2, by - h * 0.06, 28, Math.PI, 6.283); x.fill(); x.fillStyle = "#222"; x.fillRect(w / 2 - 28, by - h * 0.06 - 3, 56, 6); x.beginPath(); x.arc(w / 2, by - h * 0.06, 9, 0, 6.283); x.fillStyle = "#fff"; x.fill(); x.strokeStyle = "#222"; x.lineWidth = 3; x.stroke();
-    x.fillStyle = "#e84a5f"; x.fillRect(bx, by + 8, bw, 26); x.fillStyle = "#fff"; x.font = "900 20px Rajdhani, Arial"; x.textAlign = "center"; x.fillText("POKÉMON CENTER", w / 2, by + 28);
-    x.fillStyle = "#7fc4ff"; x.fillRect(w / 2 - 44, by + bh - 82, 88, 82); x.fillStyle = "#a8dcff"; x.fillRect(w / 2 - 40, by + bh - 78, 38, 78); x.fillRect(w / 2 + 2, by + bh - 78, 38, 78);
-    [0.22, 0.78].forEach((fx) => { x.fillStyle = "#7fc4ff"; x.fillRect(w * fx - 36, by + 52, 72, 56); x.fillStyle = "#ffffff55"; x.fillRect(w * fx - 32, by + 56, 28, 48); });
-    const gr = x.createLinearGradient(0, h * 0.64, 0, h); gr.addColorStop(0, "#d3c4a0"); gr.addColorStop(1, "#9e8d6c"); x.fillStyle = gr; x.fillRect(0, h * 0.64, w, h * 0.36); x.fillStyle = "#4f9e4a"; x.fillRect(0, h * 0.62, w, h * 0.03);
-    const glow = x.createRadialGradient(w / 2, h * 0.9, 10, w / 2, h * 0.9, w * 0.4); glow.addColorStop(0, "rgba(93,228,255,.55)"); glow.addColorStop(1, "rgba(93,228,255,0)"); x.fillStyle = glow; x.fillRect(0, h * 0.7, w, h * 0.3);
+    /* faded Pokémon Center silhouette — no panel, edges melt into the page */
+    HB = HB || document.createElement("canvas"); HB.width = w; HB.height = h; const q = HB.getContext("2d"); q.clearRect(0, 0, w, h); q.globalAlpha = 0.6;
+    const bx = w * 0.12, bw = w * 0.76, by = h * 0.3, bh = h * 0.45;
+    q.fillStyle = "#f8f3ec"; q.fillRect(bx, by, bw, bh); q.fillStyle = "#e84a5f"; q.beginPath(); q.moveTo(bx - 14, by); q.lineTo(bx + bw + 14, by); q.lineTo(bx + bw - 22, by - h * 0.12); q.lineTo(bx + 22, by - h * 0.12); q.closePath(); q.fill();
+    q.fillStyle = "#fff"; q.beginPath(); q.arc(w / 2, by - h * 0.06, 26, 0, 6.283); q.fill(); q.fillStyle = "#e84a5f"; q.beginPath(); q.arc(w / 2, by - h * 0.06, 26, Math.PI, 6.283); q.fill(); q.fillStyle = "#222"; q.fillRect(w / 2 - 26, by - h * 0.06 - 3, 52, 6);
+    q.fillStyle = "#e84a5f"; q.fillRect(bx, by + 8, bw, 24); q.fillStyle = "#7fc4ff"; [0.22, 0.78].forEach((fx) => q.fillRect(w * fx - 34, by + 54, 68, 54)); q.fillRect(w / 2 - 40, by + bh - 80, 80, 80);
+    q.globalAlpha = 1; q.globalCompositeOperation = "destination-in"; const m = q.createRadialGradient(w / 2, h * 0.5, 30, w / 2, h * 0.5, w * 0.52); m.addColorStop(0, "rgba(0,0,0,1)"); m.addColorStop(0.55, "rgba(0,0,0,.7)"); m.addColorStop(1, "rgba(0,0,0,0)"); q.fillStyle = m; q.fillRect(0, 0, w, h); q.globalCompositeOperation = "source-over";
+    x.drawImage(HB, 0, 0);
+    const glow = x.createRadialGradient(w / 2, h * 0.9, 10, w / 2, h * 0.9, w * 0.38); glow.addColorStop(0, "rgba(93,228,255,.5)"); glow.addColorStop(1, "rgba(93,228,255,0)"); x.fillStyle = glow; x.fillRect(0, h * 0.7, w, h * 0.3);
     x.strokeStyle = "rgba(93,228,255,.8)"; x.lineWidth = 3; x.beginPath(); x.ellipse(w / 2, h * 0.935, 120 + Math.sin(t * 2) * 6, 22, 0, 0, 6.283); x.stroke();
     x.fillStyle = "rgba(255,255,255,.8)"; for (let i = 0; i < 14; i++) { const px = (i * 83 + t * 18) % w, py = h - ((i * 47 + t * 30) % (h * 0.5)) - 20; x.fillRect(px, py, 3, 3); }
     drawAvatar(c, look, t, { noClear: true, scale: 0.92, base: 0.955 });
   }
   function initHome() {
     const f = document.querySelector("#home-page .fighters"); if (!f || $("home-avatar")) return;
-    const d = document.createElement("div"); d.id = "home-avatar"; d.innerHTML = '<canvas width="560" height="520"></canvas><div class="ha-plate"><b id="ha-name"></b><span id="ha-sub"></span></div>'; f.appendChild(d);
+    const d = document.createElement("div"); d.id = "home-avatar"; d.innerHTML = '<canvas width="560" height="520"></canvas><img id="ha-mon" class="ha-mon" alt="" hidden><div class="ha-plate"><b id="ha-name"></b><span id="ha-sub"></span></div>'; f.appendChild(d);
     d.onclick = () => { try { window.openAdventure(); } catch (e) {} };
-    const cv = d.querySelector("canvas"), upd = () => { const sv = activeSave(); $("ha-name").textContent = sv ? sv.name.toUpperCase() : "NEW TRAINER"; $("ha-sub").textContent = sv ? "🏅 " + sv.story.badges.length + "/6 · STORY ADVENTURE" : "TAP TO CREATE YOUR TRAINER"; };
+    const cv = d.querySelector("canvas"), upd = () => { const sv = activeSave(); $("ha-name").textContent = sv ? sv.name.toUpperCase() : "NEW TRAINER"; $("ha-sub").textContent = sv ? "🏅 " + sv.story.badges.length + "/6 · STORY ADVENTURE" : "TAP TO CREATE YOUR TRAINER"; const mon = $("ha-mon"), first = sv && sv.story.squad[0]; if (first) { mon.src = ART + first.id + ".png"; mon.title = (SPECIES[first.id] ? SPECIES[first.id].n : "") + " Lv" + first.lv; mon.hidden = false; } else mon.hidden = true; };
     setInterval(() => { const h = $("home-page"); if (!h || h.classList.contains("hidden") || document.hidden) return; const sv = activeSave(); drawHome(cv, sv ? sv.look : DEF_LOOK, performance.now() / 1000); }, 50);
     upd(); addEventListener("pf-adv-change", upd);
   }
@@ -1259,6 +1259,12 @@
 #home-avatar{position:relative;margin:0 auto;width:min(480px,92%);cursor:pointer;text-align:center}
 #home-avatar canvas{display:block;width:100%;height:auto;aspect-ratio:560/520;max-height:46vh;object-fit:contain;border-radius:20px;filter:drop-shadow(0 18px 24px #0009)}
 .ha-plate{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);background:linear-gradient(180deg,rgba(14,30,52,.92),rgba(7,17,31,.92));border:1px solid #36506b;border-radius:12px;padding:6px 20px;min-width:200px;box-shadow:0 8px 20px rgba(0,0,0,.5)}.ha-plate b{display:block;font:900 20px var(--font-display);letter-spacing:2px;color:#fff}.ha-plate span{font:800 10px var(--font-display);letter-spacing:1.4px;color:#ffcf45}
+#btn-home{display:none!important}
+#home-avatar canvas{border-radius:0!important;filter:drop-shadow(0 14px 18px #0007)}
+.ha-plate{position:relative!important;left:auto!important;bottom:auto!important;transform:none!important;margin:-18px auto 0!important;display:block;width:max-content}
+.ha-mon{position:absolute;right:1%;bottom:74px;width:36%;max-width:190px;height:auto;pointer-events:none;filter:drop-shadow(0 12px 12px #0008);animation:haFloat 2.8s ease-in-out infinite}
+@keyframes haFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:560px){.ha-mon{width:34%;bottom:64px}}
 `;
   function injectCSS() { if ($("av-css")) return; const s = document.createElement("style"); s.id = "av-css"; s.textContent = CSS; document.head.appendChild(s); }
   function boot() { injectCSS(); loadDB(); initHome(); const b = $("btn-adventure"); if (b) b.onclick = open; }
