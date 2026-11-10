@@ -140,7 +140,7 @@
   function loadDB() { try { const r = JSON.parse(localStorage.getItem(KEY)); if (r && r.saves) DB = r; } catch (e) {} }
   const saveDB = () => { try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} try { window.dispatchEvent(new Event("pf-adv-change")); } catch (e) {} };
   const activeSave = () => DB.saves.find((s) => s.id === DB.active) || DB.saves[0] || null;
-  const newStory = () => ({ squad: [], box: [], bag: { potion: 3 }, badges: [], def: [], flags: {}, q: {}, picked: [], visited: [0], spawn: { x: 30, z: 4, sc: "world" }, pos: { x: 30, z: 4 }, friends: null, wins: 0 });
+  const newStory = () => ({ squad: [], box: [], bag: { potion: 3 }, badges: [], def: [], flags: {}, q: {}, picked: [], visited: [0], spawn: { x: 140, z: 784, sc: "world" }, pos: { x: 140, z: 784 }, friends: null, wins: 0, dex: { seen: {}, caught: {} } });
 
   /* ---------- three.js helpers ---------- */
   let THREE, renderer, scene, camera, fxGroup, camSnap = true;
@@ -256,12 +256,12 @@
   Grid.prototype.hit = function (x, z) { const cx = Math.floor(x / 8), cz = Math.floor(z / 8); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = this.m.get(cx + i + "," + (cz + j)); if (a) for (const c of a) { const dx = x - c[0], dz = z - c[1], rr = c[2] + 0.4; if (dx * dx + dz * dz < rr * rr) return true; } } return false; };
   let SC = null, WORLD = null; const INTS = {};
   const P = { x: 30, z: 4, rot: Math.PI / 2, moving: false };
-  function mkScene(id, bnd, bg, fog) { const g = new THREE.Group(); g.visible = false; scene.add(g); return { id, group: g, col: new Grid(), bnd, inter: [], npcs: [], trainers: [], patches: [], gates: [], doors: [], picks: [], builds: [], bg, fog, exit: null, clouds: [] }; }
+  function mkScene(id, bnd, bg, fog) { const g = new THREE.Group(); g.visible = false; scene.add(g); return { id, group: g, col: new Grid(), bnd, inter: [], npcs: [], trainers: [], patches: [], gates: [], doors: [], picks: [], builds: [], ambient: [], bg, fog, exit: null, clouds: [] }; }
   function mkNpc(sc, o) {
     const m = makeTrainer(o.look || npcLook(o.name || o.tag || "npc")); m.position.set(o.x, 0, o.z); m.rotation.y = o.rot || 0; sc.group.add(m); o.mesh = m; o.sc = sc;
     if (o.tag) { const l = labelSprite(o.tag, 4.6, "rgba(10,20,40,.88)", o.tc || "#ffcf45"); l.position.set(0, 3, 0); m.add(l); }
     const mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.bang, transparent: true, depthWrite: false })); mk.position.set(0, o.tag ? 3.9 : 2.6, 0); mk.visible = false; m.add(mk); o.mark = mk;
-    sc.npcs.push(o); sc.col.add(o.x, o.z, 0.6);
+    sc.npcs.push(o); if (!o.wander) sc.col.add(o.x, o.z, 0.6);
     if (o.talk) sc.inter.push({ ref: o, r: o.ir || 2.7, label: o.label || "Talk", when: o.when, fn: () => { m.rotation.y = Math.atan2(P.x - o.x, P.z - o.z); o.talk(o); } });
     return o;
   }
@@ -285,10 +285,29 @@
   }
 
   const TOWNS = [
-    { n: "Seedling Town", a: -10, b: 70, c: 30 }, { n: "Stonebrook City", a: 130, b: 200, c: 165, gym: 0 }, { n: "Bluewater City", a: 270, b: 340, c: 305, gym: 1 }, { n: "Voltport City", a: 410, b: 480, c: 445, gym: 2 },
-    { n: "Mossveil Town", a: 550, b: 620, c: 585, gym: 3 }, { n: "Emberfall City", a: 690, b: 760, c: 725, gym: 4 }, { n: "Frostpeak City", a: 830, b: 900, c: 865, gym: 5 }, { n: "Champions Stadium", a: 960, b: 1030, c: 995, stadium: true },
+    { n: "Seedling Town", x: 140, z: 780 }, { n: "Stonebrook City", x: 150, z: 520, gym: 0 }, { n: "Bluewater City", x: 380, z: 330, gym: 1 }, { n: "Voltport City", x: 640, z: 300, gym: 2 },
+    { n: "Mossveil Town", x: 460, z: 560, gym: 3 }, { n: "Emberfall City", x: 700, z: 700, gym: 4 }, { n: "Frostpeak City", x: 800, z: 430, gym: 5 }, { n: "Champions Stadium", x: 780, z: 120, stadium: true },
   ];
-  const ROUTES = [[70, 130], [200, 270], [340, 410], [480, 550], [620, 690], [760, 830], [900, 960]];
+  const ROUTE_PTS = [
+    [[140, 780], [120, 700], [170, 640], [130, 580], [150, 520]], [[150, 520], [230, 500], [270, 430], [330, 400], [380, 330]], [[380, 330], [450, 250], [540, 240], [590, 290], [640, 300]],
+    [[640, 300], [660, 380], [590, 450], [520, 500], [460, 560]], [[460, 560], [520, 640], [600, 660], [660, 720], [700, 700]], [[700, 700], [760, 620], [740, 540], [790, 480], [800, 430]], [[800, 430], [830, 340], [770, 260], [810, 190], [780, 120]],
+  ];
+  const SIDE_PTS = [[[120, 700], [80, 715], [40, 720]], [[270, 430], [262, 380], [250, 330]], [[450, 250], [445, 200], [440, 160]], [[590, 450], [650, 465], [705, 470]], [[600, 660], [595, 730], [590, 790]], [[740, 540], [700, 550], [650, 545]], [[830, 340], [860, 320], [885, 300]]];
+  const SIDE_NAMES = ["Cove Trail", "Pond Path", "Glade Trail", "Meadow Trail", "Beach Trail", "Ridge Trail", "Cliff Trail"];
+  const RW = 13, SW = 10, SEGS = [];
+  (function () {
+    const add = (pts, hw, tag) => { for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1]; SEGS.push({ ax, az, bx, bz, hw, r: tag.r, s: tag.s, tab: tag.tab, len: Math.hypot(bx - ax, bz - az), minx: Math.min(ax, bx) - hw, maxx: Math.max(ax, bx) + hw, minz: Math.min(az, bz) - hw, maxz: Math.max(az, bz) + hw }); } };
+    ROUTE_PTS.forEach((p, i) => add(p, RW, { r: i, s: -1, tab: i })); SIDE_PTS.forEach((p, i) => add(p, SW, { r: -1, s: i, tab: i }));
+  })();
+  const inTownRect = (x, z, t, pad) => x > t.x - 46 - (pad || 0) && x < t.x + 46 + (pad || 0) && z > t.z - 34 - (pad || 0) && z < t.z + 26 + (pad || 0);
+  const townAt = (x, z) => TOWNS.findIndex((t) => inTownRect(x, z, t));
+  function distSeg(px, pz, s) { const dx = s.bx - s.ax, dz = s.bz - s.az; let t = ((px - s.ax) * dx + (pz - s.az) * dz) / (dx * dx + dz * dz); t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (s.ax + dx * t), pz - (s.az + dz * t)); }
+  function nearSeg(x, z, wide) { let best = null, bd = 1e9; for (const s of SEGS) { if (x < s.minx - (wide || 0) || x > s.maxx + (wide || 0) || z < s.minz - (wide || 0) || z > s.maxz + (wide || 0)) continue; const d = distSeg(x, z, s); if (d - s.hw < bd) { bd = d - s.hw; best = s; } } return { s: best, d: bd }; }
+  const walkable = (x, z) => townAt(x, z) >= 0 || nearSeg(x, z).d <= 0;
+  function areaAt(x, z) { const ti = townAt(x, z); if (ti >= 0) return { k: "t", i: ti, key: "t" + ti }; const q = nearSeg(x, z); if (q.s && q.d <= 0) return q.s.r >= 0 ? { k: "r", i: q.s.r, key: "r" + q.s.r, tab: q.s.tab } : { k: "s", i: q.s.s, key: "s" + q.s.s, tab: q.s.tab }; return { k: "x", key: "x" }; }
+  const locName = (x, z) => { const a = areaAt(x, z); return a.k === "t" ? TOWNS[a.i].n : a.k === "r" ? "Route " + (a.i + 1) : a.k === "s" ? SIDE_NAMES[a.i] : "Wilderness"; };
+  function pointAlong(ri, d) { let acc = 0, last = null; for (const s of SEGS) { if (s.r !== ri) continue; last = s; if (acc + s.len >= d) { const t = (d - acc) / s.len; return { x: s.ax + (s.bx - s.ax) * t, z: s.az + (s.bz - s.az) * t, dx: (s.bx - s.ax) / s.len, dz: (s.bz - s.az) / s.len }; } acc += s.len; } return { x: last.bx, z: last.bz, dx: (last.bx - last.ax) / last.len, dz: (last.bz - last.az) / last.len }; }
+  const routeLen = (ri) => SEGS.filter((s) => s.r === ri).reduce((a, s) => a + s.len, 0);
   const RT = [{ ids: [19, 133, 43, 41, 25, 39], lv: [3, 6] }, { ids: [74, 66, 54, 63, 81, 58, 92], lv: [8, 12] }, { ids: [93, 75, 64, 67, 42, 44, 59], lv: [14, 18] }, { ids: [43, 44, 2, 20, 133, 41, 75], lv: [20, 24] }, { ids: [58, 59, 74, 75, 5, 66, 67, 78], lv: [26, 30] }, { ids: [42, 93, 64, 81, 87, 124, 91], lv: [32, 36] }, { ids: [93, 64, 67, 76, 59, 26, 131, 130], lv: [38, 42] }];
   const GYMS = [
     { badge: "Stone", ic: "🪨", ty: "rock", leader: "Flint", team: [[74, 13], [74, 14], [75, 16]], pat: ["speck", "#6b6258", "#8a7f72"], wall: 0x7a6e60, acc: 0xb9a37a, reward: 300, line: "Rock-solid defense beats everything!" },
@@ -298,9 +317,9 @@
     { badge: "Ember", ic: "🔥", ty: "fire", leader: "Blaze", team: [[58, 36], [78, 38], [59, 39], [6, 41]], pat: ["tile", "#3a1a1a", "#8a2a10"], wall: 0x5a2014, acc: 0xff7a1a, reward: 1500, line: "Burn bright, trainer!" },
     { badge: "Glacier", ic: "❄️", ty: "ice", leader: "Frost", team: [[87, 42], [124, 43], [91, 44], [131, 46]], pat: ["tile", "#bfe8f5", "#ffffff"], wall: 0x7aaed0, acc: 0x9fe8ff, reward: 2000, line: "Cool heads win the day." },
   ];
-  const locName = (x) => { for (const t of TOWNS) if (x >= t.a && x < t.b) return t.n; const r = ROUTES.findIndex(([a, b]) => x >= a && x < b); return r >= 0 ? "Route " + (r + 1) : "Wilderness"; };
-  const townIdx = (x) => TOWNS.findIndex((t) => x >= t.a && x < t.b);
   const TNAMES = ["Youngster Joey", "Lass Anna", "Hiker Gus", "Scientist Ivy", "Ace Rex", "Swimmer Kai", "Psychic Mira", "Ace Duo Sol", "Camper Finn", "Picnicker Ruby", "Biker Jet", "Sailor Bo", "Gardener Fern", "Skier Nils", "Pilot Wren", "Fisher Luke", "Hex Maniac Vee", "Blackbelt Ryu", "Cool Trainer Ash", "Beauty Lila", "Rocker Zed", "Ranger Hana", "Hunter Dax", "Nurse Joy Jr.", "Clown Pip", "Artist Mo", "Chef Remy", "Dancer Sol"];
+  const ROCKET_LOOK = { g: "b", skin: 1, hairS: 0, hairC: 5, jacket: 5, pants: 1, capOn: true, capC: 5, bag: 5 };
+  const SIDE_NAMES2 = SIDE_NAMES;
 
   function building(sc, o) {
     const b = new THREE.Group(), w = o.w, d = o.d || 7, h = o.h || 3.4, rh = o.rh || 2.4;
@@ -314,91 +333,95 @@
     sc.builds.push({ x: o.x, z: o.z, w, d, col: hex(o.roof) });
     if (o.key) sc.doors.push({ x: o.x, z: o.z + d / 2 + 1.3, r: 2.2, key: o.key, label: o.dl || "Enter" });
   }
+  function gateHit(x, z) { return WORLD.gates.some((g) => !g.req() && Math.abs((x - g.x) * g.dx + (z - g.z) * g.dz) < 1 && Math.abs(-(x - g.x) * g.dz + (z - g.z) * g.dx) < RW + 3); }
 
   function buildWorld() {
-    const sc = (WORLD = mkScene("world", { x0: -6, x1: 1034, z0: -40, z1: 40 }, 0x8fd0ff, [70, 230])); sc.kind = "world"; const g = sc.group;
-    let seed = 41; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-    const ground = mesh(new THREE.PlaneGeometry(1200, 190), lam(0xffffff, { map: grassTex(240, 38) }), 515, 0, 0); ground.rotation.x = -Math.PI / 2; g.add(ground);
-    const path = mesh(new THREE.PlaneGeometry(1060, 5.5), lam(0xcdb98a), 515, 0.025, 0); path.rotation.x = -Math.PI / 2; g.add(path);
+    const sc = (WORLD = mkScene("world", { x0: -5, x1: 905, z0: -5, z1: 905 }, 0x8fd0ff, [70, 230])); sc.kind = "world"; const g = sc.group;
+    let seed = 77; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const flat = (m, y) => { m.rotation.x = -Math.PI / 2; m.position.y = y; g.add(m); return m; };
+    flat(mesh(new THREE.PlaneGeometry(6000, 6000), lam(0x2a79c9), 450, 0, 450), -0.5); flat(mesh(new THREE.PlaneGeometry(940, 940), lam(0xffffff, { map: grassTex(190, 190) }), 450, 0, 450), 0);
+    const blob = (x, z, rx, rz, col, y) => { const m = mesh(new THREE.CircleGeometry(1, 36), lam(col), x, 0, z); m.scale.set(rx, rz, 1); flat(m, y); };
+    [[40, 890, 120, 70], [330, 912, 160, 70], [620, 912, 150, 80], [880, 870, 110, 110], [920, 640, 70, 150], [920, 330, 60, 120], [-15, 300, 60, 140], [-15, 620, 60, 120], [250, -12, 160, 60], [560, -12, 170, 60]].forEach(([x, z, rx, rz]) => { blob(x, z, rx + 7, rz + 7, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x2a79c9, 0.03); });
+    [[330, 470, 34, 26], [590, 505, 30, 24], [255, 645, 36, 28], [560, 150, 38, 30], [470, 430, 26, 20], [700, 560, 30, 24], [60, 400, 30, 24], [300, 220, 28, 22]].forEach(([x, z, rx, rz]) => { const q = nearSeg(x, z, 60); if ((q.s && q.d < Math.max(rx, rz) + 10) || TOWNS.some((t) => inTownRect(x, z, t, Math.max(rx, rz) + 8))) return; blob(x, z, rx + 4, rz + 4, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x3fa7e8, 0.03); });
+    SEGS.forEach((s) => { const grp = new THREE.Group(); grp.position.set((s.ax + s.bx) / 2, 0.035, (s.az + s.bz) / 2); grp.rotation.y = -Math.atan2(s.bz - s.az, s.bx - s.ax); const pl = mesh(new THREE.PlaneGeometry(s.len + 0.6, s.hw > 11 ? 6.5 : 5), lam(0xcdb98a)); pl.rotation.x = -Math.PI / 2; grp.add(pl); g.add(grp); const j = mesh(new THREE.CircleGeometry(s.hw > 11 ? 3.25 : 2.5, 14), lam(0xcdb98a), s.ax, 0, s.az); flat(j, 0.036); });
+    /* towns */
     TOWNS.forEach((t, i) => {
-      const pl = mesh(new THREE.PlaneGeometry(t.b - t.a, 17), lam(0xdcd2ac), t.c, 0.03, -3.5); pl.rotation.x = -Math.PI / 2; g.add(pl);
-      const post = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 6), lam(0x7a5230), t.a + 6, 1.2, 5), lb = labelSprite(t.n.toUpperCase(), 9, "rgba(10,20,40,.9)", "#8fe6ff"); lb.position.set(t.a + 6, 3.5, 5); g.add(post, lb);
-      const bz = (d) => -6.5 - d / 2, c = t.c;
+      flat(mesh(new THREE.PlaneGeometry(92, 60), lam(0xdcd2ac), t.x, 0, t.z - 4), 0.04);
+      const post = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 6), lam(0x7a5230), t.x - 40, 1.2, t.z + 8), lb = labelSprite(t.n.toUpperCase(), 9, "rgba(10,20,40,.9)", "#8fe6ff"); lb.position.set(t.x - 40, 3.5, t.z + 8); g.add(post, lb);
+      const bz = (d) => t.z - 6.5 - d / 2;
       if (i === 0) {
-        building(sc, { x: c - 20, z: bz(7), w: 7, d: 7, wall: 0xf0e2c0, roof: 0xc4483c, text: "YOUR HOME", key: "home", dl: "Enter your home" });
-        building(sc, { x: c - 2, z: bz(9), w: 11, d: 9, h: 4, wall: 0xe8eefc, roof: 0x3d6bb0, text: "PROF. LINDEN’S LAB", key: "lab", dl: "Enter the Lab" });
-        building(sc, { x: c + 17, z: bz(7), w: 7, d: 7, wall: 0xf0e2c0, roof: 0x2f8a5a });
+        building(sc, { x: t.x - 20, z: bz(7), w: 7, d: 7, wall: 0xf0e2c0, roof: 0xc4483c, text: "YOUR HOME", key: "home", dl: "Enter your home" });
+        building(sc, { x: t.x - 2, z: bz(9), w: 11, d: 9, h: 4, wall: 0xe8eefc, roof: 0x3d6bb0, text: "PROF. LINDEN’S LAB", key: "lab", dl: "Enter the Lab" });
+        building(sc, { x: t.x + 17, z: bz(7), w: 7, d: 7, wall: 0xf0e2c0, roof: 0x2f8a5a });
       } else {
-        const cx = t.stadium ? c - 26 : c - 18, mx = t.stadium ? c + 26 : c - 6;
+        const cx = t.stadium ? t.x - 26 : t.x - 18, mx = t.stadium ? t.x + 26 : t.x - 6;
         building(sc, { x: cx, z: bz(8), w: 8, d: 8, wall: 0xfff0f0, roof: 0xe84a5f, text: "POKÉMON CENTER", key: "center", dl: "Enter Pokémon Center" });
         building(sc, { x: mx, z: bz(8), w: 8, d: 8, wall: 0xe8f2ff, roof: 0x3d6bff, text: "POKÉ MART", key: "mart", dl: "Enter Poké Mart" });
-        if (t.stadium) building(sc, { x: c, z: bz(14), w: 26, d: 14, h: 8, rh: 4, wall: 0x5a4f8a, roof: 0x2a2250, text: "CHAMPIONS STADIUM", bg: "#1e1640", tc: "#c9b8ff", key: "stadium", dl: "Enter the Stadium" });
-        else { const gm = GYMS[t.gym]; building(sc, { x: c + 12, z: bz(10), w: 13, d: 10, h: 5, rh: 3, wall: gm.wall, roof: gm.acc, text: gm.badge.toUpperCase() + " GYM", bg: "rgba(10,10,20,.92)", tc: hex(gm.acc), key: "gym:" + t.gym, dl: "Enter " + gm.badge + " Gym" }); }
+        if (t.stadium) building(sc, { x: t.x, z: bz(14), w: 26, d: 14, h: 8, rh: 4, wall: 0x5a4f8a, roof: 0x2a2250, text: "CHAMPIONS STADIUM", bg: "#1e1640", tc: "#c9b8ff", key: "stadium", dl: "Enter the Stadium" });
+        else { const gm = GYMS[t.gym]; building(sc, { x: t.x + 12, z: bz(10), w: 13, d: 10, h: 5, rh: 3, wall: gm.wall, roof: gm.acc, text: gm.badge.toUpperCase() + " GYM", bg: "rgba(10,10,20,.92)", tc: hex(gm.acc), key: "gym:" + t.gym, dl: "Enter " + gm.badge + " Gym" }); }
+        if (i === 4) building(sc, { x: t.x + 33, z: bz(8), w: 9, d: 8, h: 3.6, wall: 0x4a4d58, roof: 0x23252e, text: "OLD WAREHOUSE", bg: "rgba(30,6,6,.92)", tc: "#ff5a5a", key: "rocket", dl: "Enter the Old Warehouse" });
       }
-      [[c - 26, 12], [c - 6, 13], [c + 14, 12], [c + 28, 13]].forEach(([x, z], k) => { if (x > t.a + 2 && x < t.b - 2) building(sc, { x, z, w: 6, d: 6, wall: 0xf0e2c0, roof: [0xc4483c, 0x3d6bb0, 0x7a5aa8, 0x2f8a5a][(i + k) % 4], nodoor: true, rot: Math.PI }); });
+      [[-26, 22], [-6, 23], [14, 22], [28, 23]].forEach(([dx, dz], k) => building(sc, { x: t.x + dx, z: t.z + dz, w: 6, d: 6, wall: 0xf0e2c0, roof: [0xc4483c, 0x3d6bb0, 0x7a5aa8, 0x2f8a5a][(i + k) % 4], nodoor: true, rot: Math.PI }));
     });
-    /* grass patches + trainers per route */
-    const blades = []; let tn = 0;
-    ROUTES.forEach(([a, b], ri) => {
-      const n = Math.floor((b - a) / 20);
-      for (let i = 0; i < n; i++) sc.patches.push({ x: a + (i + 0.5) * ((b - a) / n), z: i % 2 ? 4 : -4, w: (b - a) / n + 2, d: 12, r: ri });
+    /* grass patches, trainers, pickups along every road */
+    let tn = 0; const blades = [];
+    SEGS.forEach((s) => { if (s.len < 18) return; const n = Math.max(1, Math.floor(s.len / 34)); for (let k = 0; k < n; k++) { const t2 = (k + 0.5) / n, cx = s.ax + (s.bx - s.ax) * t2, cz = s.az + (s.bz - s.az) * t2, nx = -(s.bz - s.az) / s.len, nz = (s.bx - s.ax) / s.len, off = (k % 2 ? 1 : -1) * (s.hw > 11 ? 5 : 3.5), px = cx + nx * off, pz = cz + nz * off; if (townAt(px, pz, 10) >= 0 || TOWNS.some((t) => inTownRect(px, pz, t, 14))) continue; sc.patches.push({ x: px, z: pz, w: 18, d: 12, r: s.tab }); } });
+    ROUTE_PTS.forEach((_, ri) => {
+      const L = routeLen(ri);
       for (let k = 0; k < 4; k++) {
-        const x = a + 12 + k * ((b - a - 20) / 3), up = k % 2 === 0, name = TNAMES[tn++ % TNAMES.length], lv = RT[ri].lv[0] - 2 + k, ids = RT[ri].ids, nt = 2 + (k > 1 ? 1 : 0);
-        const team = []; for (let q = 0; q < nt; q++) team.push([rnd(ids), lv + q + Math.floor(r() * 2)]);
-        mkTrainer(sc, { id: "t" + ri + "_" + k, name, x, z: up ? -8 : 8, rot: up ? 0 : Math.PI, team, reward: 40 + ri * 45 + k * 15, sight: 10, fm: 1, xpm: 1, win: ["Wow, you’re tough!"], done: ["You beat me fair and square. Good luck!"] });
+        const pa = pointAlong(ri, (L * (k + 1)) / 5), side = k % 2 ? 1 : -1, ox = -pa.dz * side * 9, oz = pa.dx * side * 9, name = TNAMES[tn++ % TNAMES.length], lv = RT[ri].lv[0] - 2 + k, ids = RT[ri].ids, nt = 2 + (k > 1 ? 1 : 0), team = [];
+        for (let q = 0; q < nt; q++) team.push([rnd(ids), lv + q + Math.floor(r() * 2)]);
+        mkTrainer(sc, { id: "t" + ri + "_" + k, name, x: pa.x + ox, z: pa.z + oz, rot: Math.atan2(-ox, -oz), team, reward: 40 + ri * 45 + k * 15, sight: 10, win: ["Wow, you’re tough!"], done: ["You beat me fair and square. Good luck!"] });
       }
-      for (let k = 0; k < 6; k++) { const x = a + 6 + r() * (b - a - 12), z = (r() < 0.5 ? -1 : 1) * (6 + r() * 12); sc.picks.push({ id: "p" + ri + "_" + k, x, z, kind: ["potion", "potion", "super", "pokeball", "great", "revive", "berry", "candy"][Math.floor(r() * 8) % 8] }); }
+      if (ri >= 2 && ri <= 4) for (let k = 0; k < 2; k++) {
+        const pa = pointAlong(ri, (L * (2 * k + 1.5)) / 5.5), side = k ? 1 : -1, ox = -pa.dz * side * 4, oz = pa.dx * side * 4, lv = RT[ri].lv[0] + k;
+        mkTrainer(sc, { id: "rg" + ri + "_" + k, name: "Rocket Grunt", tag: "ROCKET", tc: "#ff5a5a", look: ROCKET_LOOK, x: pa.x + ox, z: pa.z + oz, rot: Math.atan2(-ox, -oz), team: [[41, lv], [19, lv - 1], [92, lv]], reward: 120 + ri * 30, sight: 12, intro: ["Hand over your Pokémon! Team Rocket takes what it wants!"], win: ["Tch… the boss won’t be happy about this."], done: ["Team Rocket… will be back!"] });
+      }
+      for (let k = 0; k < 6; k++) { const pa = pointAlong(ri, 15 + r() * (L - 30)), a = (r() - 0.5) * 2 * 9; sc.picks.push({ id: "p" + ri + "_" + k, x: pa.x - pa.dz * a, z: pa.z + pa.dx * a, kind: ["potion", "potion", "super", "pokeball", "great", "revive", "berry", "candy"][Math.floor(r() * 8) % 8] }); }
     });
-    TOWNS.forEach((t, i) => { for (let k = 0; k < 3; k++) sc.picks.push({ id: "b" + i + "_" + k, x: t.a + 8 + k * 9 + r() * 4, z: 9 + r() * 4, kind: "berry" }); });
-    sc.patches.forEach((p) => { const pl = mesh(new THREE.PlaneGeometry(p.w, p.d), lam(0x3f8f3a), p.x, 0.04, p.z); pl.rotation.x = -Math.PI / 2; g.add(pl); for (let i = 0; i < 70; i++) blades.push([p.x + (r() - 0.5) * p.w, p.z + (r() - 0.5) * p.d, 0.7 + r() * 0.7]); });
-    const dm = new THREE.Object3D(), col = new THREE.Color();
-    const bl = new THREE.InstancedMesh(new THREE.ConeGeometry(0.1, 0.9, 4), lam(0xffffff), blades.length);
+    SIDE_PTS.forEach((pts, si) => {
+      const e = pts[pts.length - 1], rareK = ["ultra", "candy", "master", "revive", "hyper", "ultra", "candy"][si]; sc.picks.push({ id: "sp" + si + "_0", x: e[0], z: e[1], kind: rareK }, { id: "sp" + si + "_1", x: e[0] + 4, z: e[1] + 3, kind: "super" });
+      const m = pts[1]; mkTrainer(sc, { id: "st" + si, name: TNAMES[(tn++ + 7) % TNAMES.length], x: m[0] + 4, z: m[1] + 4, rot: Math.PI, team: [[rnd(RT[si].ids), RT[si].lv[0] + 2], [rnd(RT[si].ids), RT[si].lv[0] + 3]], reward: 90 + si * 40, sight: 10, win: ["Not bad at all!"], done: ["Enjoy the view from here."] });
+    });
+    TOWNS.forEach((t, i) => { for (let k = 0; k < 3; k++) sc.picks.push({ id: "b" + i + "_" + k, x: t.x - 30 + k * 30 + r() * 6, z: t.z + 16 + r() * 5, kind: "berry" }); });
+    sc.patches.forEach((p) => { flat(mesh(new THREE.PlaneGeometry(p.w, p.d), lam(0x3f8f3a), p.x, 0, p.z), 0.045); for (let i = 0; i < 50; i++) blades.push([p.x + (r() - 0.5) * p.w, p.z + (r() - 0.5) * p.d, 0.7 + r() * 0.7]); });
+    const dm = new THREE.Object3D(), col = new THREE.Color(), bl = new THREE.InstancedMesh(new THREE.ConeGeometry(0.1, 0.9, 4), lam(0xffffff), blades.length);
     blades.forEach((b, i) => { dm.rotation.set(0, r() * 6, 0); dm.scale.setScalar(b[2]); dm.position.set(b[0], 0.4 * b[2], b[1]); dm.updateMatrix(); bl.setMatrixAt(i, dm.matrix); col.setHSL(0.3 + r() * 0.06, 0.6, 0.28 + r() * 0.12); bl.setColorAt(i, col); });
     bl.instanceMatrix.needsUpdate = true; if (bl.instanceColor) bl.instanceColor.needsUpdate = true; g.add(bl);
-    /* gates */
-    const gates = [{ x: 66, msg: "Hold on! It’s not safe on the road without a Pokémon. Go see Prof. Linden at the lab first.", req: () => G.flags.starter }];
-    TOWNS.forEach((t, i) => { if (i > 0 && !t.stadium) gates.push({ x: t.b - 2, msg: "The road east is closed until you earn the " + GYMS[t.gym].badge + " Badge from " + GYMS[t.gym].leader + "’s gym.", req: () => G.badges.includes(t.gym) }); });
-    gates.push({ x: 952, msg: "Only trainers with all 6 badges may enter Champions Stadium!", req: () => G.badges.length >= 6 });
-    gates.forEach((gt) => { const m = new THREE.Group(); for (let z = -8; z <= 8; z += 2.8) m.add(mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), lam(Math.abs(z % 5.6) < 0.2 ? 0x222222 : 0xffd43b), 0, 0.8, z)); m.add(mesh(new THREE.BoxGeometry(0.2, 0.3, 17), lam(0xffffff), 0, 1.3, 0)); const gd = makeTrainer(npcLook("guard" + gt.x)); gd.position.set(0, 0, 3.2); gd.rotation.y = -Math.PI / 2; m.add(gd); m.position.x = gt.x; g.add(m); gt.mesh = m; sc.gates.push(gt); });
-    /* trees / rocks / flowers (instanced) */
-    const inTown = (x) => TOWNS.some((t) => x > t.a - 3 && x < t.b + 3), NT = 2600;
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff), NT), lb2 = new THREE.InstancedMesh(lg, lam(0xffffff), NT);
-    let n = 0;
-    for (let i = 0; i < 40000 && n < NT; i++) {
-      const x = -6 + r() * 1040, z = (r() - 0.5) * 84; if (Math.abs(z) < (inTown(x) ? 22 : 10) || gates.some((q) => Math.abs(x - q.x) < 3)) continue;
-      const s = 0.8 + r() * 0.8; dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix);
-      dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb2.setMatrixAt(n, dm.matrix);
-      const ti = townIdx(x), hue = ti >= 6 ? 0.5 : ti === 5 ? 0.08 : 0.29 + r() * 0.09; col.setHSL(hue, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col); lb2.setColorAt(n, col); sc.col.add(x, z, 0.9 * s); n++;
-    }
+    /* gates — oriented barriers across the road */
+    const mkGate = (ri, dist, msg, req) => { const pa = pointAlong(ri, dist), m = new THREE.Group(); for (let z = -RW + 1; z <= RW - 1; z += 2.8) m.add(mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), lam(Math.abs(z % 5.6) < 0.2 ? 0x222222 : 0xffd43b), 0, 0.8, z)); m.add(mesh(new THREE.BoxGeometry(0.2, 0.3, RW * 2), lam(0xffffff), 0, 1.3, 0)); const gd = makeTrainer(npcLook("guard" + ri + dist)); gd.position.set(-2.2, 0, 2.4); gd.rotation.y = -Math.PI / 2; m.add(gd); m.position.set(pa.x, 0, pa.z); m.rotation.y = Math.atan2(-pa.dz, pa.dx); g.add(m); const gt = { x: pa.x, z: pa.z, dx: pa.dx, dz: pa.dz, msg, req, mesh: m }; sc.gates.push(gt); };
+    mkGate(0, 66, "Hold on! It’s not safe on the road without a Pokémon. Go see Prof. Linden at the lab first.", () => G.flags.starter);
+    TOWNS.forEach((t, i) => { if (i === 0 || t.stadium) return; const ri = i, ok = i === 4 ? () => G.badges.includes(3) && G.flags.rocket : () => G.badges.includes(t.gym); mkGate(ri, 70, i === 4 ? "The road is closed! Team Rocket has taken over the Old Warehouse in Mossveil. Clear them out and earn the Leaf Badge first." : "The road is closed until you earn the " + GYMS[t.gym].badge + " Badge from " + GYMS[t.gym].leader + "’s gym.", ok); });
+    mkGate(6, routeLen(6) - 70, "Only trainers with all 6 badges may enter Champions Stadium!", () => G.badges.length >= 6);
+    /* trees, rocks, flowers, mountains, clouds (instanced) */
+    const NT = 7400, trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff), NT), lb2 = new THREE.InstancedMesh(lg, lam(0xffffff), NT);
+    let n = 0; const putTree = (x, z, collide) => { const s = 0.8 + r() * 0.8; dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix); dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb2.setMatrixAt(n, dm.matrix); const nearTown = TOWNS.findIndex((t) => Math.hypot(x - t.x, z - t.z) < 160), hue = nearTown === 6 || nearTown === 7 ? 0.5 : nearTown === 5 ? 0.1 : 0.29 + r() * 0.09; col.setHSL(hue, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col); lb2.setColorAt(n, col); if (collide) sc.col.add(x, z, 0.9 * s); n++; };
+    for (let i = 0; i < 160000 && n < 6200; i++) { const x = -15 + r() * 930, z = -15 + r() * 930; if (TOWNS.some((t) => inTownRect(x, z, t, 6))) continue; const q = nearSeg(x, z, 6); if (q.s && q.d < 3) continue; putTree(x, z, false); }
+    for (let i = 0; i < 20000 && n < NT; i++) { const s = SEGS[Math.floor(r() * SEGS.length)], t2 = r(), side = r() < 0.5 ? -1 : 1, off = side * (4.4 + r() * (s.hw - 5.4)), x = s.ax + (s.bx - s.ax) * t2 + (-(s.bz - s.az) / s.len) * off, z = s.az + (s.bz - s.az) * t2 + ((s.bx - s.ax) / s.len) * off; if (TOWNS.some((t) => inTownRect(x, z, t, 4)) || sc.patches.some((p) => Math.abs(x - p.x) < p.w / 2 && Math.abs(z - p.z) < p.d / 2)) continue; putTree(x, z, true); }
     [trunk, la, lb2].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; g.add(m); });
-    const NR = 160, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.8, 0), lam(0x9a9aa8), NR); n = 0;
-    for (let i = 0; i < 4000 && n < NR; i++) { const x = -6 + r() * 1040, z = (r() - 0.5) * 78; if (Math.abs(z) < 7) continue; const s = 0.6 + r() * 1.1; dm.rotation.set(0, r() * 6, 0); dm.scale.set(s, s * 0.8, s); dm.position.set(x, 0.4 * s, z); dm.updateMatrix(); rocks.setMatrixAt(n, dm.matrix); sc.col.add(x, z, 0.8 * s); n++; }
+    const NR = 140, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.8, 0), lam(0x9a9aa8), NR); n = 0;
+    for (let i = 0; i < 20000 && n < NR; i++) { const s = SEGS[Math.floor(r() * SEGS.length)], t2 = r(), off = (r() < 0.5 ? -1 : 1) * (5 + r() * (s.hw - 5.5)), x = s.ax + (s.bx - s.ax) * t2 - ((s.bz - s.az) / s.len) * off, z = s.az + (s.bz - s.az) * t2 + ((s.bx - s.ax) / s.len) * off; if (TOWNS.some((t) => inTownRect(x, z, t, 4))) continue; const sz = 0.6 + r() * 1.1; dm.rotation.set(0, r() * 6, 0); dm.scale.set(sz, sz * 0.8, sz); dm.position.set(x, 0.4 * sz, z); dm.updateMatrix(); rocks.setMatrixAt(n, dm.matrix); sc.col.add(x, z, 0.8 * sz); n++; }
     rocks.count = n; rocks.instanceMatrix.needsUpdate = true; g.add(rocks);
-    const NF = 1600, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
-    for (let i = 0; i < NF; i++) { dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(-6 + r() * 1040, 0.14, (r() - 0.5) * 80); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col.setHex(fc[i % 5]); fl.setColorAt(i, col); }
+    const NF = 2200, fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 6, 5), lam(0xffffff), NF), fc = [0xff6b8b, 0xffd43b, 0xffffff, 0xc77dff, 0xff9e5a];
+    for (let i = 0; i < NF; i++) { const s = SEGS[Math.floor(r() * SEGS.length)], t2 = r(), off = (r() - 0.5) * 2 * s.hw; dm.rotation.set(0, 0, 0); dm.scale.setScalar(1); dm.position.set(s.ax + (s.bx - s.ax) * t2 - ((s.bz - s.az) / s.len) * off, 0.14, s.az + (s.bz - s.az) * t2 + ((s.bx - s.ax) / s.len) * off); dm.updateMatrix(); fl.setMatrixAt(i, dm.matrix); col.setHex(fc[i % 5]); fl.setColorAt(i, col); }
     fl.instanceMatrix.needsUpdate = true; if (fl.instanceColor) fl.instanceColor.needsUpdate = true; g.add(fl);
     const mG = new THREE.ConeGeometry(1, 1, 6);
-    for (let i = 0; i < 90; i++) { const x = -40 + i * 12.5, h = 22 + r() * 30, w = 16 + r() * 14, o = mesh(mG, lam(0x6f8fb8), x, h / 2, i % 2 ? -82 : 82); o.scale.set(w, h, w); g.add(o); }
-    for (let i = 0; i < 22; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(r() * 1100 - 30, 30 + r() * 10, (r() - 0.5) * 140); g.add(c); sc.clouds.push(c); }
-    /* town NPCs (quest givers, locals) */
-    placeTownNpcs(sc);
-    placePickups(sc);
+    for (let i = 0; i < 160; i++) { const x = -10 + r() * 920, z = -10 + r() * 920; const q = nearSeg(x, z, 40); if ((q.s && q.d < 24) || TOWNS.some((t) => inTownRect(x, z, t, 22))) continue; const h = 14 + r() * 34, w2 = 10 + r() * 14, o = mesh(mG, lam(r() < 0.3 ? 0xdfe8f2 : 0x6f8fb8), x, h / 2, z); o.scale.set(w2, h, w2); g.add(o); }
+    for (let i = 0; i < 34; i++) { const c = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }); for (let k = 0; k < 4; k++) { const b = mesh(new THREE.SphereGeometry(2.4 + r() * 1.8, 10, 8), m, k * 2.6, r(), r() * 1.8); b.scale.y = 0.55; c.add(b); } c.position.set(r() * 1000 - 50, 30 + r() * 10, r() * 1000 - 50); g.add(c); sc.clouds.push(c); }
+    placeTownNpcs(sc); placePickups(sc);
     return sc;
   }
   function placePickups(sc) {
-    sc.picks.forEach((p) => {
-      const s = itemSprite(p.kind, 1.1); s.position.set(p.x, 0.8, p.z); sc.group.add(s); p.mesh = s;
-      sc.inter.push({ x: p.x, z: p.z, r: 1.8, label: "Pick up item", when: () => !G.picked.includes(p.id), fn: () => pickUp(p) });
-    });
+    sc.picks.forEach((p) => { const s = itemSprite(p.kind, 1.1); s.position.set(p.x, 0.8, p.z); sc.group.add(s); p.mesh = s; sc.inter.push({ x: p.x, z: p.z, r: 1.8, label: "Pick up item", when: () => !G.picked.includes(p.id), fn: () => pickUp(p) }); });
   }
 
   /* ---------- interiors ---------- */
   function buildInterior(key) {
     const [kind, arg] = key.split(":"), I = +arg;
-    const dim = { center: [32, 24], mart: [28, 22], gym: [38, 54], lab: [24, 18], home: [20, 16], stadium: [48, 38] }[kind], w = dim[0], d = dim[1];
+    const dim = { center: [32, 24], mart: [28, 22], gym: [38, 54], lab: [24, 18], home: [20, 16], stadium: [48, 38], rocket: [52, 64] }[kind], w = dim[0], d = dim[1];
     const sc = mkScene(key, { x0: -w / 2 + 1.2, x1: w / 2 - 1.2, z0: -d / 2 + 1.6, z1: d / 2 - 0.8 }, 0x0d1424, [40, 110]); sc.kind = kind; sc.w = w; sc.d = d; sc.exit = { x: 0, z: d / 2 - 1 };
     const g = sc.group, gt = kind === "gym" ? GYMS[I] : null;
-    const th = gt ? { pat: gt.pat, wall: gt.wall, acc: gt.acc } : { center: { pat: ["check", "#fbeef0", "#f4b7c5"], wall: 0xf6d8de, acc: 0xe84a5f }, mart: { pat: ["plank", "#c99b66", "#a87a48"], wall: 0x8fb4e8, acc: 0x3d6bff }, lab: { pat: ["tile", "#e8eef8", "#b9c6dd"], wall: 0xc9d6ee, acc: 0x3d6bb0 }, home: { pat: ["plank", "#c99b66", "#a87a48"], wall: 0xeadcb9, acc: 0xc4483c }, stadium: { pat: ["tile", "#2f3452", "#555d90"], wall: 0x3a3060, acc: 0x8a6aff } }[kind];
+    const th = gt ? { pat: gt.pat, wall: gt.wall, acc: gt.acc } : { center: { pat: ["check", "#fbeef0", "#f4b7c5"], wall: 0xf6d8de, acc: 0xe84a5f }, mart: { pat: ["plank", "#c99b66", "#a87a48"], wall: 0x8fb4e8, acc: 0x3d6bff }, lab: { pat: ["tile", "#e8eef8", "#b9c6dd"], wall: 0xc9d6ee, acc: 0x3d6bb0 }, home: { pat: ["plank", "#c99b66", "#a87a48"], wall: 0xeadcb9, acc: 0xc4483c }, stadium: { pat: ["tile", "#2f3452", "#555d90"], wall: 0x3a3060, acc: 0x8a6aff }, rocket: { pat: ["tile", "#262932", "#3a3f4d"], wall: 0x23252e, acc: 0xff4a4a } }[kind];
     const fl = mesh(new THREE.PlaneGeometry(w, d), floorMat(th.pat[0], th.pat[1], th.pat[2], w / 8, d / 8), 0, 0, 0); fl.rotation.x = -Math.PI / 2; g.add(fl);
     g.add(mesh(new THREE.BoxGeometry(w + 2, 7, 1), lam(th.wall), 0, 3.5, -d / 2 - 0.5), mesh(new THREE.BoxGeometry(1, 7, d + 1), lam(th.wall), -w / 2 - 0.5, 3.5, 0), mesh(new THREE.BoxGeometry(1, 7, d + 1), lam(th.wall), w / 2 + 0.5, 3.5, 0));
     g.add(mesh(new THREE.BoxGeometry(w, 0.5, 0.3), lam(th.acc), 0, 1.2, -d / 2 + 0.1)); const mat = mesh(new THREE.PlaneGeometry(4, 1.6), lam(0x8a2a2a), 0, 0.03, d / 2 - 0.8); mat.rotation.x = -Math.PI / 2; g.add(mat);
@@ -428,7 +451,7 @@
       mkNpc(sc, { name: "Prof. Linden", tag: "PROF. LINDEN", x: 0, z: -d / 2 + 3.4, rot: 0, look: { g: "b", skin: 0, hairS: 0, hairC: 4, jacket: 7, pants: 4, capOn: false, capC: 7, bag: 5 }, ir: 3.4, talk: profTalk });
     } else if (kind === "home") {
       bx(3.2, 0.9, 5.4, 0xc4483c, -w / 2 + 3, -d / 2 + 4); bx(4, 1.1, 2.4, 0x8a5a2a, 3, -d / 2 + 3); bx(2.4, 2.4, 0.6, 0x222a44, 3, -d / 2 + 1.5); plant(w / 2 - 2, 2);
-      title("HOME SWEET HOME", 9);
+      title("HOME SWEET HOME", 9); bx(1.8, 2.4, 1.2, 0x3d6bff, w / 2 - 3, -d / 2 + 2.2); g.add(mesh(new THREE.PlaneGeometry(1.3, 0.9), new THREE.MeshBasicMaterial({ color: 0x8fe6ff }), w / 2 - 3, 1.7, -d / 2 + 2.85)); sc.inter.push({ x: w / 2 - 3, z: -d / 2 + 3.8, r: 2.6, label: "Use PC", fn: pcMenu });
       mkNpc(sc, { name: "Mom", tag: "MOM", x: 2, z: 1, rot: 0, look: { g: "g", skin: 0, hairS: 3, hairC: 1, jacket: 4, pants: 3, capOn: false, capC: 7, bag: 4 }, talk: momTalk });
     } else if (kind === "gym") {
       const accC = new THREE.Color(gt.acc).getHex();
@@ -447,6 +470,15 @@
       for (let j = 0; j < nt; j++) { const lv = gt.team[0][1] - 6 + j * 2, ids = [GYM_POOL[ty] || []].flat(); const team = [[rnd(ids), lv], [rnd(ids), lv + 1]]; mkTrainer(sc, { id: "gt" + I + "_" + j, name: ["Cadet", "Scout", "Ace"][j] + " " + ["Rin", "Tao", "Vic", "Sam"][(I + j) % 4], x: j % 2 ? 7 : -7, z: d / 2 - 14 - j * 10, rot: 0, team, reward: 80 + I * 40, sight: 12, fm: 1, intro: [gt.leader + "’s trainers are no pushovers!"], win: ["Go on, face the Leader!"] }); }
       mkTrainer(sc, { id: "gym" + I, name: gt.leader, tag: "GYM LEADER " + gt.leader.toUpperCase(), x: 0, z: -d / 2 + 5, rot: 0, look: npcLook("leader" + I), team: gt.team, reward: gt.reward, sight: 0, ir: 3.6, fm: 1, xpm: 1.5, intro: [gt.line, "I’m " + gt.leader + ", leader of the " + gt.badge + " Gym. Show me your strength!"], win: ["Incredible! You’ve earned the " + gt.badge + " Badge!"], done: ["The " + gt.badge + " Badge suits you. Keep climbing!"], gate: () => G.def.filter((x) => x.startsWith("gt" + I + "_")).length >= nt, gateMsg: ["Beat my trainers before you challenge me!"], after: () => { G.badges.push(I); G.flags.lastBadge = I; saveStory(); refreshStory(); toast({ icon: gt.ic, title: gt.badge + " Badge earned!", tone: "success" }); dialog(["You received the " + gt.ic + " " + gt.badge + " Badge!", G.badges.length < 6 ? "The road onward is now open." : "You have all 6 badges! Champions Stadium awaits!"]); } });
       mkNpc(sc, { name: "Gym Guide", tag: "GYM GUIDE", x: -6, z: d / 2 - 4, rot: Math.PI, talk: () => dialog(lines("Gym Guide", ["This is the " + gt.badge + " Gym. Beat the gym trainers, then challenge " + gt.leader + "!", "Weak to " + gt.ty.toUpperCase() + "? Bring a counter type!"])) });
+    } else if (kind === "rocket") {
+      title("TEAM ROCKET HIDEOUT", 14, "#ff5a5a"); const wl = (x0, x1, z) => bx(x1 - x0, 3.2, 1.4, 0x3a3f4d, (x0 + x1) / 2, z);
+      wl(-w / 2 + 1, -6, 10); wl(6, w / 2 - 1, 10); wl(-w / 2 + 1, 10, -6); wl(18, w / 2 - 1, -6); wl(-w / 2 + 1, -10, -22); wl(2, w / 2 - 1, -22);
+      [[-18, 26], [16, 24], [-20, 2], [20, 4], [-4, -14], [12, -16], [-16, -28], [18, -27]].forEach(([x, z]) => bx(2.6, 2.2, 2.6, 0x6b5a3a, x, z));
+      [-8, 8].forEach((x) => { const lt = mesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b }), x, 3.8, d / 2 - 4); g.add(lt); });
+      const tm = (j) => [[41, 33], [92, 34], [19, 33]].map(([id, lv]) => [id, lv + j]);
+      [[-14, 22], [12, 5], [-14, -12], [10, -28]].forEach(([x, z], j) => mkTrainer(sc, { id: "rk" + j, name: "Rocket Grunt", tag: "ROCKET", tc: "#ff5a5a", look: ROCKET_LOOK, x, z, rot: 0, team: tm(j), reward: 220, sight: 13, fm: 1, intro: ["You found our hideout?! We can’t let you leave!"], win: ["Argh! Boss is going to flip…"], done: ["…"] }));
+      mkTrainer(sc, { id: "rkA", name: "Rocket Admin Ariana", tag: "ADMIN ARIANA", tc: "#ff5a5a", look: Object.assign({}, ROCKET_LOOK, { g: "g", hairS: 3, hairC: 3 }), x: 0, z: -d / 2 + 13, rot: 0, team: [[94, 36], [76, 36], [248, 37]], reward: 500, sight: 12, xpm: 1.5, intro: ["I am Ariana, Team Rocket’s Admin. The Boss has big plans for this town’s Pokémon!"], win: ["Impossible… Boss! Someone is coming!"], done: ["Go on. The Boss is waiting."] });
+      mkTrainer(sc, { id: "rkB", name: "Giovanni", tag: "BOSS GIOVANNI", tc: "#ff5a5a", look: Object.assign({}, ROCKET_LOOK, { jacket: 1, hairC: 1, capOn: false }), x: 0, z: -d / 2 + 5, rot: 0, ir: 3.6, team: [[76, 38], [94, 39], [248, 40], [149, 42]], reward: 3000, sight: 0, xpm: 2, gate: () => G.def.includes("rkA"), gateMsg: ["Defeat my Admin first, kid."], intro: ["So you’re the brat who’s been wrecking Team Rocket’s plans.", "I am Giovanni, boss of Team Rocket. Let’s see if you’re worth my time!"], win: ["Impossible… Team Rocket is finished here. We’ll return!"], done: ["Team Rocket has vanished from Mossveil. Thanks to you."], after: () => { G.flags.rocket = 1; G.bag.candy = (G.bag.candy || 0) + 3; saveStory(); refreshStory(); dialog(["Team Rocket has been driven out of Mossveil!", "You found 3 Rare Candies in the boss’s hideout!", "The road east is open again."]); } });
     } else if (kind === "stadium") {
       const arenaC = mesh(new THREE.CircleGeometry(10, 48), lam(0x2a1f4a), 0, 0.03, 2); arenaC.rotation.x = -Math.PI / 2; g.add(arenaC); [3, 6, 9.5].forEach((rr, i) => { const rg2 = mesh(new THREE.RingGeometry(rr - 0.12, rr, 48), new THREE.MeshBasicMaterial({ color: i === 2 ? 0xffcf45 : 0x8a6aff, side: THREE.DoubleSide }), 0, 0.05, 2); rg2.rotation.x = -Math.PI / 2; g.add(rg2); });
       title("CHAMPIONS STADIUM", 14, "#c9b8ff"); bx(8, 1.2, 2.4, 0x3a3060, 0, -d / 2 + 6);
@@ -502,12 +534,12 @@
   function burstAt(p) { for (let i = 0; i < 12; i++) { const an = Math.random() * 6.283; emit({ tex: TX.glow, x: p.x, y: p.y, z: p.z, vx: Math.cos(an) * 3, vy: Math.random() * 3, vz: Math.sin(an) * 2, life: 0.6, s0: 1, s1: 0.1, color: 0xffffff, add: true }); } emit({ tex: TX.star, x: p.x, y: p.y, z: p.z, life: 0.5, s0: 0.5, s1: 4, color: 0xffffff, add: true }); }
   function enterStage(theme) {
     if (!stage) initStage(); stage.visible = true; if (SC) SC.group.visible = false; if (fxGroup) fxGroup.visible = true; stageM.themeSet(theme || "grass");
-    camera.position.set(SO.x + 0.4, 3.7, SO.z + 10.2); camSnap = true; BT.cam = true; bt$("bt").hidden = false; ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc"].forEach((id) => { const e = $(id); if (e) e.style.visibility = "hidden"; }); $("av-bottom").style.display = "none"; $("av-dlg").hidden = true;
+    camera.position.set(SO.x + 0.4, 3.7, SO.z + 10.2); camSnap = true; BT.cam = true; bt$("bt").hidden = false; ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run"].forEach((id) => { const e = $(id); if (e) e.style.visibility = "hidden"; }); $("av-bottom").style.display = "none"; $("av-dlg").hidden = true;
     if (partnerH) partnerH.visible = false; trainer.visible = false;
   }
   function leaveStage() {
     BT.cam = false; stage.visible = false; (BT.meshes || []).forEach((m) => scene.remove(m)); bt$("bt").hidden = true; bt$("bt-cmd").innerHTML = ""; if (SC) { SC.group.visible = true; scene.background = new THREE.Color(SC.bg); scene.fog = new THREE.Fog(SC.bg, SC.fog[0], SC.fog[1]); }
-    ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc"].forEach((id) => { const e = $(id); if (e) e.style.visibility = ""; }); $("av-bottom").style.display = ""; if (partnerH) partnerH.visible = true; trainer.visible = true; camSnap = true;
+    ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run"].forEach((id) => { const e = $(id); if (e) e.style.visibility = ""; }); $("av-bottom").style.display = ""; if (partnerH) partnerH.visible = true; trainer.visible = true; camSnap = true;
   }
   const bag = () => G.bag;
   const aliveIdx = () => G.squad.map((c, i) => (c.hp > 0 ? i : -1)).filter((i) => i >= 0);
@@ -558,7 +590,7 @@
     }
     await gainXp(c); G.flags.kos = (G.flags.kos || 0) + 1;
     BT.fi++; if (BT.fi >= BT.foes.length) { BT.over = true; BT.res = "win"; return; }
-    const nf = BT.foes[BT.fi]; BT.fmon = nf; BT.dispF = nf.hp; scene.remove(BT.fH);
+    const nf = BT.foes[BT.fi]; BT.fmon = nf; dexSeen(nf.id); BT.dispF = nf.hp; scene.remove(BT.fH);
     await msg(BT.o.name + " sent out " + nf.n + "!", 800); placeMon("f", nf); drawBoxes();
   }
   async function sendPlayer(i) {
@@ -606,7 +638,7 @@
       sfx(660, 0.15, "sine", 0.12); await msg("Gotcha! " + f.n + " was caught!", 1100);
       try { if (!isCaptured(f.s)) capturePokemon({ name: f.s, id: f.id, types: f.t }, id); } catch (e) {}
       f.hp = Math.max(1, f.hp); f.pp = {}; if (G.squad.length < 6) G.squad.push(f); else { G.box.push(f); await msg(f.n + " was sent to the PC box.", 900); }
-      G.flags.caught = (G.flags.caught || 0) + 1; BT.caught = f; BT.over = true; BT.res = "caught"; return true;
+      G.flags.caught = (G.flags.caught || 0) + 1; dexCaught(f.id); BT.caught = f; BT.over = true; BT.res = "caught"; return true;
     }
     scene.remove(sp); burstAt(V3(z.x, 1.4, z.z)); BT.fH.userData.idle = true; await tween(250, (u) => { BT.fH.scale.setScalar(Math.max(0.01, u)); }); BT.fH.scale.setScalar(1);
     await msg(shakes >= 2 ? "Aargh! Almost had it!" : "Oh no! The Pokémon broke free!", 900); return false;
@@ -630,7 +662,7 @@
     let ft = null, pt = makeTrainer(G.look); pt.position.set(SO.x - 7.4, 0, SO.z + 4.2); pt.scale.setScalar(1.7); pt.rotation.y = 0.5; scene.add(pt); BT.meshes.push(pt);
     if (o.trainer) { ft = makeTrainer(o.look || npcLook(o.name)); ft.position.set(SO.x + 7.2, 0, SO.z - 4.6); ft.scale.setScalar(1.7); ft.rotation.y = -0.4; scene.add(ft); BT.meshes.push(ft); await msg(o.name + " wants to battle!", 1300); await msg(o.name + " sent out " + o.foes[0].n + "!", 900); scene.remove(ft); }
     else await wait(150);
-    BT.fmon = o.foes[0]; BT.dispF = BT.fmon.hp; placeMon("f", BT.fmon); drawBoxes();
+    BT.fmon = o.foes[0]; dexSeen(BT.fmon.id); BT.dispF = BT.fmon.hp; placeMon("f", BT.fmon); drawBoxes();
     if (!o.trainer) await msg("A wild " + BT.fmon.n + " appeared!", 1000);
     const i0 = G.squad[G.lead] && G.squad[G.lead].hp > 0 ? G.lead : aliveIdx()[0]; await msg("Go! " + G.squad[i0].n + "!", 700); scene.remove(pt); await sendPlayerQuiet(i0);
     while (!BT.over) { const cmd = await askMain(); await turnRes(cmd); }
@@ -674,13 +706,13 @@
     $("av-res").textContent = "🥮 " + getCoins().toLocaleString() + "  ·  ⚪ " + totalBalls();
     $("av-team").innerHTML = G && !BT ? G.squad.map((m, i) => `<div class="av-chip${i === G.lead && m.hp > 0 ? " lead" : ""}${m.hp <= 0 ? " down" : ""}"><img src="${ART + m.id}.png" alt=""><div><b>${m.n} Lv${m.lv}</b><span class="av-bar"><u class="${hpCls(m)}" style="width:${Math.max(0, (m.hp / m.max) * 100)}%"></u></span></div></div>`).join("") : "";
   }
-  const showPad = (v) => { $("av-pad").hidden = !v; };
+  const showPad = (v) => { $("av-pad").hidden = !v; $("av-joy").hidden = !v; $("av-run").hidden = !v; };
 
   /* ----- saving ----- */
   const unpack = (o) => { const c = mkL(SPECIES[o.id] || SPECIES[25], o.lv); c.xp = o.xp || 0; c.hp = Math.max(0, Math.min(c.max, o.hp == null ? c.max : o.hp)); return c; };
   const pack = (c) => ({ id: c.id, lv: c.lv, xp: c.xp || 0, hp: c.hp });
   function saveStory() {
-    if (!G) return; const S = G.sv.story; S.squad = G.squad.map(pack); S.box = G.box.map(pack); S.bag = G.bag; S.badges = G.badges; S.def = G.def; S.flags = G.flags; S.q = G.q; S.picked = G.picked; S.visited = G.visited; S.spawn = G.spawn; S.friends = G.friends;
+    if (!G) return; const S = G.sv.story; S.squad = G.squad.map(pack); S.box = G.box.map(pack); S.bag = G.bag; S.badges = G.badges; S.def = G.def; S.flags = G.flags; S.q = G.q; S.picked = G.picked; S.visited = G.visited; S.spawn = G.spawn; S.friends = G.friends; S.dex = G.dex;
     const inW = SC && SC.id === "world"; S.pos = inW ? { x: P.x, z: P.z } : G.ret ? { x: G.ret.x, z: G.ret.z } : S.pos; G.sv.played = Date.now(); saveDB();
   }
   function healAll() { G.squad.forEach(healMon); refresh(); setPartner(true); saveStory(); sfx(880, 0.2, "sine", 0.1); }
@@ -740,11 +772,16 @@
     if (q) { G.q[q.id].s = 3; G.bag.mail = Math.max(0, (G.bag.mail || 1) - 1); const txt = giveReward(q.rw); dialog(lines(ELDERS[i], ["A letter for me? Thank you for bringing it all this way!", "Please accept this: " + txt + "."]), () => { refreshMarks(); refresh(); saveStory(); toast({ icon: "🎁", title: "Delivery complete!", message: txt, tone: "success" }); }); return; }
     dialog(lines(ELDERS[i], ["Welcome to " + TOWNS[i].n + "! " + (TOWNS[i].gym !== undefined ? "The gym here uses " + GYMS[TOWNS[i].gym].ty.toUpperCase() + " types." : "Good luck on your journey!")]));
   }
+  const VILLAGER_LINES = ["The road is long, but the Pokémon are wonderful!", "Wild Pokémon wander the roads here — they move around, so watch out!", "Team Rocket has been spotted nearby… be careful.", "The PC at a Pokémon Center lets you swap your team.", "Try to fill your Pokédex by meeting every Pokémon in the region!", "Trainers on the road challenge you the moment they see you."];
   function placeTownNpcs(sc) {
     TOWNS.forEach((t, i) => {
-      const qs = QUESTS.filter((q) => q.town === i);
-      qs.forEach((q, k) => { const x = t.c - 25 + k * 13; mkNpc(sc, { name: q.giver, tag: q.giver.toUpperCase(), x, z: 5.4, rot: Math.PI, qid: q.id, label: "Talk (quest)", talk: () => questTalk(q) }); });
-      mkNpc(sc, { name: ELDERS[i], tag: ELDERS[i].toUpperCase(), x: t.c + 26, z: 5.4, rot: Math.PI, locIdx: i, tc: "#8fe6ff", talk: () => localTalk(i) });
+      QUESTS.filter((q) => q.town === i).forEach((q, k) => mkNpc(sc, { name: q.giver, tag: q.giver.toUpperCase(), x: t.x - 25 + k * 13, z: t.z + 5.4, rot: Math.PI, qid: q.id, label: "Talk (quest)", talk: () => questTalk(q) }));
+      mkNpc(sc, { name: ELDERS[i], tag: ELDERS[i].toUpperCase(), x: t.x + 26, z: t.z + 5.4, rot: Math.PI, locIdx: i, tc: "#8fe6ff", talk: () => localTalk(i) });
+      for (let v = 0; v < 3; v++) { const hx0 = t.x - 28 + v * 28, hz0 = t.z + 11; mkNpc(sc, { name: "Villager", x: hx0, z: hz0, rot: v, wander: true, home: { x: hx0, z: hz0 }, wr: 6, talk: () => dialog(lines("Villager", [VILLAGER_LINES[(i + v) % VILLAGER_LINES.length]])) }); }
+      for (let a = 0; a < 4; a++) {
+        const sp = SPECIES[rnd([25, 133, 19, 39, 54, 41, 43, 63, 4, 7, 1, 92, 81, 74])], c = mkL(sp, 5), m = makeMon(c, 1.6), o = { c, mesh: m, x: t.x - 28 + Math.random() * 56, z: t.z + 2 + Math.random() * 12, wait: 0, home: { x: t.x, z: t.z + 8 }, wr: 24 };
+        m.position.set(o.x, 0, o.z); sc.group.add(m); sc.ambient.push(o); sc.inter.push({ ref: o, r: 2.2, label: "Pet " + sp.n, fn: () => dialog([sp.n + " nuzzles up to you happily!"]) });
+      }
     });
   }
   function refreshMarks() {
@@ -775,7 +812,7 @@
     modal(`<h2>YOUR PARTNER</h2><p>Choose <b style="color:#ffcf45">${sp.n}</b> as your first Pokémon?</p><div class="av-squad"><div style="width:130px"><img src="${ART + id}.png" alt="" style="width:110px;height:110px">${sp.n}</div></div><div class="av-row2"><button class="av-btn ghost" data-a="no">NOT YET</button><button class="av-btn" data-a="yes">YES!</button></div>`, (m) => {
       m.querySelector("[data-a=no]").onclick = closeModal;
       m.querySelector("[data-a=yes]").onclick = () => {
-        closeModal(); G.squad = [mkL(sp, 5)]; G.lead = 0; G.flags.starter = true; G.flags.pick = id; G.bag.potion = (G.bag.potion || 0) + 3; giveBalls(5);
+        closeModal(); G.squad = [mkL(sp, 5)]; G.lead = 0; G.flags.starter = true; G.flags.pick = id; dexCaught(id); G.bag.potion = (G.bag.potion || 0) + 3; giveBalls(5);
         const rest = [1, 4, 7].filter((x) => x !== id); G.friends.a.pick = rest[0]; G.friends.b.pick = rest[1];
         try { if (!isCaptured(sp.s)) capturePokemon({ name: sp.s, id, types: sp.t }, "pokeball"); } catch (e) {}
         ["st1", "st4", "st7"].forEach((k) => { const s = INTS["lab"] && INTS["lab"][k]; if (s) s.visible = false; });
@@ -791,7 +828,7 @@
     draw();
   }
   function pcMenu() {
-    const draw = () => modal(`<h2>POKÉMON PC</h2><p>Party (${G.squad.length}/6) · Box (${G.box.length})</p><div class="av-shop"><b style="text-align:left;color:#7fa6cf">PARTY</b>${G.squad.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="40" height="40" alt=""><div><b>${c.n} Lv${c.lv}</b><span>${c.hp}/${c.max} HP</span></div><button class="av-btn ghost" data-d="${i}" ${G.squad.length > 1 ? "" : "disabled"}>DEPOSIT</button></div>`).join("")}<b style="text-align:left;color:#7fa6cf">BOX</b>${G.box.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="40" height="40" alt=""><div><b>${c.n} Lv${c.lv}</b><span>${c.hp}/${c.max} HP</span></div><button class="av-btn ghost" data-w="${i}" ${G.squad.length < 6 ? "" : "disabled"}>WITHDRAW</button></div>`).join("") || "<p>Your box is empty.</p>"}</div><div class="av-row2"><button class="av-btn" data-a="x">CLOSE</button></div>`, (m) => {
+    const draw = () => modal(`<h2>POKÉMON PC</h2><p>Party (${G.squad.length}/6) · Box (${G.box.length})</p><div class="av-shop"><b style="text-align:left;color:#7fa6cf">PARTY</b>${G.squad.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="40" height="40" alt=""><div><b>${c.n} Lv${c.lv}</b><span>${c.hp}/${c.max} HP</span></div><button class="av-btn ghost" data-d="${i}" ${G.squad.length > 1 && G.box.length < 60 ? "" : "disabled"}>DEPOSIT</button></div>`).join("")}<b style="text-align:left;color:#7fa6cf">BOX</b>${G.box.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="40" height="40" alt=""><div><b>${c.n} Lv${c.lv}</b><span>${c.hp}/${c.max} HP</span></div><button class="av-btn ghost" data-w="${i}" ${G.squad.length < 6 ? "" : "disabled"}>WITHDRAW</button></div>`).join("") || "<p>Your box is empty.</p>"}</div><div class="av-row2"><button class="av-btn" data-a="x">CLOSE</button></div>`, (m) => {
       m.querySelectorAll("[data-d]").forEach((b) => { b.onclick = () => { const c = G.squad.splice(+b.dataset.d, 1)[0]; G.box.push(c); G.lead = 0; setPartner(true); refresh(); saveStory(); draw(); }; });
       m.querySelectorAll("[data-w]").forEach((b) => { b.onclick = () => { G.squad.push(G.box.splice(+b.dataset.w, 1)[0]); refresh(); saveStory(); draw(); }; }); m.querySelector("[data-a=x]").onclick = closeModal; }, true);
     draw();
@@ -799,15 +836,34 @@
 
   /* ----- friends (follow the player, duel on the road, join the tournament) ----- */
   function friendTeam(f, lv) { const sec = f === G.friends.a ? [25, 63] : [66, 92]; return [[evoAt(f.pick || 1, lv), lv], [evoAt(sec[0], lv - 2), lv - 2], [evoAt(sec[1], lv - 3), lv - 3]]; }
+  const FOLLOW = { a: [0, 2, 4, 6], b: [1, 3, 5] };
   function ensureFriends() {
-    if (G.fol.length || !G.flags.starter) return;
-    [G.friends.a, G.friends.b].forEach((f) => { const m = makeTrainer(f.look); const l = labelSprite(f.name.toUpperCase(), 4, "rgba(10,20,40,.88)", "#8fe6ff"); l.position.set(0, 2.9, 0); m.add(l); scene.add(m); m.position.set(P.x - 1.5, 0, P.z); G.fol.push(m); });
+    if (!WORLD) return; WORLD.inter = WORLD.inter.filter((i) => !i.friend); (WORLD.fm || []).forEach((f) => WORLD.group.remove(f.mesh)); WORLD.fm = []; G.fm = WORLD.fm;
+    if (!G.flags.starter) return;
+    ["a", "b"].forEach((key) => {
+      const f = G.friends[key], m = makeTrainer(f.look), l = labelSprite(f.name.toUpperCase(), 4, "rgba(10,20,40,.88)", "#8fe6ff"); l.position.set(0, 2.9, 0); m.add(l); WORLD.group.add(m); m.visible = false;
+      const o = { key, mesh: m, x: P.x, z: P.z, state: "hidden", name: f.name }; WORLD.fm.push(o);
+      WORLD.inter.push({ friend: true, ref: o, r: 2.7, label: "Talk to " + f.name, when: () => o.state === "town", fn: () => { m.rotation.y = Math.atan2(P.x - o.x, P.z - o.z); friendTalk(o); } });
+    });
+    placeFriends(areaAt(P.x, P.z));
+  }
+  function placeFriends(a) {
+    (G.fm || []).forEach((o) => {
+      if (a.k === "t") { const t = TOWNS[a.i]; o.state = "town"; o.x = t.x + (o.key === "a" ? -9 : 9); o.z = t.z + 8; o.mesh.position.set(o.x, 0, o.z); o.mesh.visible = true; }
+      else if (a.k === "r" && FOLLOW[o.key].includes(a.i) && G.flags.starter) { if (o.state !== "follow") { o.x = P.x; o.z = P.z; o.mesh.position.set(o.x, 0, o.z); } o.state = "follow"; o.mesh.visible = true; }
+      else { o.state = "hidden"; o.mesh.visible = false; }
+    });
+  }
+  function friendTalk(o) {
+    const f = G.friends[o.key], n = G.badges.length;
+    const pool = ["Hey " + G.sv.name + "! We don’t have to walk together the whole way — I’ll meet you in the next town!", "I’ve been training hard. " + n + " badge" + (n === 1 ? "" : "s") + " already? Impressive!", "Watch out for Team Rocket — they’ve been stealing trainers’ Pokémon.", "Don’t forget the PC at a Pokémon Center to swap your team."];
+    dialog(lines(f.name, [pool[(n + (o.key === "a" ? 0 : 1)) % pool.length], n >= 6 ? "The tournament is the big finale. Good luck!" : "See you on the road!"]));
   }
   const FRIEND_TOWN = {
     1: [["a", "Stonebrook! Rock-types here. Water and Grass moves will crush them!"], ["b", "Let’s heal at the Center, then we’ll each take on Flint’s gym."]],
     2: [["b", "Bluewater is so pretty! Marina’s Water gym is up next."], ["a", "Electric and Grass beat Water — think about your team!"]],
-    3: [["a", "I can feel static in the air. Volt’s gym is fast — be careful."], ["b", "Ground-types are immune to Electric moves. Remember that!"]],
-    4: [["b", "Mossveil smells like fresh leaves. Fern uses Grass types."], ["a", "Fire and Flying moves are great here."]],
+    3: [["a", "I can feel static in the air. Volt’s gym is fast — be careful."], ["b", "Ground-types are immune to Electric moves. Also, I heard Team Rocket is stealing Pokémon from trainers!"]],
+    4: [["b", "Mossveil smells like fresh leaves… but the villagers say Team Rocket took over the Old Warehouse!"], ["a", "The road east is closed until they’re stopped. Let’s be careful — and Fern uses Grass types."]],
     5: [["a", "It’s hot here in Emberfall! Water and Rock moves will help."], ["b", "Only two badges left after this. We’re so close!"]],
     6: [["b", "Brr! Frostpeak is freezing. Frost uses Ice types — bring Fire or Steel."], ["a", "After this, the Champions Stadium! I can’t wait."]],
     7: [["a", "We made it to the Stadium! Time for the big tournament."], ["b", "May the best trainer win — and I hope it’s you, " + "friend!"]],
@@ -820,24 +876,45 @@
     addCoins(250 + G.badges.length * 100); G.flags["fd" + key + G.badges.length] = 1; saveStory(); refresh(); await say([{ n: f.name, t: "Wow, you beat me! Here, I’ll pay up — see you at the next town!" }, { n: "", t: "You received 🥮 " + (250 + G.badges.length * 100) + "!" }]); await evolveAll();
   }
   async function arrive(i) {
+    placeFriends({ k: "t", i });
     if (!G.visited.includes(i)) { G.visited.push(i); toast({ icon: "🗺️", title: TOWNS[i].n, message: "Added to your fly list." }); }
     const k = "town" + i; if (G.flags[k]) return; G.flags[k] = 1; saveStory();
-    const L = FRIEND_TOWN[i]; if (!L || !G.flags.starter) return; G.cut = true; await say(L.map(([w, t]) => ({ n: G.friends[w].name, t }))); G.cut = false;
+    const L = FRIEND_TOWN[i];
+    if (L && G.flags.starter) { G.cut = true; await say(L.map(([w, t]) => ({ n: G.friends[w].name, t }))); G.cut = false; }
+    const key = { 2: "a", 4: "b", 6: "a" }[i];
+    if (key && G.flags.starter && !G.flags["fd" + key + G.badges.length]) { G.flags["fd" + key + G.badges.length] = 1; await friendDuel(key); }
   }
-  function routeEnter(ri) {
-    const key = ri === 1 ? "a" : ri === 3 ? "b" : ri === 5 ? "a" : null; if (!key || !G.flags.starter) return; const f = "fd" + key + G.badges.length; if (G.flags[f]) return; G.flags[f] = 1; guard(() => friendDuel(key));
+  const dexSeen = (id) => { if (G && !G.dex.seen[id]) G.dex.seen[id] = 1; };
+  const dexCaught = (id) => { if (G) { G.dex.seen[id] = 1; G.dex.caught[id] = 1; } };
+  function refreshStory() { if (WORLD) WORLD.gates.forEach((g) => { g.mesh.visible = !g.req(); }); refreshMarks(); }
+  const habitat = (id) => { const r = RT.map((t, i) => (t.ids.includes(id) ? "Route " + (i + 1) : null)).filter(Boolean); return r.length ? r.join(", ") : GYMS.some((g) => g.team.some((t) => t[0] === id)) ? "Gym trainers" : "Rare / evolved form"; };
+  function dexDetail(id) {
+    const sp = SPECIES[id], seen = G.dex.seen[id], c = mkL(sp, 50), ev = EVO[id];
+    modal(`<h2>#${String(id).padStart(3, "0")} ${seen ? sp.n : "???"}</h2><img src="${ART + id}.png" alt="" style="width:150px;height:150px;object-fit:contain;${seen ? "" : "filter:brightness(0) opacity(.6)"}"><p>${seen ? sp.t.map((x) => '<em style="background:' + hex(TC[x]) + ';color:#fff;font-style:normal;padding:2px 9px;border-radius:99px;font:800 10px var(--font-display)">' + x.toUpperCase() + "</em>").join(" ") : "Unknown type"}</p>
+      <div class="av-stats"><div class="av-stat"><small>HP (Lv50)</small><b>${seen ? c.max : "?"}</b></div><div class="av-stat"><small>ATTACK</small><b>${seen ? Math.round(c.atk) : "?"}</b></div><div class="av-stat"><small>SPEED</small><b>${seen ? Math.round(c.spd) : "?"}</b></div></div>
+      <p>${seen ? "Found: " + habitat(id) + (ev ? " · Evolves into " + SPECIES[ev[0]].n + " at Lv." + ev[1] : "") + "<br>Moves: " + movesFor(c).map((m) => m.n).join(", ") : "Meet this Pokémon to fill in its entry."}</p><p>${G.dex.caught[id] ? "✅ Caught" : seen ? "👁 Seen" : ""}</p><div class="av-row2"><button class="av-btn" data-a="x">BACK</button></div>`, (m) => { m.querySelector("[data-a=x]").onclick = () => hub("dex"); }, true);
   }
-
+  function drawTownMap(cv) {
+    const x = cv.getContext("2d"), S = cv.width, k = S / 940, X = (v) => (v + 20) * k;
+    x.fillStyle = "#2a79c9"; x.fillRect(0, 0, S, S); x.lineCap = "round"; x.lineJoin = "round";
+    const stroke = (col, w) => { x.strokeStyle = col; x.lineWidth = w * k; ROUTE_PTS.concat(SIDE_PTS).forEach((p) => { x.beginPath(); p.forEach(([a, b], i) => (i ? x.lineTo(X(a), X(b)) : x.moveTo(X(a), X(b)))); x.stroke(); }); };
+    stroke("#e6d9a0", 96); TOWNS.forEach((t) => { x.fillStyle = "#e6d9a0"; x.beginPath(); x.arc(X(t.x), X(t.z), 58 * k, 0, 6.283); x.fill(); });
+    stroke("#79c35f", 84); TOWNS.forEach((t) => { x.fillStyle = "#79c35f"; x.beginPath(); x.arc(X(t.x), X(t.z), 50 * k, 0, 6.283); x.fill(); });
+    x.fillStyle = "#8a7f72"; [[330, 410], [360, 445], [300, 385], [425, 440], [555, 385], [620, 455], [245, 300], [705, 255], [520, 205], [690, 470]].forEach(([a, b]) => { x.beginPath(); x.moveTo(X(a) - 18 * k * 1.6, X(b) + 12 * k * 1.6); x.lineTo(X(a), X(b) - 22 * k * 1.6); x.lineTo(X(a) + 18 * k * 1.6, X(b) + 12 * k * 1.6); x.fill(); });
+    stroke("#cdb98a", 8);
+    TOWNS.forEach((t, i) => { const v = G.visited.includes(i), px = X(t.x), pz = X(t.z); x.globalAlpha = v ? 1 : 0.5; x.fillStyle = t.stadium ? "#8a6aff" : t.gym !== undefined ? "#e84a5f" : "#ffcf45"; x.beginPath(); x.arc(px, pz, 9 * Math.max(1, S / 440), 0, 6.283); x.fill(); x.strokeStyle = "#fff"; x.lineWidth = 2; x.stroke(); x.fillStyle = "#fff"; x.strokeStyle = "#0b1626"; x.lineWidth = 3; x.font = "800 " + Math.round(11 * S / 440) + "px Rajdhani, Arial"; x.textAlign = "center"; x.strokeText(t.n, px, pz + 24 * S / 440); x.fillText(t.n, px, pz + 24 * S / 440); x.globalAlpha = 1; });
+    const pp = SC && SC.id === "world" ? { x: P.x, z: P.z } : G.ret || { x: P.x, z: P.z }; x.fillStyle = "#5de4ff"; x.strokeStyle = "#04121f"; x.lineWidth = 2; x.beginPath(); x.arc(X(pp.x), X(pp.z), 6 * S / 440, 0, 6.283); x.fill(); x.stroke();
+  }
   /* ----- fights ----- */
   const themeOf = () => (SC && SC.kind === "gym" ? "gym" : SC && SC.kind === "stadium" ? "stadium" : "grass");
   const fightTeam = (T, team) => battle({ foes: team.map(([id, lv]) => mkL(SPECIES[id], lv)), trainer: true, name: T.name, look: T.look, theme: themeOf(), xpm: T.xpm || 1 });
   async function evolveAll() {
-    for (const c of G.squad.slice()) { const e = EVO[c.id]; if (!e || c.lv < e[1]) continue; const to = SPECIES[e[0]]; if (!to) continue; await say(["What? " + c.n + " is evolving!", c.n + " evolved into " + to.n + "!"]); const om = c.max; Object.assign(c, { id: to.id, n: to.n, s: to.s, t: to.t, k: to.k }); restat(c); c.hp = Math.min(c.max, c.hp + c.max - om); sfx(880, 0.2, "sine", 0.1); setPartner(true); refresh(); }
+    for (const c of G.squad.slice()) { const e = EVO[c.id]; if (!e || c.lv < e[1]) continue; const to = SPECIES[e[0]]; if (!to) continue; await say(["What? " + c.n + " is evolving!", c.n + " evolved into " + to.n + "!"]); const om = c.max; dexCaught(to.id); Object.assign(c, { id: to.id, n: to.n, s: to.s, t: to.t, k: to.k }); restat(c); c.hp = Math.min(c.max, c.hp + c.max - om); sfx(880, 0.2, "sine", 0.1); setPartner(true); refresh(); }
     saveStory();
   }
   function blackout() {
     G.cut = true; const l = Math.min(150, Math.floor(getCoins() * 0.1)); if (l > 0) addCoins(-l); G.squad.forEach(healMon);
-    const sp = G.spawn || { x: 30, z: 4 }; guard(async () => { await flashT(); enterScene(WORLD, sp.x, sp.z, 0); setPartner(true); refresh(); G.cut = false; await say(["You blacked out!", "You were rushed back to the last place you healed" + (l ? " and dropped 🥮 " + l + "." : ".")]); saveStory(); });
+    const sp = G.spawn || { x: TOWNS[0].x, z: TOWNS[0].z + 4 }; guard(async () => { await flashT(); enterScene(WORLD, sp.x, sp.z, 0); setPartner(true); refresh(); G.cut = false; await say(["You blacked out!", "You were rushed back to the last place you healed" + (l ? " and dropped 🥮 " + l + "." : ".")]); saveStory(); });
   }
   async function trainerBattle(T) {
     G.cut = true; const team = typeof T.team === "function" ? T.team() : T.team; await flashT(); T.mesh.visible = false;
@@ -856,6 +933,15 @@
     G.cut = true; await flashT(); const r = await battle({ foes: [foe], trainer: false, theme: "grass" }); refresh();
     if (r.res === "lose") return blackout();
     G.cut = false; if (r.res === "win") { qEvent("wins", 1); G.wins = (G.wins || 0) + 1; } if (r.res === "caught") qEvent("catch", 1);
+    saveStory(); await evolveAll();
+  }
+
+  async function roamBattle(rm) {
+    G.cut = true; floatMark(rm.mesh); await wait(350); await flashT();
+    const r = await battle({ foes: [rm.c], trainer: false, theme: "grass" }); refresh();
+    if (r.res === "lose") return blackout();
+    G.cut = false;
+    if (r.res === "win" || r.res === "caught") { removeRoamer(rm); if (r.res === "win") { qEvent("wins", 1); G.wins = (G.wins || 0) + 1; } else qEvent("catch", 1); } else rm.cool = 8;
     saveStory(); await evolveAll();
   }
 
@@ -901,18 +987,20 @@
   /* ----- menu hub (party / bag / quests / map / trainer card) ----- */
   function hub(tab) {
     if (!G || BT || DL || G.cut) return; tab = tab || "party";
-    const tabs = [["party", "POKÉMON"], ["bag", "BAG"], ["quests", "QUESTS"], ["map", "MAP"], ["card", "TRAINER"]];
+    const tabs = [["party", "POKÉMON"], ["dex", "DEX"], ["bag", "BAG"], ["quests", "QUESTS"], ["map", "MAP"], ["pc", "PC"], ["card", "TRAINER"]];
     const head = '<div class="av-tabs">' + tabs.map(([k, n]) => `<button data-t="${k}" class="${k === tab ? "on" : ""}">${n}</button>`).join("") + "</div>"; let body = "";
-    if (tab === "party") body = G.squad.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="46" height="46" alt=""><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>${c.t.map((x) => x.toUpperCase()).join(" / ")} · HP ${c.hp}/${c.max} · EXP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${(c.hp / c.max) * 100}%"></u></span><span style="color:#7fa6cf">${movesFor(c).map((m) => m.n).join(" · ")}</span></div><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button></div>`).join("");
-    else if (tab === "bag") body = '<div class="av-shop">' + ["potion", "super", "hyper", "revive", "berry", "candy", "mail"].filter((k) => G.bag[k]).map((k) => `<div class="av-item">${itemImg(k, 40)}<div><b>${(ITEMS[k] || { n: "Letter" }).n} ×${G.bag[k]}</b><span>${ITEMS[k] && ITEMS[k].heal ? "Heals " + ITEMS[k].heal + " HP" : k === "revive" ? "Revives a fainted Pokémon" : k === "mail" ? "A letter to deliver" : "Raises a level"}</span></div>${ITEMS[k] ? `<button class="av-btn ghost" data-u="${k}">USE</button>` : ""}</div>`).join("") + BALLS.map((b) => ballCnt(b.id) ? `<div class="av-item">${itemImg(b.id, 40)}<div><b>${b.n} ×${ballCnt(b.id)}</b><span>For catching wild Pokémon</span></div></div>` : "").join("") + "</div>";
+    if (tab === "pc") { if (SC && (SC.kind === "center" || SC.kind === "home")) { closeModal(); return pcMenu(); } body = "<p>The Pokémon PC can only be used inside a Pokémon Center or at home.</p>"; }
+    else if (tab === "party") body = G.squad.map((c, i) => `<div class="av-item"><img class="av-it" src="${ART + c.id}.png" width="46" height="46" alt=""><div><b>${c.n} Lv.${c.lv}${i === G.lead ? " ★" : ""}</b><span>${c.t.map((x) => x.toUpperCase()).join(" / ")} · HP ${c.hp}/${c.max} · EXP ${c.xp}/${xpNeed(c.lv)}</span><span class="av-bar"><u class="${hpCls(c)}" style="width:${(c.hp / c.max) * 100}%"></u></span><span style="color:#7fa6cf">${movesFor(c).map((m) => m.n).join(" · ")}</span></div><button class="av-btn ghost" data-l="${i}" ${c.hp > 0 && i !== G.lead ? "" : "disabled"}>LEAD</button></div>`).join("") || "<p>You have no Pokémon yet.</p>";
+    else if (tab === "dex") { const all = POOL.slice().sort((a, b) => a.id - b.id), seen = Object.keys(G.dex.seen).length, caught = Object.keys(G.dex.caught).length; body = `<p>Seen <b>${seen}</b> · Caught <b>${caught}</b> / ${all.length}</p><div class="dex">${all.map((p) => { const s = G.dex.seen[p.id], c = G.dex.caught[p.id]; return `<button class="dx${s ? "" : " un"}" data-d="${p.id}"><img src="${ART + p.id}.png" alt="" loading="lazy">${c ? "<i>●</i>" : ""}#${String(p.id).padStart(3, "0")}<br>${s ? p.n : "???"}</button>`; }).join("")}</div>`; }
+    else if (tab === "bag") body = '<div class="av-shop">' + ["potion", "super", "hyper", "revive", "berry", "candy", "mail"].filter((k) => G.bag[k]).map((k) => `<div class="av-item">${itemImg(k, 40)}<div><b>${(ITEMS[k] || { n: "Letter" }).n} ×${G.bag[k]}</b><span>${ITEMS[k] && ITEMS[k].heal ? "Heals " + ITEMS[k].heal + " HP" : k === "revive" ? "Revives a fainted Pokémon" : k === "mail" ? "A letter to deliver" : "Raises a level"}</span></div>${ITEMS[k] ? `<button class="av-btn ghost" data-u="${k}">USE</button>` : ""}</div>`).join("") + BALLS.map((b) => (ballCnt(b.id) ? `<div class="av-item">${itemImg(b.id, 40)}<div><b>${b.n} ×${ballCnt(b.id)}</b><span>For catching wild Pokémon</span></div></div>` : "")).join("") + "</div>";
     else if (tab === "quests") { const act = QUESTS.filter((q) => qState(q.id).s === 1 || qState(q.id).s === 2); body = '<div class="av-shop">' + (act.map((q) => { const st = qState(q.id); return `<div class="av-item"><span style="font-size:22px">${st.s === 2 ? "✅" : "📜"}</span><div><b>${q.title}</b><span>${q.desc}</span><span style="color:#ffcf45">${st.s === 2 ? "Ready — return to " + q.giver : st.p + "/" + q.n + " · from " + q.giver + " (" + TOWNS[q.town].n + ")"}</span></div></div>`; }).join("") || "<p>No active quests. Talk to townspeople with a ❗ above their heads!</p>") + `<p style="color:#7fa6cf">Completed: ${Object.values(G.q).filter((q) => q.s === 3).length} / ${QUESTS.length}</p></div>`; }
-    else if (tab === "map") body = '<div class="av-wm"><i></i>' + TOWNS.map((t, i) => `<b class="${G.visited.includes(i) ? "v" : ""}" style="left:${(t.c / 1040) * 100}%" title="${t.n}">${i === 0 ? "🏠" : t.stadium ? "🏆" : G.badges.includes(t.gym) ? GYMS[t.gym].ic : "●"}</b>`).join("") + `<u style="left:${clamp(P.x / 1040, 0, 1) * 100}%">▼</u></div><div class="av-shop">${TOWNS.map((t, i) => (G.visited.includes(i) ? `<div class="av-item"><div><b>${t.n}</b><span>${t.gym !== undefined ? GYMS[t.gym].ty.toUpperCase() + " gym · " + GYMS[t.gym].leader : t.stadium ? "Tournament hall" : "Home town"}</span></div><button class="av-btn ghost" data-f="${i}" ${SC && SC.id === "world" ? "" : "disabled"}>✈ FLY</button></div>` : "")).join("")}</div>`;
-    else body = `<canvas id="av-card" width="200" height="240"></canvas><div class="av-stats"><div class="av-stat"><small>NAME</small><b style="font-size:14px">${G.sv.name}</b></div><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>MONEY</small><b style="font-size:14px">🥮 ${getCoins().toLocaleString()}</b></div></div><p>${GYMS.map((g, i) => (G.badges.includes(i) ? g.ic : "▫️")).join(" ")}</p><div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button><button class="av-btn" data-a="x">RESUME</button></div>`;
-    modal(`<h2>MENU</h2>${head}<div class="av-shop">${tab === "bag" || tab === "map" || tab === "quests" ? "" : ""}${body}</div>${tab === "card" ? "" : '<div class="av-row2"><button class="av-btn" data-a="x">RESUME</button></div>'}`, (m) => {
+    else if (tab === "map") body = `<canvas id="av-tmap" width="440" height="440"></canvas><p style="margin:6px 0">Tap a visited town to fly there${SC && SC.id === "world" ? "" : " (outdoors only)"}.</p>`;
+    else body = `<canvas id="av-card" width="200" height="240"></canvas><div class="av-stats"><div class="av-stat"><small>NAME</small><b style="font-size:14px">${G.sv.name}</b></div><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>MONEY</small><b style="font-size:14px">🥮 ${getCoins().toLocaleString()}</b></div></div><p>${GYMS.map((g, i) => (G.badges.includes(i) ? g.ic : "▫️")).join(" ")}</p><div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button></div>`;
+    modal(`<h2>MENU</h2>${head}<div class="av-shop">${body}</div><div class="av-row2"><button class="av-btn" data-a="x">RESUME</button></div>`, (m) => {
       m.querySelectorAll("[data-t]").forEach((b) => { b.onclick = () => hub(b.dataset.t); }); const x = m.querySelector("[data-a=x]"); if (x) x.onclick = closeModal; const ex = m.querySelector("[data-a=exit]"); if (ex) ex.onclick = () => { saveStory(); menu(); };
       m.querySelectorAll("[data-l]").forEach((b) => { b.onclick = () => { G.lead = +b.dataset.l; setPartner(true); refresh(); saveStory(); hub("party"); }; });
-      m.querySelectorAll("[data-u]").forEach((b) => { b.onclick = () => useItemMenu(b.dataset.u); });
-      m.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { const t = TOWNS[+b.dataset.f]; closeModal(); G.cut = true; flashT().then(() => { enterScene(WORLD, t.c, 2, 0); G.cut = false; setPartner(true); saveStory(); }); }; });
+      m.querySelectorAll("[data-u]").forEach((b) => { b.onclick = () => useItemMenu(b.dataset.u); }); m.querySelectorAll("[data-d]").forEach((b) => { b.onclick = () => dexDetail(+b.dataset.d); });
+      const tm = m.querySelector("#av-tmap"); if (tm) { drawTownMap(tm); tm.onclick = (e) => { const r = tm.getBoundingClientRect(), sx = ((e.clientX - r.left) / r.width) * 940 - 20, sz = ((e.clientY - r.top) / r.height) * 940 - 20; let bi = -1, bd = 60; TOWNS.forEach((t, i) => { const d = Math.hypot(t.x - sx, t.z - sz); if (d < bd) { bd = d; bi = i; } }); if (bi >= 0 && G.visited.includes(bi) && SC && SC.id === "world") { const t = TOWNS[bi]; closeModal(); G.cut = true; flashT().then(() => { enterScene(WORLD, t.x, t.z + 2, 0); G.cut = false; setPartner(true); saveStory(); }); } }; }
       const cv = m.querySelector("#av-card"); if (cv) drawAvatar(cv, G.look, 0.5);
     }, true);
   }
@@ -925,69 +1013,112 @@
   }
 
   /* ----- starting / running a story ----- */
-  let FOL = [];
+  /* ----- starting / running a story ----- */
   function startStory(sv) {
-    runId++; abortBattle(); mode = "story"; DB.active = sv.id; saveDB(); const S = sv.story;
-    FOL.forEach((m) => scene.remove(m)); FOL = [];
-    G = { sv, name: sv.name, look: sv.look, squad: S.squad.map(unpack), box: (S.box || []).map(unpack), bag: Object.assign({}, S.bag), badges: S.badges.slice(), def: S.def.slice(), flags: Object.assign({}, S.flags), q: JSON.parse(JSON.stringify(S.q || {})), picked: S.picked.slice(), visited: S.visited.slice(), spawn: Object.assign({}, S.spawn), friends: S.friends, lead: 0, cut: false, near: null, walk: null, hist: [], fol: FOL, ret: null, loc: "", gd: 0, gcool: 0, area: "" };
+    runId++; abortBattle(); mode = "story"; DB.active = sv.id; saveDB(); const S = sv.story; clearRoamers();
+    G = { sv, name: sv.name, look: sv.look, squad: S.squad.map(unpack), box: (S.box || []).map(unpack), bag: Object.assign({}, S.bag), badges: S.badges.slice(), def: S.def.slice(), flags: Object.assign({}, S.flags), q: JSON.parse(JSON.stringify(S.q || {})), picked: S.picked.slice(), visited: S.visited.slice(), spawn: Object.assign({}, S.spawn), friends: S.friends, dex: JSON.parse(JSON.stringify(S.dex || { seen: {}, caught: {} })), fm: [], lead: 0, cut: false, near: null, walk: null, hist: [], ret: null, loc: "", gd: 0, gcool: 0, area: "", run: false, roamT: 0 };
+    G.squad.concat(G.box).forEach((c) => { G.dex.seen[c.id] = 1; G.dex.caught[c.id] = 1; });
     if (!WORLD) buildWorld();
     scene.remove(trainer); trainer = makeTrainer(G.look); scene.add(trainer);
     WORLD.picks.forEach((p) => { p.mesh.visible = !G.picked.includes(p.id); });
     Object.values(INTS).forEach((sc) => { [1, 4, 7].forEach((id) => { if (sc["st" + id]) sc["st" + id].visible = !G.flags.starter; }); });
-    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-menu").hidden = false; showPad(true); hudLast = null; closeModal();
-    if (!G.flags.momIntro && !G.flags.starter) { G.ret = { x: 10, z: -3.8 }; const h = getInterior("home"); enterScene(h, 0, h.d / 2 - 3, Math.PI); }
-    else enterScene(WORLD, S.pos.x, S.pos.z, Math.PI / 2);
-    me(); setPartner(true); ensureFriends(); refresh(); refreshMarks();
+    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-menu").hidden = false; $("av-run").classList.remove("on"); showPad(true); hudLast = null; closeModal();
+    const t0 = TOWNS[0], okPos = S.pos && walkable(S.pos.x, S.pos.z);
+    if (!G.flags.momIntro && !G.flags.starter) { G.ret = { x: t0.x - 20, z: t0.z - 3.8 }; const h = getInterior("home"); enterScene(h, 0, h.d / 2 - 3, Math.PI); }
+    else enterScene(WORLD, okPos ? S.pos.x : t0.x, okPos ? S.pos.z : t0.z + 4, Math.PI / 2);
+    me(); setPartner(true); ensureFriends(); refreshStory(); refresh();
   }
-  const gateHit = (x, z) => SC.gates.some((g) => !g.req() && Math.abs(x - g.x) < 1);
-  const blocked = (x, z) => x < SC.bnd.x0 || x > SC.bnd.x1 || z < SC.bnd.z0 || z > SC.bnd.z1 || SC.col.hit(x, z) || (SC.id === "world" && gateHit(x, z));
+  const blocked = (x, z) => x < SC.bnd.x0 || x > SC.bnd.x1 || z < SC.bnd.z0 || z > SC.bnd.z1 || SC.col.hit(x, z) || (SC.id === "world" && (!walkable(x, z) || gateHit(x, z)));
+
+  /* ----- living world: roaming wild Pokémon, wandering townsfolk ----- */
+  const ROAM = [];
+  function removeRoamer(r) { const i = ROAM.indexOf(r); if (i >= 0) ROAM.splice(i, 1); if (WORLD) WORLD.group.remove(r.mesh); }
+  function clearRoamers() { ROAM.slice().forEach(removeRoamer); }
+  function spawnRoamer() {
+    const an = Math.random() * 6.283, d = 26 + Math.random() * 44, x = P.x + Math.cos(an) * d, z = P.z + Math.sin(an) * d, ar = areaAt(x, z);
+    if ((ar.k !== "r" && ar.k !== "s") || !walkable(x, z) || WORLD.col.hit(x, z) || townAt(x, z, 8) >= 0) return;
+    const rt = RT[ar.tab], sp = SPECIES[rnd(rt.ids)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), c = mkL(sp, lv), m = makeMon(c, 1.9);
+    m.position.set(x, 0, z); WORLD.group.add(m); ROAM.push({ c, mesh: m, x, z, tx: x, tz: z, wait: 0, cool: 0, aggro: Math.random() < 0.35 });
+  }
+  function roamTick(dt, busy) {
+    G.roamT -= dt; if (G.roamT <= 0) { G.roamT = 1.1; if (ROAM.length < 9) spawnRoamer(); }
+    for (let i = ROAM.length - 1; i >= 0; i--) {
+      const r = ROAM[i], d = Math.hypot(P.x - r.x, P.z - r.z); if (d > 160) { removeRoamer(r); continue; }
+      tickMon(r.mesh, dt); if (busy) continue; r.cool = Math.max(0, r.cool - dt); let tx = r.tx, tz = r.tz, sp = 1.6;
+      if (r.aggro && d < 11 && r.cool <= 0) { tx = P.x; tz = P.z; sp = 3.2; } else { r.wait -= dt; if (r.wait <= 0 || Math.hypot(r.tx - r.x, r.tz - r.z) < 0.8) { r.tx = r.x + (Math.random() - 0.5) * 22; r.tz = r.z + (Math.random() - 0.5) * 22; r.wait = 2 + Math.random() * 3; } tx = r.tx; tz = r.tz; }
+      const dx = tx - r.x, dz = tz - r.z, l = Math.hypot(dx, dz) || 1;
+      if (l > 0.3) { const nx = r.x + (dx / l) * sp * dt, nz = r.z + (dz / l) * sp * dt; if (walkable(nx, nz) && !WORLD.col.hit(nx, nz)) { r.x = nx; r.z = nz; } else r.wait = 0; face(r.mesh, dx > 0); }
+      r.mesh.position.set(r.x, 0, r.z);
+      if (d < 2.1 && r.cool <= 0 && G.squad.length && me()) { guard(() => roamBattle(r)); return true; }
+    }
+    return false;
+  }
+  function wanderTick(dt) {
+    SC.npcs.forEach((n) => {
+      if (!n.wander || Math.hypot(P.x - n.x, P.z - n.z) > 150) return; n.wait = (n.wait || 0) - dt;
+      if (n.moving) { const dx = n.tx - n.x, dz = n.tz - n.z, l = Math.hypot(dx, dz); if (l < 0.3) { n.moving = false; n.wait = 1 + Math.random() * 3; } else { n.x += (dx / l) * 1.5 * dt; n.z += (dz / l) * 1.5 * dt; n.mesh.rotation.y = Math.atan2(dx, dz); } }
+      else if (n.wait <= 0) { n.tx = n.home.x + (Math.random() - 0.5) * 2 * n.wr; n.tz = n.home.z + (Math.random() - 0.5) * 2 * n.wr; n.moving = true; }
+      n.mesh.position.x = n.x; n.mesh.position.z = n.z; const lg = n.mesh.userData.legs, sw = n.moving ? Math.sin(T * 10) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw;
+    });
+    SC.ambient.forEach((o) => {
+      if (Math.hypot(P.x - o.x, P.z - o.z) > 150) return; tickMon(o.mesh, dt); o.wait -= dt;
+      if (o.wait <= 0 || Math.hypot(o.tx - o.x, o.tz - o.z) < 0.6) { o.tx = o.home.x + (Math.random() - 0.5) * 2 * o.wr; o.tz = o.home.z + (Math.random() - 0.5) * 6; o.wait = 1.5 + Math.random() * 3; }
+      const dx = o.tx - o.x, dz = o.tz - o.z, l = Math.hypot(dx, dz) || 1; if (l > 0.3) { o.x += (dx / l) * 1.3 * dt; o.z += (dz / l) * 1.3 * dt; face(o.mesh, dx > 0); } o.mesh.position.set(o.x, 0, o.z);
+    });
+  }
+  const joy = { x: 0, z: 0 };
+
   function story(dt) {
     const busy = DL || G.cut || modalOpen(), world = SC.id === "world";
-    SC.npcs.forEach((n, i) => { if (n.mesh) n.mesh.position.y = Math.sin(T * 2 + i) * 0.03; });
+    SC.npcs.forEach((n, i) => { if (n.mesh && !n.wander) n.mesh.position.y = Math.sin(T * 2 + i) * 0.03; });
     if (DL && DL.pos < DL.lines[DL.i].t.length) { DL.pos += dt * 60; paintDlg(); }
     if (G.walk) { const w = G.walk, dx = P.x - w.T.x, dz = P.z - w.T.z, d = Math.hypot(dx, dz); w.T.mesh.rotation.y = Math.atan2(dx, dz); if (d > 2.9) { w.T.x += (dx / d) * 6 * dt; w.T.z += (dz / d) * 6 * dt; w.T.mesh.position.set(w.T.x, 0, w.T.z); } else { const f = w.then; G.walk = null; f(); } }
     P.moving = false; G.near = null; G.gcool = Math.max(0, G.gcool - dt);
+    if (world) wanderTick(dt); else wanderTick(dt);
     if (!busy) {
-      let dx = 0, dz = 0;
-      if (held.ArrowLeft || held.a || pad.left) dx -= 1; if (held.ArrowRight || held.d || pad.right) dx += 1;
-      if (held.ArrowUp || held.w || pad.up) dz -= 1; if (held.ArrowDown || held.s || pad.down) dz += 1;
-      P.moving = !!(dx || dz);
+      let dx = joy.x, dz = joy.z;
+      if (held.ArrowLeft || held.a || pad.left) dx -= 1; if (held.ArrowRight || held.d || pad.right) dx += 1; if (held.ArrowUp || held.w || pad.up) dz -= 1; if (held.ArrowDown || held.s || pad.down) dz += 1;
+      const mag = Math.hypot(dx, dz); P.moving = mag > 0.05;
       if (P.moving) {
-        const l = Math.hypot(dx, dz), st = (held.Shift ? 12 : 8.5) * dt, nx = P.x + (dx / l) * st, nz = P.z + (dz / l) * st; if (!blocked(nx, P.z)) P.x = nx; if (!blocked(P.x, nz)) P.z = nz; P.rot = Math.atan2(dx, dz);
-        if (world) { const pt = SC.patches.find((p) => Math.abs(P.x - p.x) < p.w / 2 && Math.abs(P.z - p.z) < p.d / 2); if (pt && me()) { G.gd += st; if (G.gd > 2.1) { G.gd = 0; if (Math.random() < 0.18) { guard(() => wildBattle(pt.r)); return; } } } else if (!pt) G.gd = 0; }
-        for (const d of SC.doors) if (dz < 0 && Math.hypot(P.x - d.x, P.z - d.z) < d.r) { goInterior(d); return; }
-        if (SC.exit && dz > 0 && Math.hypot(P.x - SC.exit.x, P.z - SC.exit.z) < 1.6) { leaveInterior(); return; }
+        const u = Math.min(1, mag), st = (held.Shift || G.run ? 12 : 8.5) * u * dt, nx = P.x + (dx / mag) * st, nz = P.z + (dz / mag) * st; if (!blocked(nx, P.z)) P.x = nx; if (!blocked(P.x, nz)) P.z = nz; P.rot = Math.atan2(dx, dz);
+        if (world) { const pt = SC.patches.find((p) => Math.abs(P.x - p.x) < p.w / 2 && Math.abs(P.z - p.z) < p.d / 2); if (pt && me()) { G.gd += st; if (G.gd > 2.4) { G.gd = 0; if (Math.random() < 0.14) { guard(() => wildBattle(pt.r)); return; } } } else if (!pt) G.gd = 0; }
+        for (const d of SC.doors) if (dz < -0.2 && Math.hypot(P.x - d.x, P.z - d.z) < d.r) { goInterior(d); return; }
+        if (SC.exit && dz > 0.2 && Math.hypot(P.x - SC.exit.x, P.z - SC.exit.z) < 1.6) { leaveInterior(); return; }
       }
       if (world) {
-        const gt = SC.gates.find((g) => !g.req() && Math.abs(P.x - g.x) < 2);
-        if (gt && G.gcool <= 0) { G.gcool = 2; G.cut = true; P.x = gt.x + (P.x < gt.x ? -3 : 3); dialog(lines("Guard", [gt.msg]), () => { G.cut = false; }); return; }
-        const ti = townIdx(P.x), ri = ROUTES.findIndex(([a, b]) => P.x >= a && P.x < b), area = ti >= 0 ? "t" + ti : ri >= 0 ? "r" + ri : "";
-        if (area !== G.area) { G.area = area; if (ti >= 0) guard(() => arrive(ti)); else if (ri >= 0) routeEnter(ri); }
+        const gt = SC.gates.find((g) => !g.req() && Math.abs((P.x - g.x) * g.dx + (P.z - g.z) * g.dz) < 2.4 && Math.abs(-(P.x - g.x) * g.dz + (P.z - g.z) * g.dx) < RW + 3);
+        if (gt && G.gcool <= 0) { G.gcool = 2; G.cut = true; const al = (P.x - gt.x) * gt.dx + (P.z - gt.z) * gt.dz, ac = -(P.x - gt.x) * gt.dz + (P.z - gt.z) * gt.dx, s = al < 0 ? -3.4 : 3.4; P.x = gt.x + gt.dx * s - gt.dz * ac; P.z = gt.z + gt.dz * s + gt.dx * ac; dialog(lines("Guard", [gt.msg]), () => { G.cut = false; }); return; }
+        const a = areaAt(P.x, P.z); if (a.key !== G.area && a.k !== "x") { G.area = a.key; if (a.k === "t") guard(() => arrive(a.i)); else placeFriends(a); }
+        if (roamTick(dt, false)) return;
       }
       if (G.squad.length) for (const t of SC.trainers) { if (!t.sight || G.def.includes(t.id) || (t.when && !t.when())) continue; const tx = P.x - t.x, tz = P.z - t.z, d = Math.hypot(tx, tz); if (d < t.sight && tx * Math.sin(t.rot) + tz * Math.cos(t.rot) > d * 0.6) return engageTrainer(t); }
       let best = null, bd = 99; SC.inter.forEach((I) => { if (I.when && !I.when()) return; const q = I.ref || I, d = Math.hypot(P.x - q.x, P.z - q.z); if (d < I.r && d < bd) { best = I; bd = d; } });
       SC.doors.forEach((d) => { const dd = Math.hypot(P.x - d.x, P.z - d.z); if (dd < d.r + 0.6 && dd < bd) { best = { label: d.label, fn: () => goInterior(d) }; bd = dd; } });
       if (SC.exit && Math.hypot(P.x - SC.exit.x, P.z - SC.exit.z) < 2.4) best = { label: "Leave", fn: leaveInterior };
       G.near = best;
-    }
+    } else if (world) roamTick(dt, true);
     const pr = $("av-prompt"); pr.hidden = !G.near || busy; if (G.near && !busy) pr.textContent = "▶ " + G.near.label + "  (E / A)"; $("av-act").hidden = !G.near || busy;
-    const loc = world ? locName(P.x) : SC.kind === "center" ? "Pokémon Center" : SC.kind === "mart" ? "Poké Mart" : SC.kind === "gym" ? GYMS[+SC.id.split(":")[1]].badge + " Gym" : SC.kind === "lab" ? "Prof. Linden’s Lab" : SC.kind === "home" ? "Your Home" : "Champions Stadium";
+    const loc = world ? locName(P.x, P.z) : SC.kind === "center" ? "Pokémon Center" : SC.kind === "mart" ? "Poké Mart" : SC.kind === "gym" ? GYMS[+SC.id.split(":")[1]].badge + " Gym" : SC.kind === "lab" ? "Prof. Linden’s Lab" : SC.kind === "home" ? "Your Home" : SC.kind === "rocket" ? "Team Rocket Hideout" : "Champions Stadium";
     if (loc !== G.loc) { G.loc = loc; const lb = $("av-loc"); lb.textContent = loc; lb.classList.remove("show"); void lb.offsetWidth; lb.classList.add("show"); }
     const h = G.hist, lastp = h[h.length - 1]; if (!lastp || Math.hypot(lastp.x - P.x, lastp.z - P.z) > 0.15) { h.push({ x: P.x, z: P.z }); if (h.length > 400) h.shift(); }
-    FOL.forEach((m, k) => { const p = h[h.length - 1 - (k + 1) * 10]; if (p) { const dx = p.x - m.position.x, dz = p.z - m.position.z; if (Math.hypot(dx, dz) > 0.02) m.rotation.y = Math.atan2(dx, dz); m.position.set(p.x, 0, p.z); const lg = m.userData.legs, sw = P.moving ? Math.sin(T * 12 + k) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; } });
+    if (world) (G.fm || []).forEach((o) => { if (o.state !== "follow") return; const p = h[h.length - 1 - (o.key === "a" ? 1 : 2) * 10]; if (p) { const dx = p.x - o.x, dz = p.z - o.z; if (Math.hypot(dx, dz) > 0.02) o.mesh.rotation.y = Math.atan2(dx, dz); o.x = p.x; o.z = p.z; o.mesh.position.set(o.x, 0, o.z); const lg = o.mesh.userData.legs, sw = P.moving ? Math.sin(T * 12 + (o.key === "a" ? 0 : 1)) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; } });
     setHud(`<div class="av-hbox"><small>BADGES</small><b style="font-size:17px">${GYMS.map((g, i) => (G.badges.includes(i) ? g.ic : "▫️")).join("")}</b></div><div class="av-zbar"><span>LOCATION</span><b>${loc}</b></div><div class="av-hbox"><small>PARTY</small><b>${G.squad.filter((c) => c.hp > 0).length}/${G.squad.length}</b></div>`);
     drawMap();
   }
   function drawMap() {
     const c = $("av-map"), x = c.getContext("2d"), S = c.width, big = c.classList.contains("big");
     if (SC.id === "world") {
-      const k = S / (big ? 260 : 120), X = (v) => (v - P.x) * k + S / 2, Z = (v) => (v - P.z) * k + S / 2;
-      x.fillStyle = "#245a3c"; x.fillRect(0, 0, S, S); x.fillStyle = "#cdb98a"; x.fillRect(0, Z(-2.75), S, 5.5 * k);
+      const k = S / (big ? 300 : 130), X = (v) => (v - P.x) * k + S / 2, Z = (v) => (v - P.z) * k + S / 2;
+      x.fillStyle = "#1f5a38"; x.fillRect(0, 0, S, S); x.lineCap = "round"; x.lineJoin = "round";
+      SEGS.forEach((s) => { x.strokeStyle = "#3f7f4a"; x.lineWidth = s.hw * 2 * k; x.beginPath(); x.moveTo(X(s.ax), Z(s.az)); x.lineTo(X(s.bx), Z(s.bz)); x.stroke(); });
+      TOWNS.forEach((t) => { x.fillStyle = "#d8cfa8"; x.fillRect(X(t.x - 46), Z(t.z - 34), 92 * k, 60 * k); });
+      SEGS.forEach((s) => { x.strokeStyle = "#cdb98a"; x.lineWidth = 6 * k; x.beginPath(); x.moveTo(X(s.ax), Z(s.az)); x.lineTo(X(s.bx), Z(s.bz)); x.stroke(); });
       x.fillStyle = "#2f7a35"; SC.patches.forEach((p) => x.fillRect(X(p.x - p.w / 2), Z(p.z - p.d / 2), p.w * k, p.d * k));
       SC.builds.forEach((b) => { x.fillStyle = b.col; x.fillRect(X(b.x - b.w / 2), Z(b.z - b.d / 2), b.w * k, b.d * k); });
-      x.strokeStyle = "#ff3b3b"; x.lineWidth = 4; SC.gates.forEach((g) => { if (!g.req()) { x.beginPath(); x.moveTo(X(g.x), 0); x.lineTo(X(g.x), S); x.stroke(); } });
-      SC.trainers.forEach((t) => { if (t.sight && !G.def.includes(t.id)) { x.fillStyle = "#ff5a5a"; x.beginPath(); x.arc(X(t.x), Z(t.z), 5, 0, 6.283); x.fill(); } });
+      x.strokeStyle = "#ff3b3b"; x.lineWidth = 4; SC.gates.forEach((g) => { if (!g.req()) { x.beginPath(); x.moveTo(X(g.x + g.dz * RW), Z(g.z - g.dx * RW)); x.lineTo(X(g.x - g.dz * RW), Z(g.z + g.dx * RW)); x.stroke(); } });
+      SC.trainers.forEach((t) => { if (t.sight && !G.def.includes(t.id)) { x.fillStyle = t.look === ROCKET_LOOK ? "#ff9b3d" : "#ff5a5a"; x.beginPath(); x.arc(X(t.x), Z(t.z), 4, 0, 6.283); x.fill(); } });
       x.fillStyle = "#ffcf45"; SC.npcs.forEach((n) => { if (n.mark.visible) x.fillRect(X(n.x) - 3, Z(n.z) - 3, 7, 7); }); SC.picks.forEach((p) => { if (!G.picked.includes(p.id)) { x.fillStyle = "#8fe6ff"; x.fillRect(X(p.x) - 2, Z(p.z) - 2, 5, 5); } });
+      x.fillStyle = "#fff"; ROAM.forEach((r) => { x.beginPath(); x.arc(X(r.x), Z(r.z), 3, 0, 6.283); x.fill(); });
     } else {
       const k = S / (Math.max(SC.w, SC.d) + 4), X = (v) => (v + SC.w / 2 + 2) * k, Z = (v) => (v + SC.d / 2 + 2) * k;
       x.fillStyle = "#0c1626"; x.fillRect(0, 0, S, S); x.fillStyle = "#2a3a5a"; x.fillRect(X(-SC.w / 2), Z(-SC.d / 2), SC.w * k, SC.d * k);
@@ -996,14 +1127,13 @@
     const px = SC.id === "world" ? S / 2 : (P.x + SC.w / 2 + 2) * (S / (Math.max(SC.w, SC.d) + 4)), pz = SC.id === "world" ? S / 2 : (P.z + SC.d / 2 + 2) * (S / (Math.max(SC.w, SC.d) + 4));
     x.save(); x.translate(px, pz); x.rotate(-P.rot + Math.PI); x.fillStyle = "#5de4ff"; x.strokeStyle = "#04121f"; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 9); x.lineTo(-8, 9); x.closePath(); x.fill(); x.stroke(); x.restore();
   }
-
   /* ----- main menu: story slots + character creator ----- */
   function enterLobby() {
     if (!WORLD) buildWorld(); const sv = activeSave(); scene.remove(trainer); trainer = makeTrainer(sv ? sv.look : DEF_LOOK); scene.add(trainer);
-    G = null; mode = null; enterScene(WORLD, 30, 3, Math.PI); if (partnerH) { scene.remove(partnerH); partnerH = null; }
+    G = null; mode = null; enterScene(WORLD, TOWNS[0].x, TOWNS[0].z + 3, Math.PI); if (partnerH) { scene.remove(partnerH); partnerH = null; }
   }
   function menu() {
-    abortBattle(); runId++; if (G) { saveStory(); } FOL.forEach((m) => scene.remove(m)); FOL = []; DL = null; mode = null; G = null; enterLobby();
+    abortBattle(); runId++; if (G) { saveStory(); } clearRoamers(); if (WORLD && WORLD.fm) WORLD.fm.forEach((o) => { o.mesh.visible = false; }); DL = null; mode = null; G = null; enterLobby();
     ["av-dlg", "av-prompt", "av-act", "av-menu"].forEach((id) => { $(id).hidden = true; }); $("av-loc").classList.remove("show"); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "ADVENTURE"; $("av-team").innerHTML = ""; $("av-res").textContent = "🥮 " + getCoins().toLocaleString() + "  ·  ⚪ " + totalBalls();
     const saves = DB.saves.slice().sort((a, b) => (b.played || 0) - (a.played || 0));
     modal(`<h2>STORY ADVENTURE</h2><p>Journey across the region with your two friends, earn 6 badges and win the Champions Cup. Each story has its own trainer.</p>
@@ -1059,7 +1189,7 @@
     const f = document.querySelector("#home-page .fighters"); if (!f || $("home-avatar")) return;
     const d = document.createElement("div"); d.id = "home-avatar"; d.innerHTML = '<canvas width="560" height="520"></canvas><img id="ha-mon" class="ha-mon" alt="" hidden><div class="ha-plate"><b id="ha-name"></b><span id="ha-sub"></span></div>'; f.appendChild(d);
     d.onclick = () => { try { window.openAdventure(); } catch (e) {} };
-    const cv = d.querySelector("canvas"), upd = () => { const sv = activeSave(); $("ha-name").textContent = sv ? sv.name.toUpperCase() : "NEW TRAINER"; $("ha-sub").textContent = sv ? "🏅 " + sv.story.badges.length + "/6 · STORY ADVENTURE" : "TAP TO CREATE YOUR TRAINER"; const mon = $("ha-mon"), first = sv && sv.story.squad[0]; if (first) { mon.src = ART + first.id + ".png"; mon.title = (SPECIES[first.id] ? SPECIES[first.id].n : "") + " Lv" + first.lv; mon.hidden = false; } else mon.hidden = true; };
+    const cv = d.querySelector("canvas"), upd = () => { const sv = activeSave(); $("ha-name").textContent = sv ? sv.name.toUpperCase() : "NEW TRAINER"; $("ha-sub").textContent = sv ? "🏅 " + sv.story.badges.length + "/6 · STORY ADVENTURE" : "TAP TO CREATE YOUR TRAINER"; const mi = document.querySelector("#home-page .match-info"); if (mi) { const S = sv ? sv.story : null, ca = S && S.dex ? Object.keys(S.dex.caught || {}).length : 0, qd = S ? Object.values(S.q || {}).filter((q) => q.s === 3).length : 0; mi.innerHTML = '<div><small>BADGES</small><b>' + (S ? S.badges.length : 0) + '/6</b></div><div class="divider"></div><div><small>POKÉDEX</small><b>' + ca + '</b></div><div class="divider"></div><div><small>QUESTS</small><b>' + qd + '</b></div>'; } const mon = $("ha-mon"), first = sv && sv.story.squad[0]; if (first) { mon.src = ART + first.id + ".png"; mon.title = (SPECIES[first.id] ? SPECIES[first.id].n : "") + " Lv" + first.lv; mon.hidden = false; } else mon.hidden = true; };
     setInterval(() => { const h = $("home-page"); if (!h || h.classList.contains("hidden") || document.hidden) return; const sv = activeSave(); drawHome(cv, sv ? sv.look : DEF_LOOK, performance.now() / 1000); }, 50);
     upd(); addEventListener("pf-adv-change", upd);
   }
@@ -1103,10 +1233,12 @@
       <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><button class="av-btn ghost" id="av-menu" hidden>☰ MENU</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
       <div id="av-hud" hidden></div><canvas id="av-map" width="300" height="300" hidden></canvas><div id="av-feed"></div>
       <div id="av-bottom"><div id="av-team"></div><div id="av-pad" hidden><button class="av-btn u" data-k="up">▲</button><button class="av-btn l" data-k="left">◀</button><button class="av-btn d" data-k="down">▼</button><button class="av-btn r" data-k="right">▶</button></div></div>
-      <div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-loc"></div><div id="av-dlg" hidden></div><div id="av-flash"></div>
+      <div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-joy" hidden><i></i></div><button class="av-btn" id="av-run" hidden>RUN</button><div id="av-loc"></div><div id="av-dlg" hidden></div><div id="av-flash"></div>
       <div id="bt" hidden><div id="bt-flash"></div><div class="bt-box foe" id="bt-foe"></div><div class="bt-box me" id="bt-me"></div><div id="bt-bottom"><div id="bt-text"></div><div id="bt-cmd"></div></div></div>
       <div id="av-modal" hidden></div><div id="av-err" hidden></div>`;
     $("av-back").onclick = onBack; $("av-menu").onclick = () => hub("party"); $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); };
+    $("av-run").onclick = () => { if (G) { G.run = !G.run; $("av-run").classList.toggle("on", G.run); } };
+    { const jz = $("av-joy"), kn = jz.firstChild; const jm = (e) => { const r = jz.getBoundingClientRect(), R2 = r.width / 2; let dx = e.clientX - (r.left + R2), dy = e.clientY - (r.top + R2); const l = Math.hypot(dx, dy) || 1, m = Math.min(1, l / R2); dx = (dx / l) * m; dy = (dy / l) * m; kn.style.transform = "translate(" + dx * R2 * 0.6 + "px," + dy * R2 * 0.6 + "px)"; joy.x = m > 0.2 ? dx : 0; joy.z = m > 0.2 ? dy : 0; }; let on = false; jz.addEventListener("pointerdown", (e) => { e.preventDefault(); on = true; try { jz.setPointerCapture(e.pointerId); } catch (x) {} jm(e); }); jz.addEventListener("pointermove", (e) => { if (on) jm(e); }); const je = () => { on = false; joy.x = 0; joy.z = 0; kn.style.transform = ""; }; ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => jz.addEventListener(ev, je)); }
     document.querySelectorAll("#av-pad button").forEach((b) => { const k = b.dataset.k; b.addEventListener("pointerdown", (e) => { e.preventDefault(); pad[k] = true; }); ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { pad[k] = false; })); });
     if (!webglOK()) { built = false; const e = $("av-err"); e.hidden = false; e.innerHTML = "<b>3D graphics (WebGL) isn’t available in this browser.</b><br>Turn on hardware acceleration in your browser settings (Edge/Chrome → Settings → System), then reload the page."; return; }
     const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
@@ -1265,6 +1397,17 @@
 .ha-mon{position:absolute;right:1%;bottom:74px;width:36%;max-width:190px;height:auto;pointer-events:none;filter:drop-shadow(0 12px 12px #0008);animation:haFloat 2.8s ease-in-out infinite}
 @keyframes haFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:560px){.ha-mon{width:34%;bottom:64px}}
+#adventure-page{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#av-pad{display:none!important}
+#av-joy{position:absolute;left:16px;bottom:calc(20px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:rgba(6,14,24,.45);border:2px solid #3a5878;z-index:5;touch-action:none;backdrop-filter:blur(3px)}
+#av-joy i{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;background:rgba(93,228,255,.55);border:2px solid #8fe6ff;pointer-events:none}
+#av-run{position:absolute;right:20px;bottom:calc(120px + env(safe-area-inset-bottom));z-index:5;width:60px;height:60px;border-radius:50%;padding:0;font-size:11px;background:rgba(12,27,45,.85);border:2px solid #3a5878;box-shadow:none}#av-run.on{background:linear-gradient(145deg,#5de4ff,#3d6bff)}
+@media (hover:hover) and (pointer:fine){#av-joy,#av-run{display:none!important}}
+@media (hover:none),(pointer:coarse){#av-act{right:22px;bottom:calc(28px + env(safe-area-inset-bottom));width:80px;height:80px;font-size:30px}#av-prompt{bottom:calc(172px + env(safe-area-inset-bottom))}}
+.dex{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.dx{position:relative;background:#0c1b2d;border:1px solid #29415b;border-radius:12px;padding:6px 2px;color:#eaf3ff;font:700 9px/1.25 var(--font-display);text-align:center}.dx img{width:52px;height:52px;object-fit:contain;display:block;margin:0 auto 2px}.dx.un img{filter:brightness(0) opacity(.55)}.dx i{position:absolute;top:4px;right:6px;color:#ff6b6b;font-style:normal}
+#av-tmap{width:100%;max-width:460px;display:block;margin:0 auto;border-radius:14px;border:2px solid #36506b;cursor:pointer}
+@media(max-width:700px){#av-team{position:absolute;top:calc(104px + env(safe-area-inset-top));left:8px;flex-direction:row;flex-wrap:wrap;max-width:60vw;gap:4px}.av-chip{min-width:0;padding:2px 6px 2px 2px}.av-chip b{display:none}.av-chip img{width:30px;height:30px}#av-bottom{padding:0}#av-map{width:96px;height:96px;top:calc(98px + env(safe-area-inset-top))}#av-hud{top:calc(54px + env(safe-area-inset-top))}.av-sheet{padding:16px 12px}#av-top{padding-left:8px;padding-right:8px;gap:6px}#av-title{display:none}.dex{grid-template-columns:repeat(3,1fr)}.bt-box.me{bottom:clamp(200px,36vh,270px)}#bt-bottom{flex-direction:column}#bt-cmd{flex:none;max-height:36vh}#av-dlg{bottom:calc(10px + env(safe-area-inset-bottom))}.av-hbox b{font-size:19px}}
+@media(max-height:520px){#av-joy{width:112px;height:112px}.av-sheet{max-height:96%}}
 `;
   function injectCSS() { if ($("av-css")) return; const s = document.createElement("style"); s.id = "av-css"; s.textContent = CSS; document.head.appendChild(s); }
   function boot() { injectCSS(); loadDB(); initHome(); const b = $("btn-adventure"); if (b) b.onclick = open; }
