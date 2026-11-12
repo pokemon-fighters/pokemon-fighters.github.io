@@ -135,6 +135,26 @@
     else { x.fillStyle = cp; x.beginPath(); x.ellipse(cx, fy - 356 * s + bob, 53 * s, 36 * s, 0, Math.PI, 6.283); x.fill(); x.fillStyle = "#00000033"; x.fillRect(cx - 53 * s, fy - 358 * s + bob, 106 * s, 4 * s); x.fillStyle = cp; x.beginPath(); x.ellipse(cx + 22 * s, fy - 354 * s + bob, 50 * s, 10 * s, 0, 0, 6.283); x.fill(); x.fillStyle = "#fff"; x.beginPath(); x.arc(cx, fy - 372 * s + bob, 8 * s, 0, 6.283); x.fill(); x.fillStyle = "#e53935"; x.beginPath(); x.arc(cx, fy - 372 * s + bob, 8 * s, Math.PI, 6.283); x.fill(); }
   }
 
+
+  /* ---------- gym badge artwork (drawn once, used as real images) ---------- */
+  const BCACHE = [];
+  function badgeUrl(i) {
+    if (BCACHE[i]) return BCACHE[i]; const c = document.createElement("canvas"); c.width = c.height = 96; const x = c.getContext("2d");
+    const cols = [["#d8c49a", "#6b5a3a"], ["#7cc0ff", "#1f5fa8"], ["#fff07a", "#c89a00"], ["#9cf09c", "#2f8a3a"], ["#ffb36a", "#c4381c"], ["#d6f8ff", "#5aa9d0"]][i];
+    const rim = x.createLinearGradient(0, 0, 0, 96); rim.addColorStop(0, "#fff2b0"); rim.addColorStop(0.5, "#e0a82e"); rim.addColorStop(1, "#8a5a10"); x.fillStyle = rim; x.beginPath(); x.arc(48, 48, 46, 0, 6.283); x.fill();
+    const bg = x.createRadialGradient(36, 32, 6, 48, 48, 42); bg.addColorStop(0, cols[0]); bg.addColorStop(1, cols[1]); x.fillStyle = bg; x.beginPath(); x.arc(48, 48, 38, 0, 6.283); x.fill(); x.strokeStyle = "rgba(255,255,255,.55)"; x.lineWidth = 2; x.beginPath(); x.arc(48, 48, 38, 0, 6.283); x.stroke();
+    x.fillStyle = "#fff"; x.strokeStyle = "rgba(0,0,0,.4)"; x.lineWidth = 2.5; x.lineJoin = "round"; x.lineCap = "round";
+    if (i === 0) { x.beginPath(); [[48, 20], [72, 34], [72, 62], [48, 76], [24, 62], [24, 34]].forEach(([a, b], k) => (k ? x.lineTo(a, b) : x.moveTo(a, b))); x.closePath(); x.fill(); x.stroke(); x.strokeStyle = "rgba(90,70,40,.7)"; x.beginPath(); x.moveTo(48, 20); x.lineTo(44, 40); x.lineTo(54, 52); x.lineTo(46, 76); x.moveTo(44, 40); x.lineTo(28, 48); x.stroke(); }
+    else if (i === 1) { x.strokeStyle = "#fff"; x.lineWidth = 6; [34, 48, 62].forEach((y) => { x.beginPath(); x.moveTo(22, y); x.bezierCurveTo(34, y - 12, 42, y + 12, 52, y); x.bezierCurveTo(60, y - 10, 68, y + 8, 74, y - 2); x.stroke(); }); }
+    else if (i === 2) { x.beginPath(); [[54, 16], [28, 52], [46, 52], [38, 80], [68, 40], [50, 40]].forEach(([a, b], k) => (k ? x.lineTo(a, b) : x.moveTo(a, b))); x.closePath(); x.fillStyle = "#fff8c0"; x.fill(); x.stroke(); }
+    else if (i === 3) { x.beginPath(); x.moveTo(26, 70); x.bezierCurveTo(22, 36, 46, 18, 74, 22); x.bezierCurveTo(78, 50, 58, 74, 26, 70); x.closePath(); x.fill(); x.stroke(); x.strokeStyle = "rgba(40,110,50,.8)"; x.lineWidth = 3; x.beginPath(); x.moveTo(26, 70); x.lineTo(62, 34); x.stroke(); }
+    else if (i === 4) { x.beginPath(); x.moveTo(48, 14); x.bezierCurveTo(66, 34, 74, 46, 68, 62); x.bezierCurveTo(64, 78, 32, 80, 28, 62); x.bezierCurveTo(26, 50, 38, 44, 40, 30); x.bezierCurveTo(46, 36, 46, 24, 48, 14); x.closePath(); x.fillStyle = "#fff4d0"; x.fill(); x.stroke(); x.fillStyle = "#ff9a3a"; x.beginPath(); x.arc(48, 62, 9, 0, 6.283); x.fill(); }
+    else { x.strokeStyle = "#fff"; x.lineWidth = 5; for (let k = 0; k < 3; k++) { const a = (k * Math.PI) / 3; x.beginPath(); x.moveTo(48 + Math.cos(a) * 28, 48 + Math.sin(a) * 28); x.lineTo(48 - Math.cos(a) * 28, 48 - Math.sin(a) * 28); x.stroke(); } x.lineWidth = 3; for (let k = 0; k < 6; k++) { const a = (k * Math.PI) / 3; const bx = 48 + Math.cos(a) * 18, bz = 48 + Math.sin(a) * 18; x.beginPath(); x.moveTo(bx + Math.cos(a + 0.9) * 8, bz + Math.sin(a + 0.9) * 8); x.lineTo(bx, bz); x.lineTo(bx + Math.cos(a - 0.9) * 8, bz + Math.sin(a - 0.9) * 8); x.stroke(); } }
+    x.fillStyle = "rgba(255,255,255,.28)"; x.beginPath(); x.ellipse(36, 30, 20, 10, -0.6, 0, 6.283); x.fill();
+    return (BCACHE[i] = c.toDataURL());
+  }
+  const badgeImg = (i, on, s) => '<img class="bdg' + (on ? "" : " off") + '" src="' + badgeUrl(i) + '" width="' + (s || 24) + '" height="' + (s || 24) + '" alt="">';
+
   /* ---------- saves ---------- */
   let DB = { active: null, saves: [] };
   function loadDB() { try { const r = JSON.parse(localStorage.getItem(KEY)); if (r && r.saves) DB = r; } catch (e) {} }
@@ -217,17 +237,31 @@
   }
 
   /* ---------- monsters & trainers (3D sprites / low-poly) ---------- */
+  const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   function makeMon(c, s) {
     const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
-    const mat = new THREE.SpriteMaterial({ color: TC[c.t[0]] || 0xcccccc, transparent: true, alphaTest: 0.08 });
-    const sp = new THREE.Sprite(mat); sp.scale.set(s, s, 1); sp.position.y = s * 0.46; inner.add(sp);
+    const geo = new THREE.PlaneGeometry(1, 1, 10, 12), mat = new THREE.MeshBasicMaterial({ color: TC[c.t[0]] || 0xcccccc, transparent: true, alphaTest: 0.08, side: THREE.DoubleSide });
+    const sp = new THREE.Mesh(geo, mat); sp.scale.set(s, s, 1); sp.position.y = s * 0.46; inner.add(sp);
     new THREE.TextureLoader().setCrossOrigin("anonymous").load(ART + c.id + ".png", (tx) => { mat.map = tx; mat.color.set(0xffffff); mat.needsUpdate = true; });
     const sh = mesh(new THREE.CircleGeometry(s * 0.3, 20), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.28, depthWrite: false }), 0, 0.04, 0); sh.rotation.x = -Math.PI / 2; g.add(sh);
-    g.userData = { s, inner, sp, mat, key: c.s, pop: 0, flash: 0, lunge: -1, lx: 0, lz: 0, ph: Math.random() * 6, idle: true, sink: false };
+    g.userData = { s, inner, sp, mat, geo, base: geo.attributes.position.array.slice(), key: c.s, pop: 0, flash: 0, lunge: -1, lx: 0, lz: 0, ph: Math.random() * 6, idle: true, sink: false, px: null, pz: null, walk: 0, cull: false };
     return g;
   }
   const face = (h, right) => { const u = h.userData; u.sp.scale.x = (right ? -1 : 1) * u.s; };
   let T = 0;
+  /* body parts move on their own: head sways, arms/tail flap, legs step when walking, body leans into attacks */
+  function warpMon(u) {
+    const pos = u.geo.attributes.position, a = pos.array, b = u.base, n = pos.count, t = T + u.ph, w = u.walk, atk = u.lunge >= 0 ? Math.sin(Math.PI * Math.min(1, u.lunge)) : 0, hit = u.flash > 0 ? Math.sin(T * 60) * Math.min(1, u.flash) : 0;
+    for (let i = 0; i < n; i++) {
+      const bx = b[i * 3], by = b[i * 3 + 1], v = by + 0.5, ax = Math.abs(bx), sg = bx < 0 ? -1 : 1;
+      const head = sstep(0.55, 1, v), limb = sstep(0.16, 0.5, ax) * sstep(0.12, 0.65, v), leg = 1 - sstep(0.02, 0.32, v), step = Math.sin(t * (7 + w * 4) + (bx > 0 ? 0 : Math.PI));
+      let dx = Math.sin(t * 1.5) * 0.03 * head + Math.sin(t * 3 + sg * 1.7) * 0.02 * limb * sg + step * (0.012 + 0.05 * w) * leg;
+      let dy = Math.sin(t * 3.1) * 0.012 * head + Math.sin(t * 3.6 + sg * 1.9) * 0.035 * limb * (1 + w) + Math.max(0, step) * 0.03 * w * leg + (v - 0.5) * 0.018 * Math.sin(t * 2.2);
+      dx += -atk * 0.16 * v * v + hit * 0.04 * v; dy += atk * 0.03 * head;
+      a[i * 3] = bx + dx; a[i * 3 + 1] = by + dy;
+    }
+    pos.needsUpdate = true;
+  }
   function tickMon(h, dt) {
     const u = h.userData;
     if (u.pop < 1) { u.pop = Math.min(1, u.pop + dt * 3); h.scale.setScalar(0.15 + 0.85 * (1 - Math.pow(1 - u.pop, 3))); }
@@ -235,6 +269,9 @@
     if (u.flash > 0) { u.flash -= dt; u.mat.color.set(Math.floor(u.flash * 14) % 2 ? 0xffffff : 0xff6a6a); if (u.flash <= 0) u.mat.color.set(0xffffff); }
     if (u.lunge >= 0) { u.lunge += dt * 3.4; const k = u.lunge < 1 ? Math.sin(Math.PI * u.lunge) : 0; u.inner.position.set(u.lx * k * 2.4, 0, u.lz * k * 2.4); if (u.lunge >= 1) u.lunge = -1; }
     if (u.idle && !u.sink) u.sp.position.y = u.s * 0.46 + Math.abs(Math.sin(T * 2.6 + u.ph)) * 0.05 * u.s;
+    if (camera) { u.sp.quaternion.copy(camera.quaternion); u.cull = h.position.distanceToSquared(camera.position) > 12000; }
+    if (u.px !== null && dt > 0) u.walk += (Math.min(1, Math.hypot(h.position.x - u.px, h.position.z - u.pz) / dt / 4) - u.walk) * Math.min(1, dt * 8); u.px = h.position.x; u.pz = h.position.z;
+    if (!u.cull) warpMon(u);
   }
   function makeTrainer(look) {
     const L = look || DEF_LOOK, g = new THREE.Group(), skin = hx(SKIN[L.skin]), hair = hx(HAIR[L.hairC]), jk = hx(CLOTH[L.jacket]), pn = hx(PANTS[L.pants]), bg = hx(CLOTH[L.bag]), cp = hx(CLOTH[L.capC]);
@@ -468,7 +505,7 @@
       if (ty === "ice") [[-12, 6], [12, -2], [-12, -12], [12, 14], [-9, 16], [10, -15]].forEach(([x, z]) => { const m = prop(new THREE.OctahedronGeometry(1.8, 0), 0xaee6ff, x, 2.2, z, 1.8, { transparent: true, opacity: 0.85 }); m.scale.y = 1.6; });
       const nt = I < 2 ? 2 : 3;
       for (let j = 0; j < nt; j++) { const lv = gt.team[0][1] - 6 + j * 2, ids = [GYM_POOL[ty] || []].flat(); const team = [[rnd(ids), lv], [rnd(ids), lv + 1]]; mkTrainer(sc, { id: "gt" + I + "_" + j, name: ["Cadet", "Scout", "Ace"][j] + " " + ["Rin", "Tao", "Vic", "Sam"][(I + j) % 4], x: j % 2 ? 7 : -7, z: d / 2 - 14 - j * 10, rot: 0, team, reward: 80 + I * 40, sight: 12, fm: 1, intro: [gt.leader + "’s trainers are no pushovers!"], win: ["Go on, face the Leader!"] }); }
-      mkTrainer(sc, { id: "gym" + I, name: gt.leader, tag: "GYM LEADER " + gt.leader.toUpperCase(), x: 0, z: -d / 2 + 5, rot: 0, look: npcLook("leader" + I), team: gt.team, reward: gt.reward, sight: 0, ir: 3.6, fm: 1, xpm: 1.5, intro: [gt.line, "I’m " + gt.leader + ", leader of the " + gt.badge + " Gym. Show me your strength!"], win: ["Incredible! You’ve earned the " + gt.badge + " Badge!"], done: ["The " + gt.badge + " Badge suits you. Keep climbing!"], gate: () => G.def.filter((x) => x.startsWith("gt" + I + "_")).length >= nt, gateMsg: ["Beat my trainers before you challenge me!"], after: () => { G.badges.push(I); G.flags.lastBadge = I; saveStory(); refreshStory(); toast({ icon: gt.ic, title: gt.badge + " Badge earned!", tone: "success" }); dialog(["You received the " + gt.ic + " " + gt.badge + " Badge!", G.badges.length < 6 ? "The road onward is now open." : "You have all 6 badges! Champions Stadium awaits!"]); } });
+      mkTrainer(sc, { id: "gym" + I, name: gt.leader, tag: "GYM LEADER " + gt.leader.toUpperCase(), x: 0, z: -d / 2 + 5, rot: 0, look: npcLook("leader" + I), team: gt.team, reward: gt.reward, sight: 0, ir: 3.6, fm: 1, xpm: 1.5, intro: [gt.line, "I’m " + gt.leader + ", leader of the " + gt.badge + " Gym. Show me your strength!"], win: ["Incredible! You’ve earned the " + gt.badge + " Badge!"], done: ["The " + gt.badge + " Badge suits you. Keep climbing!"], gate: () => G.def.filter((x) => x.startsWith("gt" + I + "_")).length >= nt, gateMsg: ["Beat my trainers before you challenge me!"], after: () => { G.badges.push(I); G.flags.lastBadge = I; saveStory(); refreshStory(); toast({ icon: badgeImg(I, true, 28), title: gt.badge + " Badge earned!", tone: "success" }); dialog(["You received the " + gt.badge + " Badge!", G.badges.length < 6 ? "The road onward is now open." : "You have all 6 badges! Champions Stadium awaits!"], () => showBadge(I)); } });
       mkNpc(sc, { name: "Gym Guide", tag: "GYM GUIDE", x: -6, z: d / 2 - 4, rot: Math.PI, talk: () => dialog(lines("Gym Guide", ["This is the " + gt.badge + " Gym. Beat the gym trainers, then challenge " + gt.leader + "!", "Weak to " + gt.ty.toUpperCase() + "? Bring a counter type!"])) });
     } else if (kind === "rocket") {
       title("TEAM ROCKET HIDEOUT", 14, "#ff5a5a"); const wl = (x0, x1, z) => bx(x1 - x0, 3.2, 1.4, 0x3a3f4d, (x0 + x1) / 2, z);
@@ -614,8 +651,14 @@
     const c = bt$("bt-cmd"); c.className = "bag";
     const rows = []; if (!BT.o.trainer) BALLS.forEach((b) => { const n = ballCnt(b.id); if (n > 0) rows.push(`<button class="bt-m it" data-k="ball:${b.id}">${itemImg(b.id, 30)}<b>${b.n}</b><small>×${n}</small></button>`); });
     ["potion", "super", "hyper", "berry"].forEach((k) => { const n = G.bag[k] || 0; if (n > 0) rows.push(`<button class="bt-m it" data-k="item:${k}">${itemImg(k, 30)}<b>${ITEMS[k].n}</b><small>×${n} · +${ITEMS[k].heal} HP</small></button>`); });
+    if ((G.bag.revive || 0) > 0 && G.squad.some((m) => m.hp <= 0)) rows.push(`<button class="bt-m it" data-k="rev:go">${itemImg("revive", 30)}<b>Revive</b><small>×${G.bag.revive} · fainted ally</small></button>`);
     c.innerHTML = (rows.join("") || '<div class="bt-empty">Your bag is empty.</div>') + '<button class="bt-b back" data-k="back">◀ BACK</button>';
-    c.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => { const [t, id] = b.dataset.k.split(":"); if (t === "back") return renderMain(); BT.ask({ t, id }); }; });
+    c.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => { const [t, id] = b.dataset.k.split(":"); if (t === "back") return renderMain(); if (t === "rev") return renderRevive(); BT.ask({ t, id }); }; });
+  }
+  function renderRevive() {
+    const c = bt$("bt-cmd"); c.className = "bag"; bt$("bt-text").textContent = "Revive which Pokémon?";
+    c.innerHTML = G.squad.map((m, i) => (m.hp <= 0 ? `<button class="bt-m it" data-i="${i}"><img class="av-it" src="${ART + m.id}.png" width="34" height="34" alt=""><b>${m.n} Lv${m.lv}</b><small>fainted</small></button>` : "")).join("") + '<button class="bt-b back" data-i="back">◀ BACK</button>';
+    c.querySelectorAll("[data-i]").forEach((b) => { b.onclick = () => { if (b.dataset.i === "back") return renderBag(); BT.ask({ t: "revive", i: +b.dataset.i }); }; });
   }
   function renderTeam(forced) {
     const c = bt$("bt-cmd"); c.className = "bag"; bt$("bt-text").textContent = forced ? "Choose the next Pokémon!" : "Choose a Pokémon.";
@@ -648,6 +691,7 @@
     if (cmd.t === "run") { const ch = clamp(0.55 + (pm.spd - fm.spd) * 0.02, 0.3, 0.95); if (Math.random() < ch) { await msg("Got away safely!", 900); BT.over = true; BT.res = "run"; return; } await msg("Can’t escape!", 800); await foeAttack(); return; }
     if (cmd.t === "switch") { await msg("Come back, " + pm.n + "!", 600); BT.pH.userData.sink = true; BT.pH.userData.sinkT = 0; await wait(450); await sendPlayer(cmd.i); await foeAttack(); return; }
     if (cmd.t === "item") { const it = ITEMS[cmd.id]; G.bag[cmd.id]--; const before = pm.hp; pm.hp = Math.min(pm.max, pm.hp + it.heal); for (let i = 0; i < 10; i++) emit({ tex: TX.star, x: BT.pH.position.x + (Math.random() - 0.5) * 2, y: 1 + Math.random() * 2, z: BT.pH.position.z, vy: 1.5, life: 0.9, s0: 0.5, s1: 0.1, color: 0x62ff9a, add: true }); await msg("You used a " + it.n + ". " + pm.n + " recovered " + (pm.hp - before) + " HP!", 900); await animHp("p"); await foeAttack(); return; }
+    if (cmd.t === "revive") { const rc = G.squad[cmd.i]; G.bag.revive--; rc.hp = Math.round(rc.max / 2); rc.pp = {}; const pp = PPOS(); for (let i = 0; i < 12; i++) emit({ tex: TX.star, x: pp.x + (Math.random() - 0.5) * 3, y: 0.5 + Math.random() * 2, z: pp.z, vy: 2, life: 1, s0: 0.6, s1: 0.1, color: 0x8ee6b0, add: true }); sfx(880, 0.2, "sine", 0.1); await msg("You used a Revive. " + rc.n + " is back on its feet!", 1000); await foeAttack(); return; }
     if (cmd.t === "ball") { const ok = await throwBall(cmd.id); if (!ok && !BT.over) await foeAttack(); return; }
     const pmv = cmd.mv, fmv = aiMove(fm, pm), pri = (m) => (m.n === "Quick Attack" ? 1 : 0);
     const pFirst = pri(pmv) !== pri(fmv) ? pri(pmv) > pri(fmv) : pm.spd >= fm.spd; const order = pFirst ? ["p", "f"] : ["f", "p"];
@@ -712,7 +756,7 @@
   const unpack = (o) => { const c = mkL(SPECIES[o.id] || SPECIES[25], o.lv); c.xp = o.xp || 0; c.hp = Math.max(0, Math.min(c.max, o.hp == null ? c.max : o.hp)); return c; };
   const pack = (c) => ({ id: c.id, lv: c.lv, xp: c.xp || 0, hp: c.hp });
   function saveStory() {
-    if (!G) return; const S = G.sv.story; S.squad = G.squad.map(pack); S.box = G.box.map(pack); S.bag = G.bag; S.badges = G.badges; S.def = G.def; S.flags = G.flags; S.q = G.q; S.picked = G.picked; S.visited = G.visited; S.spawn = G.spawn; S.friends = G.friends; S.dex = G.dex;
+    if (!G) return; const S = G.sv.story; S.squad = G.squad.map(pack); S.box = G.box.map(pack); S.bag = Object.assign({}, G.bag); delete S.bag.revive; S.badges = G.badges; S.def = G.def; S.flags = G.flags; S.q = G.q; S.picked = G.picked; S.visited = G.visited; S.spawn = G.spawn; S.friends = G.friends; S.dex = G.dex;
     const inW = SC && SC.id === "world"; S.pos = inW ? { x: P.x, z: P.z } : G.ret ? { x: G.ret.x, z: G.ret.z } : S.pos; G.sv.played = Date.now(); saveDB();
   }
   function healAll() { G.squad.forEach(healMon); refresh(); setPartner(true); saveStory(); sfx(880, 0.2, "sine", 0.1); }
@@ -995,7 +1039,7 @@
     else if (tab === "bag") body = '<div class="av-shop">' + ["potion", "super", "hyper", "revive", "berry", "candy", "mail"].filter((k) => G.bag[k]).map((k) => `<div class="av-item">${itemImg(k, 40)}<div><b>${(ITEMS[k] || { n: "Letter" }).n} ×${G.bag[k]}</b><span>${ITEMS[k] && ITEMS[k].heal ? "Heals " + ITEMS[k].heal + " HP" : k === "revive" ? "Revives a fainted Pokémon" : k === "mail" ? "A letter to deliver" : "Raises a level"}</span></div>${ITEMS[k] ? `<button class="av-btn ghost" data-u="${k}">USE</button>` : ""}</div>`).join("") + BALLS.map((b) => (ballCnt(b.id) ? `<div class="av-item">${itemImg(b.id, 40)}<div><b>${b.n} ×${ballCnt(b.id)}</b><span>For catching wild Pokémon</span></div></div>` : "")).join("") + "</div>";
     else if (tab === "quests") { const act = QUESTS.filter((q) => qState(q.id).s === 1 || qState(q.id).s === 2); body = '<div class="av-shop">' + (act.map((q) => { const st = qState(q.id); return `<div class="av-item"><span style="font-size:22px">${st.s === 2 ? "✅" : "📜"}</span><div><b>${q.title}</b><span>${q.desc}</span><span style="color:#ffcf45">${st.s === 2 ? "Ready — return to " + q.giver : st.p + "/" + q.n + " · from " + q.giver + " (" + TOWNS[q.town].n + ")"}</span></div></div>`; }).join("") || "<p>No active quests. Talk to townspeople with a ❗ above their heads!</p>") + `<p style="color:#7fa6cf">Completed: ${Object.values(G.q).filter((q) => q.s === 3).length} / ${QUESTS.length}</p></div>`; }
     else if (tab === "map") body = `<canvas id="av-tmap" width="440" height="440"></canvas><p style="margin:6px 0">Tap a visited town to fly there${SC && SC.id === "world" ? "" : " (outdoors only)"}.</p>`;
-    else body = `<canvas id="av-card" width="200" height="240"></canvas><div class="av-stats"><div class="av-stat"><small>NAME</small><b style="font-size:14px">${G.sv.name}</b></div><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>MONEY</small><b style="font-size:14px">🥮 ${getCoins().toLocaleString()}</b></div></div><p>${GYMS.map((g, i) => (G.badges.includes(i) ? g.ic : "▫️")).join(" ")}</p><div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button></div>`;
+    else body = `<canvas id="av-card" width="200" height="240"></canvas><div class="av-stats"><div class="av-stat"><small>NAME</small><b style="font-size:14px">${G.sv.name}</b></div><div class="av-stat"><small>BADGES</small><b>${G.badges.length}/6</b></div><div class="av-stat"><small>MONEY</small><b style="font-size:14px">🥮 ${getCoins().toLocaleString()}</b></div></div><p style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">${GYMS.map((g, i) => badgeImg(i, G.badges.includes(i), 40)).join("")}</p><div class="av-row2"><button class="av-btn ghost" data-a="exit">SAVE & EXIT</button></div>`;
     modal(`<h2>MENU</h2>${head}<div class="av-shop">${body}</div><div class="av-row2"><button class="av-btn" data-a="x">RESUME</button></div>`, (m) => {
       m.querySelectorAll("[data-t]").forEach((b) => { b.onclick = () => hub(b.dataset.t); }); const x = m.querySelector("[data-a=x]"); if (x) x.onclick = closeModal; const ex = m.querySelector("[data-a=exit]"); if (ex) ex.onclick = () => { saveStory(); menu(); };
       m.querySelectorAll("[data-l]").forEach((b) => { b.onclick = () => { G.lead = +b.dataset.l; setPartner(true); refresh(); saveStory(); hub("party"); }; });
@@ -1018,6 +1062,7 @@
     runId++; abortBattle(); mode = "story"; DB.active = sv.id; saveDB(); const S = sv.story; clearRoamers();
     G = { sv, name: sv.name, look: sv.look, squad: S.squad.map(unpack), box: (S.box || []).map(unpack), bag: Object.assign({}, S.bag), badges: S.badges.slice(), def: S.def.slice(), flags: Object.assign({}, S.flags), q: JSON.parse(JSON.stringify(S.q || {})), picked: S.picked.slice(), visited: S.visited.slice(), spawn: Object.assign({}, S.spawn), friends: S.friends, dex: JSON.parse(JSON.stringify(S.dex || { seen: {}, caught: {} })), fm: [], lead: 0, cut: false, near: null, walk: null, hist: [], ret: null, loc: "", gd: 0, gcool: 0, area: "", run: false, roamT: 0 };
     G.squad.concat(G.box).forEach((c) => { G.dex.seen[c.id] = 1; G.dex.caught[c.id] = 1; });
+    { const legacy = G.bag.revive || 0; delete G.bag.revive; if (legacy) { DB.revive = (DB.revive || 0) + legacy; S.bag.revive = 0; saveDB(); } Object.defineProperty(G.bag, "revive", { get: () => DB.revive || 0, set: (v) => { DB.revive = Math.max(0, v); saveDB(); }, enumerable: true, configurable: true }); }
     if (!WORLD) buildWorld();
     scene.remove(trainer); trainer = makeTrainer(G.look); scene.add(trainer);
     WORLD.picks.forEach((p) => { p.mesh.visible = !G.picked.includes(p.id); });
@@ -1102,7 +1147,7 @@
     if (loc !== G.loc) { G.loc = loc; const lb = $("av-loc"); lb.textContent = loc; lb.classList.remove("show"); void lb.offsetWidth; lb.classList.add("show"); }
     const h = G.hist, lastp = h[h.length - 1]; if (!lastp || Math.hypot(lastp.x - P.x, lastp.z - P.z) > 0.15) { h.push({ x: P.x, z: P.z }); if (h.length > 400) h.shift(); }
     if (world) (G.fm || []).forEach((o) => { if (o.state !== "follow") return; const p = h[h.length - 1 - (o.key === "a" ? 1 : 2) * 10]; if (p) { const dx = p.x - o.x, dz = p.z - o.z; if (Math.hypot(dx, dz) > 0.02) o.mesh.rotation.y = Math.atan2(dx, dz); o.x = p.x; o.z = p.z; o.mesh.position.set(o.x, 0, o.z); const lg = o.mesh.userData.legs, sw = P.moving ? Math.sin(T * 12 + (o.key === "a" ? 0 : 1)) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; } });
-    setHud(`<div class="av-hbox"><small>BADGES</small><b style="font-size:17px">${GYMS.map((g, i) => (G.badges.includes(i) ? g.ic : "▫️")).join("")}</b></div><div class="av-zbar"><span>LOCATION</span><b>${loc}</b></div><div class="av-hbox"><small>PARTY</small><b>${G.squad.filter((c) => c.hp > 0).length}/${G.squad.length}</b></div>`);
+    setHud(`<div class="av-hbox"><small>BADGES</small><b class="bds">${GYMS.map((g, i) => badgeImg(i, G.badges.includes(i), 22)).join("")}</b></div><div class="av-zbar"><span>LOCATION</span><b>${loc}</b></div><div class="av-hbox"><small>PARTY</small><b>${G.squad.filter((c) => c.hp > 0).length}/${G.squad.length}</b></div>`);
     drawMap();
   }
   function drawMap() {
@@ -1269,6 +1314,95 @@
   addEventListener("keyup", (e) => { held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
   addEventListener("blur", () => { Object.keys(held).forEach((k) => { held[k] = false; }); });
 
+  /* ============================================================
+     WEBSITE BATTLE UPGRADES — computer, 2-player and online matches
+     (runs on top of game.js: animated body parts, richer move
+     effects for every type, smarter AI that switches Pokémon, and
+     Revive during matches)
+  ============================================================ */
+  const warpState = new WeakMap();
+  function warpedDraw(image, x0, y0, w, h, fighter, walk, atk, fwd) {
+    const C = 8, R = 14, sw = image.naturalWidth / C, sh = image.naturalHeight / R, cw = w / C, ch = h / R, t = fighter.animationTime / 60 + (fighter === player ? 0 : 1.7), hit = fighter.hitTimer > 0 ? Math.sin(fighter.hitTimer * 0.5) : 0;
+    for (let j = 0; j < R; j++) {
+      const v = 1 - (j + 0.5) / R, head = sstep(0.55, 1, v), leg = 1 - sstep(0.02, 0.3, v);
+      for (let i = 0; i < C; i++) {
+        const u = (i + 0.5) / C - 0.5, ax = Math.abs(u), sg = u < 0 ? -1 : 1, limb = sstep(0.16, 0.5, ax) * sstep(0.12, 0.65, v), step = Math.sin(t * (7 + walk * 5) + (u > 0 ? 0 : Math.PI));
+        let dx = Math.sin(t * 1.5) * 0.03 * head + Math.sin(t * 3 + sg * 1.7) * 0.02 * limb * sg + step * (0.012 + 0.05 * walk) * leg;
+        let dy = Math.sin(t * 3.1) * 0.012 * head + Math.sin(t * 3.6 + sg * 1.9) * 0.035 * limb * (1 + walk) + Math.max(0, step) * 0.03 * walk * leg + (v - 0.5) * 0.018 * Math.sin(t * 2.2);
+        dx += fwd * atk * 0.16 * v * v + hit * 0.04 * v; dy -= atk * 0.03 * head;
+        ctx.drawImage(image, i * sw, j * sh, sw, sh, x0 + i * cw + dx * w, y0 + j * ch - dy * h, cw + 1.4, ch + 1.4);
+      }
+    }
+  }
+  function patchBattleDraw() {
+    if (typeof window.drawPokemonImage !== "function") return;
+    window.drawPokemonImage = function (fighter, image, pokemon) {
+      const size = 245 * getSizeScale(pokemon); ctx.save();
+      if (!fighter.jumping && !fighter.attacking && !fighter.hitTimer && !fighter.dodging) ctx.scale(1, 1 + Math.sin(fighter.animationTime * 0.06) * 0.02);
+      const nat = getArtworkNaturalFacing(pokemon); ctx.scale(nat * fighter.facing, 1);
+      if (fighter.jumping) { ctx.rotate(fighter.facing * -0.045); ctx.scale(0.97, 1.03); } if (fighter.dodging) ctx.scale(1.12, 0.88);
+      let atk = 0; if (fighter.attacking) { const pr = clamp(1 - fighter.attackTimer / GAME.attackDuration, 0, 1); atk = Math.sin(pr * Math.PI); ctx.translate(atk * 18, 0); ctx.rotate(atk * 0.035); }
+      if (fighter.attacking || fighter.hitTimer > 0) { ctx.shadowColor = fighter === player ? "#ffe14a" : "#ff6688"; ctx.shadowBlur = 12; }
+      const st = warpState.get(fighter) || { x: fighter.x, v: 0 }; st.v += (Math.min(1, Math.abs(fighter.x - st.x) / 6) - st.v) * 0.2; st.x = fighter.x; warpState.set(fighter, st);
+      warpedDraw(image, -size / 2, -size + 15, size, size, fighter, st.v, atk, nat);
+      ctx.shadowBlur = 0; ctx.restore();
+    };
+    if (typeof window.drawProjectiles === "function") window.drawProjectiles = function () {
+      for (let i = 0; i < projectiles.length; i++) {
+        const p = projectiles[i], ty = p.move.type || "normal", col = p.move.color || "#fff", now = performance.now();
+        ctx.save(); ctx.translate(p.x, p.y);
+        const g = ctx.createRadialGradient(0, 0, 2, 0, 0, p.radius * 2.8); g.addColorStop(0, col); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.globalAlpha = 0.6; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, p.radius * 2.8, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1;
+        if (ty === "electric") { ctx.strokeStyle = "#fff9a6"; ctx.lineWidth = 4; ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.beginPath(); ctx.moveTo(-p.radius * 1.4, -4); for (let k = 1; k <= 5; k++) ctx.lineTo(-p.radius * 1.4 + k * p.radius * 0.6, (k % 2 ? 1 : -1) * (6 + Math.sin(now * 0.05 + k) * 3)); ctx.stroke(); }
+        else { ctx.rotate(now * 0.009 * (i % 2 ? 1 : -1)); ctx.font = Math.round(p.radius * 2.6) + "px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.fillText(FXE[ty] || "💥", 0, 2); }
+        ctx.restore();
+      }
+    };
+    if (typeof window.createImpactEffect === "function") { const orig = window.createImpactEffect; window.createImpactEffect = function (x, y, move) { orig(x, y, move); try { createBurst(x, y, move.color, 10); if (move.type === "ground" || move.type === "rock") screenShake = Math.max(screenShake, 6); showText(x + (Math.random() - 0.5) * 40, y - 30, FXE[move.type] || "💥", move.color); } catch (e) {} }; }
+  }
+  function aiConsiderSwitch() {
+    if (window.AI_DIFFICULTY === "easy") return; const team = enemyTeam;
+    if (!team || team.length < 2 || enemy.hp <= 0 || enemy.attacking || enemy.dodging || enemy.hitTimer > 0 || enemy.switchLock > 0) return;
+    const hpOf = (p) => (typeof p.hp === "number" ? p.hp : 100), alive = team.map((p, i) => ({ p, i })).filter((o) => o.i !== enemyTeamIndex && o.p && !o.p.fainted);
+    if (!alive.length) return;
+    const score = (att, def) => typeEffectivenessMultiplier(getMove(att).type, def) / Math.max(0.25, typeEffectivenessMultiplier(getMove(def).type, att));
+    const cur = score(enemyPokemon, playerPokemon); let best = null, bs = cur; const low = enemy.hp < 28 && alive.some((o) => hpOf(o.p) > 55);
+    alive.forEach((o) => { if (hpOf(o.p) < 35) return; const s = score(o.p, playerPokemon) * (hpOf(o.p) / 100 + 0.4); if (s > bs) { bs = s; best = o; } });
+    if (low) best = alive.filter((o) => hpOf(o.p) > 55).sort((a, b) => score(b.p, playerPokemon) - score(a.p, playerPokemon))[0];
+    if (best && (low || bs > cur * 1.6) && Math.random() < 0.8) switchToIndex(false, best.i);
+  }
+  function patchAI() {
+    const orig = window.updateEnemyAI; if (typeof orig !== "function") return; let tmr = 0;
+    window.updateEnemyAI = function (dt) { try { if (!twoPlayerMode && !onlineBattleActive && gameRunning && !battleEnded && !koPause) { tmr -= 16.67 * dt; if (tmr <= 0) { tmr = 1400 + Math.random() * 900; aiConsiderSwitch(); } } } catch (e) {} return orig(dt); };
+  }
+  function matchRevive() {
+    try {
+      if (!gameRunning || battleEnded || onlineBattleActive || koPause) return;
+      if ((DB.revive || 0) <= 0) { toast({ icon: itemImg("revive", 22), title: "No Revives left", message: "Buy one in the Shop or find them in Adventure." }); return; }
+      const idx = playerTeam.findIndex((p) => p && p.fainted); if (idx < 0) { toast({ icon: "♻️", title: "Nobody has fainted" }); return; }
+      const pk = playerTeam[idx]; pk.fainted = false; pk.hp = 50; DB.revive--; saveDB(); showText(player.x, player.y - 250, formatPokemonName(pk.name) + " REVIVED!", "#8ee6b0"); createBurst(player.x, player.y - 100, "#8ee6b0", 22); updateTeamPips(); updateHealthBars(); updateMatchReviveBtn();
+    } catch (e) {}
+  }
+  function updateMatchReviveBtn() {
+    const b = $("match-revive"); if (!b) return; let show = false;
+    try { const bf = $("battlefield-page"); show = !!(bf && !bf.classList.contains("hidden") && gameRunning && !battleEnded && !onlineBattleActive); } catch (e) {}
+    b.style.display = show ? "flex" : "none"; if (show) b.innerHTML = itemImg("revive", 22) + "<span>Revive ×" + (DB.revive || 0) + " <small>(R)</small></span>";
+  }
+  function patchRevive() {
+    const bf = $("battlefield-page"); if (bf && !$("match-revive")) { const b = document.createElement("button"); b.id = "match-revive"; b.type = "button"; b.onclick = matchRevive; b.style.display = "none"; bf.appendChild(b); }
+    const orig = window.handleKeyDown; if (typeof orig === "function") window.handleKeyDown = function (e) { try { if (!window.gameKeysShouldIgnore(e) && (e.key === "r" || e.key === "R") && !e.repeat) { e.preventDefault(); matchRevive(); return; } } catch (x) {} return orig(e); };
+    setInterval(updateMatchReviveBtn, 500);
+  }
+  function injectReviveShop() {
+    const list = $("shop-items"); if (!list) return;
+    const add = () => {
+      if ($("shop-revive")) return; const d = document.createElement("div"); d.className = "shop-item-card"; d.id = "shop-revive";
+      d.innerHTML = '<div class="shop-item-icon">' + itemImg("revive", 30) + '</div><div class="shop-item-body"><div class="shop-item-name">Revive</div><div class="shop-item-desc">Brings a fainted Pokémon back at half health during a match (press R or tap the Revive button) and in the Story. Owned: <b>' + (DB.revive || 0) + '</b></div></div><button class="shop-item-buy" id="shop-revive-buy" type="button">600 🥮</button>';
+      list.appendChild(d); $("shop-revive-buy").onclick = () => { if (getCoins() < 600) { toast({ icon: "⚠️", title: "Not enough coins" }); return; } addCoins(-600); DB.revive = (DB.revive || 0) + 1; saveDB(); toast({ icon: itemImg("revive", 22), title: "Revive purchased!", tone: "success" }); try { renderShop(); } catch (e) {} };
+    };
+    new MutationObserver(add).observe(list, { childList: true }); add();
+  }
+  function patchSite() { if (window.__pfAdvPatched) return; window.__pfAdvPatched = true; [patchBattleDraw, patchAI, patchRevive, injectReviveShop].forEach((f) => { try { f(); } catch (e) { console.warn("[adventure] site patch skipped:", e && e.message); } }); }
+
   /* ---------- boot ---------- */
   const CSS = `
 #adventure-page{padding:0!important;display:block;background:#0b1220!important;overflow:hidden;font-family:var(--font-body)}
@@ -1397,6 +1531,8 @@
 .ha-mon{position:absolute;right:1%;bottom:74px;width:36%;max-width:190px;height:auto;pointer-events:none;filter:drop-shadow(0 12px 12px #0008);animation:haFloat 2.8s ease-in-out infinite}
 @keyframes haFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:560px){.ha-mon{width:34%;bottom:64px}}
+.bdg{vertical-align:middle;margin:0 1px;filter:drop-shadow(0 2px 3px #0008)}.bdg.off{filter:brightness(0) opacity(.32)}.bdg.big{filter:drop-shadow(0 6px 10px #000a)}.av-hbox b.bds{display:flex;gap:2px;align-items:center;justify-content:center;min-height:24px}
+#match-revive{position:absolute;z-index:40;top:calc(78px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);align-items:center;gap:8px;background:rgba(7,17,31,.88);border:1px solid #55e6a0;color:#b9f36c;border-radius:999px;padding:6px 14px;font:800 12px Rajdhani,Arial;letter-spacing:.5px;cursor:pointer}#match-revive small{opacity:.7}
 #adventure-page{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #av-pad{display:none!important}
 #av-joy{position:absolute;left:16px;bottom:calc(20px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:rgba(6,14,24,.45);border:2px solid #3a5878;z-index:5;touch-action:none;backdrop-filter:blur(3px)}
@@ -1410,7 +1546,7 @@
 @media(max-height:520px){#av-joy{width:112px;height:112px}.av-sheet{max-height:96%}}
 `;
   function injectCSS() { if ($("av-css")) return; const s = document.createElement("style"); s.id = "av-css"; s.textContent = CSS; document.head.appendChild(s); }
-  function boot() { injectCSS(); loadDB(); initHome(); const b = $("btn-adventure"); if (b) b.onclick = open; }
+  function boot() { injectCSS(); loadDB(); initHome(); patchSite(); const b = $("btn-adventure"); if (b) b.onclick = open; }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
   window.openAdventure = open;
 })();
