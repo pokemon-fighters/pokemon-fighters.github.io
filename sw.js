@@ -8,12 +8,12 @@
  2. Self-updating — bump CACHE_VERSION on every real deploy. A new
     version installs in the background, calls skipWaiting() so it
     takes over immediately, and clients.claim() so it controls
-    already-open tabs right away. app.js listens for the resulting
-    "controllerchange" event and reloads the page once.
+    already-open tabs right away. app.js reloads the page once on
+    the resulting "controllerchange" event.
 ============================================================
 */
 
-const CACHE_VERSION = "v47";
+const CACHE_VERSION = "v49";
 const SHELL_CACHE = `fighter-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fighter-runtime-${CACHE_VERSION}`;
 

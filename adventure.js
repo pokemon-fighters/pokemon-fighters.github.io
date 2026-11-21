@@ -293,7 +293,7 @@
   Grid.prototype.hit = function (x, z) { const cx = Math.floor(x / 8), cz = Math.floor(z / 8); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = this.m.get(cx + i + "," + (cz + j)); if (a) for (const c of a) { const dx = x - c[0], dz = z - c[1], rr = c[2] + 0.4; if (dx * dx + dz * dz < rr * rr) return true; } } return false; };
   let SC = null, WORLD = null; const INTS = {};
   const P = { x: 30, z: 4, rot: Math.PI / 2, moving: false };
-  function mkScene(id, bnd, bg, fog) { const g = new THREE.Group(); g.visible = false; scene.add(g); return { id, group: g, col: new Grid(), bnd, inter: [], npcs: [], trainers: [], patches: [], gates: [], doors: [], picks: [], builds: [], ambient: [], bg, fog, exit: null, clouds: [] }; }
+  function mkScene(id, bnd, bg, fog) { const g = new THREE.Group(); g.visible = false; scene.add(g); return { id, group: g, col: new Grid(), bnd, inter: [], npcs: [], trainers: [], patches: [], gates: [], doors: [], picks: [], builds: [], ambient: [], water: [], bg, fog, exit: null, clouds: [] }; }
   function mkNpc(sc, o) {
     const m = makeTrainer(o.look || npcLook(o.name || o.tag || "npc")); m.position.set(o.x, 0, o.z); m.rotation.y = o.rot || 0; sc.group.add(m); o.mesh = m; o.sc = sc;
     if (o.tag) { const l = labelSprite(o.tag, 4.6, "rgba(10,20,40,.88)", o.tc || "#ffcf45"); l.position.set(0, 3, 0); m.add(l); }
@@ -340,7 +340,9 @@
   const townAt = (x, z) => TOWNS.findIndex((t) => inTownRect(x, z, t));
   function distSeg(px, pz, s) { const dx = s.bx - s.ax, dz = s.bz - s.az; let t = ((px - s.ax) * dx + (pz - s.az) * dz) / (dx * dx + dz * dz); t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (s.ax + dx * t), pz - (s.az + dz * t)); }
   function nearSeg(x, z, wide) { let best = null, bd = 1e9; for (const s of SEGS) { if (x < s.minx - (wide || 0) || x > s.maxx + (wide || 0) || z < s.minz - (wide || 0) || z > s.maxz + (wide || 0)) continue; const d = distSeg(x, z, s); if (d - s.hw < bd) { bd = d - s.hw; best = s; } } return { s: best, d: bd }; }
-  const walkable = (x, z) => townAt(x, z) >= 0 || nearSeg(x, z).d <= 0;
+  const WATER = [];
+  function inWater(list, x, z) { if (!list) return false; for (let i = 0; i < list.length; i++) { const w = list[i], dx = (x - w.x) / w.rx, dz = (z - w.z) / w.rz; if (dx * dx + dz * dz < 1) return true; } return false; }
+  const walkable = (x, z) => (townAt(x, z) >= 0 || nearSeg(x, z).d <= 0) && !inWater(WATER, x, z);
   function areaAt(x, z) { const ti = townAt(x, z); if (ti >= 0) return { k: "t", i: ti, key: "t" + ti }; const q = nearSeg(x, z); if (q.s && q.d <= 0) return q.s.r >= 0 ? { k: "r", i: q.s.r, key: "r" + q.s.r, tab: q.s.tab } : { k: "s", i: q.s.s, key: "s" + q.s.s, tab: q.s.tab }; return { k: "x", key: "x" }; }
   const locName = (x, z) => { const a = areaAt(x, z); return a.k === "t" ? TOWNS[a.i].n : a.k === "r" ? "Route " + (a.i + 1) : a.k === "s" ? SIDE_NAMES[a.i] : "Wilderness"; };
   function pointAlong(ri, d) { let acc = 0, last = null; for (const s of SEGS) { if (s.r !== ri) continue; last = s; if (acc + s.len >= d) { const t = (d - acc) / s.len; return { x: s.ax + (s.bx - s.ax) * t, z: s.az + (s.bz - s.az) * t, dx: (s.bx - s.ax) / s.len, dz: (s.bz - s.az) / s.len }; } acc += s.len; } return { x: last.bx, z: last.bz, dx: (last.bx - last.ax) / last.len, dz: (last.bz - last.az) / last.len }; }
@@ -373,13 +375,13 @@
   function gateHit(x, z) { return WORLD.gates.some((g) => !g.req() && Math.abs((x - g.x) * g.dx + (z - g.z) * g.dz) < 1 && Math.abs(-(x - g.x) * g.dz + (z - g.z) * g.dx) < RW + 3); }
 
   function buildWorld() {
-    const sc = (WORLD = mkScene("world", { x0: -5, x1: 905, z0: -5, z1: 905 }, 0x8fd0ff, [70, 230])); sc.kind = "world"; const g = sc.group;
+    const sc = (WORLD = mkScene("world", { x0: -5, x1: 905, z0: -5, z1: 905 }, 0x8fd0ff, [70, 230])); sc.kind = "world"; sc.water = WATER; const g = sc.group;
     let seed = 77; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
     const flat = (m, y) => { m.rotation.x = -Math.PI / 2; m.position.y = y; g.add(m); return m; };
     flat(mesh(new THREE.PlaneGeometry(6000, 6000), lam(0x2a79c9), 450, 0, 450), -0.5); flat(mesh(new THREE.PlaneGeometry(940, 940), lam(0xffffff, { map: grassTex(190, 190) }), 450, 0, 450), 0);
     const blob = (x, z, rx, rz, col, y) => { const m = mesh(new THREE.CircleGeometry(1, 36), lam(col), x, 0, z); m.scale.set(rx, rz, 1); flat(m, y); };
-    [[40, 890, 120, 70], [330, 912, 160, 70], [620, 912, 150, 80], [880, 870, 110, 110], [920, 640, 70, 150], [920, 330, 60, 120], [-15, 300, 60, 140], [-15, 620, 60, 120], [250, -12, 160, 60], [560, -12, 170, 60]].forEach(([x, z, rx, rz]) => { blob(x, z, rx + 7, rz + 7, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x2a79c9, 0.03); });
-    [[330, 470, 34, 26], [590, 505, 30, 24], [255, 645, 36, 28], [560, 150, 38, 30], [470, 430, 26, 20], [700, 560, 30, 24], [60, 400, 30, 24], [300, 220, 28, 22]].forEach(([x, z, rx, rz]) => { const q = nearSeg(x, z, 60); if ((q.s && q.d < Math.max(rx, rz) + 10) || TOWNS.some((t) => inTownRect(x, z, t, Math.max(rx, rz) + 8))) return; blob(x, z, rx + 4, rz + 4, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x3fa7e8, 0.03); });
+    [[40, 890, 120, 70], [330, 912, 160, 70], [620, 912, 150, 80], [880, 870, 110, 110], [920, 640, 70, 150], [920, 330, 60, 120], [-15, 300, 60, 140], [-15, 620, 60, 120], [250, -12, 160, 60], [560, -12, 170, 60]].forEach(([x, z, rx, rz]) => { blob(x, z, rx + 7, rz + 7, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x2a79c9, 0.03); WATER.push({ x, z, rx: rx + 2, rz: rz + 2 }); });
+    [[330, 470, 34, 26], [590, 505, 30, 24], [255, 645, 36, 28], [560, 150, 38, 30], [470, 430, 26, 20], [700, 560, 30, 24], [60, 400, 30, 24], [300, 220, 28, 22]].forEach(([x, z, rx, rz]) => { const q = nearSeg(x, z, 60); if ((q.s && q.d < Math.max(rx, rz) + 10) || TOWNS.some((t) => inTownRect(x, z, t, Math.max(rx, rz) + 8))) return; blob(x, z, rx + 4, rz + 4, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x3fa7e8, 0.03); WATER.push({ x, z, rx: rx + 1, rz: rz + 1 }); });
     SEGS.forEach((s) => { const grp = new THREE.Group(); grp.position.set((s.ax + s.bx) / 2, 0.035, (s.az + s.bz) / 2); grp.rotation.y = -Math.atan2(s.bz - s.az, s.bx - s.ax); const pl = mesh(new THREE.PlaneGeometry(s.len + 0.6, s.hw > 11 ? 6.5 : 5), lam(0xcdb98a)); pl.rotation.x = -Math.PI / 2; grp.add(pl); g.add(grp); const j = mesh(new THREE.CircleGeometry(s.hw > 11 ? 3.25 : 2.5, 14), lam(0xcdb98a), s.ax, 0, s.az); flat(j, 0.036); });
     /* towns */
     TOWNS.forEach((t, i) => {
@@ -498,7 +500,7 @@
       [-8, 8].forEach((x) => { prop(new THREE.CylinderGeometry(0.8, 1, 1.2, 8), 0x555566, x, 0.6, d / 2 - 6, 1.1); const st = itemSprite("pokeball", 1.6); st.position.set(x, 2.2, d / 2 - 6); g.add(st); });
       const ty = gt.ty;
       if (ty === "rock") [[-12, 4], [12, -2], [-11, -12], [13, 12], [-14, 14], [10, -16]].forEach(([x, z]) => { const m = prop(new THREE.DodecahedronGeometry(2.2, 0), 0x8a7f72, x, 1.6, z, 2.4); m.scale.y = 0.9; });
-      if (ty === "water") [[-11, 4], [11, 4], [-11, -12], [11, -12]].forEach(([x, z]) => { const p = mesh(new THREE.CircleGeometry(4.2, 28), new THREE.MeshLambertMaterial({ color: 0x3fa7e8, transparent: true, opacity: 0.9 }), x, 0.05, z); p.rotation.x = -Math.PI / 2; g.add(p); sc.col.add(x, z, 3.6); });
+      if (ty === "water") [[-11, 4], [11, 4], [-11, -12], [11, -12]].forEach(([x, z]) => { const p = mesh(new THREE.CircleGeometry(4.2, 28), new THREE.MeshLambertMaterial({ color: 0x3fa7e8, transparent: true, opacity: 0.9 }), x, 0.05, z); p.rotation.x = -Math.PI / 2; g.add(p); sc.col.add(x, z, 3.6); sc.water.push({ x, z, rx: 4.3, rz: 4.3 }); });
       if (ty === "electric") for (let z = d / 2 - 8; z > -d / 2 + 10; z -= 9) [-1, 1].forEach((k) => { prop(new THREE.CylinderGeometry(0.25, 0.3, 4.5, 8), 0x444444, k * 11, 2.25, z, 0.5); g.add(mesh(new THREE.SphereGeometry(0.6, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe14a }), k * 11, 4.7, z)); });
       if (ty === "grass") [[-11, 6], [11, -2], [-11, -12], [11, -14]].forEach(([x, z]) => { bx(10, 1.6, 1.6, 0x2f8a3a, x, z); bx(1.6, 1.6, 6, 0x2f8a3a, x + (x < 0 ? -4 : 4), z + 2); });
       if (ty === "fire") [-1, 1].forEach((k) => { const lv = mesh(new THREE.PlaneGeometry(4, d - 16), new THREE.MeshBasicMaterial({ color: 0xff5a1a }), k * 13, 0.04, 0); lv.rotation.x = -Math.PI / 2; g.add(lv); for (let z = -d / 2 + 12; z < d / 2 - 6; z += 10) { prop(new THREE.CylinderGeometry(0.3, 0.4, 3, 8), 0x333333, k * 9.5, 1.5, z, 0.5); const fs = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex("🔥"), transparent: true })); fs.scale.set(1.6, 1.6, 1); fs.position.set(k * 9.5, 3.6, z); g.add(fs); } });
@@ -571,12 +573,12 @@
   function burstAt(p) { for (let i = 0; i < 12; i++) { const an = Math.random() * 6.283; emit({ tex: TX.glow, x: p.x, y: p.y, z: p.z, vx: Math.cos(an) * 3, vy: Math.random() * 3, vz: Math.sin(an) * 2, life: 0.6, s0: 1, s1: 0.1, color: 0xffffff, add: true }); } emit({ tex: TX.star, x: p.x, y: p.y, z: p.z, life: 0.5, s0: 0.5, s1: 4, color: 0xffffff, add: true }); }
   function enterStage(theme) {
     if (!stage) initStage(); stage.visible = true; if (SC) SC.group.visible = false; if (fxGroup) fxGroup.visible = true; stageM.themeSet(theme || "grass");
-    camera.position.set(SO.x + 0.4, 3.7, SO.z + 10.2); camSnap = true; BT.cam = true; bt$("bt").hidden = false; ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run"].forEach((id) => { const e = $(id); if (e) e.style.visibility = "hidden"; }); $("av-bottom").style.display = "none"; $("av-dlg").hidden = true;
+    camera.position.set(SO.x + 0.4, 3.7, SO.z + 10.2); camSnap = true; BT.cam = true; bt$("bt").hidden = false; ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run", "av-view"].forEach((id) => { const e = $(id); if (e) e.style.visibility = "hidden"; }); $("av-bottom").style.display = "none"; $("av-dlg").hidden = true;
     if (partnerH) partnerH.visible = false; trainer.visible = false;
   }
   function leaveStage() {
     BT.cam = false; stage.visible = false; (BT.meshes || []).forEach((m) => scene.remove(m)); bt$("bt").hidden = true; bt$("bt-cmd").innerHTML = ""; if (SC) { SC.group.visible = true; scene.background = new THREE.Color(SC.bg); scene.fog = new THREE.Fog(SC.bg, SC.fog[0], SC.fog[1]); }
-    ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run"].forEach((id) => { const e = $(id); if (e) e.style.visibility = ""; }); $("av-bottom").style.display = ""; if (partnerH) partnerH.visible = true; trainer.visible = true; camSnap = true;
+    ["av-hud", "av-map", "av-feed", "av-act", "av-menu", "av-prompt", "av-loc", "av-joy", "av-run", "av-view"].forEach((id) => { const e = $(id); if (e) e.style.visibility = ""; }); $("av-bottom").style.display = ""; if (partnerH) partnerH.visible = true; trainer.visible = true; camSnap = true;
   }
   const bag = () => G.bag;
   const aliveIdx = () => G.squad.map((c, i) => (c.hp > 0 ? i : -1)).filter((i) => i >= 0);
@@ -894,7 +896,7 @@
   function placeFriends(a) {
     (G.fm || []).forEach((o) => {
       if (a.k === "t") { const t = TOWNS[a.i]; o.state = "town"; o.x = t.x + (o.key === "a" ? -9 : 9); o.z = t.z + 8; o.mesh.position.set(o.x, 0, o.z); o.mesh.visible = true; }
-      else if (a.k === "r" && FOLLOW[o.key].includes(a.i) && G.flags.starter) { if (o.state !== "follow") { o.x = P.x; o.z = P.z; o.mesh.position.set(o.x, 0, o.z); } o.state = "follow"; o.mesh.visible = true; }
+      else if (a.k === "r" && FOLLOW[o.key].includes(a.i) && G.flags.starter) { if (o.state !== "follow") { o.x = P.x - 2 + (o.key === "a" ? -1.5 : 1.5); o.z = P.z - 2; o.mesh.position.set(o.x, 0, o.z); } o.state = "follow"; o.mesh.visible = true; }
       else { o.state = "hidden"; o.mesh.visible = false; }
     });
   }
@@ -1067,13 +1069,13 @@
     scene.remove(trainer); trainer = makeTrainer(G.look); scene.add(trainer);
     WORLD.picks.forEach((p) => { p.mesh.visible = !G.picked.includes(p.id); });
     Object.values(INTS).forEach((sc) => { [1, 4, 7].forEach((id) => { if (sc["st" + id]) sc["st" + id].visible = !G.flags.starter; }); });
-    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-menu").hidden = false; $("av-run").classList.remove("on"); showPad(true); hudLast = null; closeModal();
+    $("av-title").textContent = "STORY ADVENTURE"; $("av-map").hidden = false; $("av-map").classList.remove("big"); $("av-menu").hidden = false; $("av-view").hidden = false; $("av-run").classList.remove("on"); showPad(true); hudLast = null; closeModal();
     const t0 = TOWNS[0], okPos = S.pos && walkable(S.pos.x, S.pos.z);
     if (!G.flags.momIntro && !G.flags.starter) { G.ret = { x: t0.x - 20, z: t0.z - 3.8 }; const h = getInterior("home"); enterScene(h, 0, h.d / 2 - 3, Math.PI); }
     else enterScene(WORLD, okPos ? S.pos.x : t0.x, okPos ? S.pos.z : t0.z + 4, Math.PI / 2);
     me(); setPartner(true); ensureFriends(); refreshStory(); refresh();
   }
-  const blocked = (x, z) => x < SC.bnd.x0 || x > SC.bnd.x1 || z < SC.bnd.z0 || z > SC.bnd.z1 || SC.col.hit(x, z) || (SC.id === "world" && (!walkable(x, z) || gateHit(x, z)));
+  const blocked = (x, z) => x < SC.bnd.x0 || x > SC.bnd.x1 || z < SC.bnd.z0 || z > SC.bnd.z1 || SC.col.hit(x, z) || inWater(SC.water, x, z) || (SC.id === "world" && (!walkable(x, z) || gateHit(x, z)));
 
   /* ----- living world: roaming wild Pokémon, wandering townsfolk ----- */
   const ROAM = [];
@@ -1113,6 +1115,32 @@
   }
   const joy = { x: 0, z: 0 };
 
+  /* friends move on their own: walk beside you, run to catch up, wander and look around when you stop */
+  function friendsTick(dt) {
+    const fr = (G.fm || []).filter((o) => o.state === "follow"); if (!fr.length) return;
+    const idle = (G.idleT || 0) > 1.4, fx = Math.sin(P.rot), fz = Math.cos(P.rot), rx = -fz, rz = fx;
+    fr.forEach((o, idx) => {
+      const side = o.key === "a" ? -1 : 1; let tx, tz, maxSp = o.key === "a" ? 8.8 : 8.2;
+      if (!idle) { o.wp = null; tx = P.x - fx * (3.4 + idx * 1.2) + rx * side * (3 + idx * 0.5); tz = P.z - fz * (3.4 + idx * 1.2) + rz * side * (3 + idx * 0.5); }
+      else {
+        o.wt = (o.wt || 0) - dt; if (!o.wp || o.wt <= 0) { const an = Math.random() * 6.283, d = 2.4 + Math.random() * 3.4; o.wp = { x: P.x + Math.cos(an) * d, z: P.z + Math.sin(an) * d }; o.wt = 2 + Math.random() * 3.5; o.pause = Math.random() < 0.45 ? 1 + Math.random() * 1.5 : 0; }
+        tx = o.wp.x; tz = o.wp.z; maxSp = 2.4; if (o.pause > 0) { o.pause -= dt; maxSp = 0; }
+      }
+      const dp = Math.hypot(P.x - o.x, P.z - o.z); if (dp > 40) { o.x = P.x - fx * 3 + rx * side * 3; o.z = P.z - fz * 3 + rz * side * 3; }
+      const dx = tx - o.x, dz = tz - o.z, d = Math.hypot(dx, dz); let sp = Math.min(d * 2.2, maxSp); if (!idle && dp > 7) sp = Math.min(Math.max(sp, 9.5), 12);
+      let moved = 0;
+      if (d > 0.25 && sp > 0.05) {
+        const ux = dx / d, uz = dz / d, st = sp * dt; let nx = o.x + ux * st, nz = o.z + uz * st;
+        if (blocked(nx, nz)) { const sx = o.x - uz * st, sz = o.z + ux * st, tx2 = o.x + uz * st, tz2 = o.z - ux * st; if (!blocked(sx, sz)) { nx = sx; nz = sz; } else if (!blocked(tx2, tz2)) { nx = tx2; nz = tz2; } else { nx = o.x; nz = o.z; } }
+        moved = Math.hypot(nx - o.x, nz - o.z) / Math.max(dt, 0.001); o.x = nx; o.z = nz;
+        if (moved > 0.2) { const want = Math.atan2(ux, uz); let da = want - o.mesh.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); o.mesh.rotation.y += da * Math.min(1, dt * 9); }
+      } else { const want = Math.atan2(P.x - o.x, P.z - o.z); let da = want - o.mesh.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); o.mesh.rotation.y += da * Math.min(1, dt * 3); }
+      fr.forEach((q) => { if (q !== o) { const sx = o.x - q.x, sz = o.z - q.z, sd = Math.hypot(sx, sz); if (sd < 1.8 && sd > 0.01) { o.x += (sx / sd) * (1.8 - sd) * 0.5; o.z += (sz / sd) * (1.8 - sd) * 0.5; } } });
+      o.mesh.position.set(o.x, Math.abs(Math.sin(T * 9 + idx)) * 0.05 * Math.min(1, moved / 4), o.z);
+      const lg = o.mesh.userData.legs, sw = Math.sin(T * (6 + Math.min(1, moved / 8) * 8) + idx) * 0.55 * Math.min(1, moved / 3); lg[0].rotation.x = sw; lg[1].rotation.x = -sw;
+    });
+  }
+
   function story(dt) {
     const busy = DL || G.cut || modalOpen(), world = SC.id === "world";
     SC.npcs.forEach((n, i) => { if (n.mesh && !n.wander) n.mesh.position.y = Math.sin(T * 2 + i) * 0.03; });
@@ -1123,9 +1151,14 @@
     if (!busy) {
       let dx = joy.x, dz = joy.z;
       if (held.ArrowLeft || held.a || pad.left) dx -= 1; if (held.ArrowRight || held.d || pad.right) dx += 1; if (held.ArrowUp || held.w || pad.up) dz -= 1; if (held.ArrowDown || held.s || pad.down) dz += 1;
-      const mag = Math.hypot(dx, dz); P.moving = mag > 0.05;
+      const fp = (DB.view || 0) === 3; let mag, mx, mz;
+      if (fp) { if (Math.abs(dx) > 0.05) P.rot -= Math.max(-1, Math.min(1, dx)) * 2.4 * dt; const f = -dz; mag = Math.abs(f); mx = Math.sin(P.rot) * (f >= 0 ? 1 : -1); mz = Math.cos(P.rot) * (f >= 0 ? 1 : -1); }
+      else { mag = Math.hypot(dx, dz); mx = mag ? dx / mag : 0; mz = mag ? dz / mag : 0; }
+      P.moving = mag > 0.05; G.waterCool = Math.max(0, (G.waterCool || 0) - dt);
       if (P.moving) {
-        const u = Math.min(1, mag), st = (held.Shift || G.run ? 12 : 8.5) * u * dt, nx = P.x + (dx / mag) * st, nz = P.z + (dz / mag) * st; if (!blocked(nx, P.z)) P.x = nx; if (!blocked(P.x, nz)) P.z = nz; P.rot = Math.atan2(dx, dz);
+        const u = Math.min(1, mag), st = (held.Shift || G.run ? 12 : 8.5) * u * dt, nx = P.x + mx * st, nz = P.z + mz * st;
+        if (!blocked(nx, P.z)) P.x = nx; if (!blocked(P.x, nz)) P.z = nz; if (!fp) P.rot = Math.atan2(dx, dz);
+        if (G.waterCool <= 0 && inWater(SC.water, nx, nz)) { G.waterCool = 3; toast({ icon: "🌊", title: "The water is too deep to cross" }); }
         if (world) { const pt = SC.patches.find((p) => Math.abs(P.x - p.x) < p.w / 2 && Math.abs(P.z - p.z) < p.d / 2); if (pt && me()) { G.gd += st; if (G.gd > 2.4) { G.gd = 0; if (Math.random() < 0.14) { guard(() => wildBattle(pt.r)); return; } } } else if (!pt) G.gd = 0; }
         for (const d of SC.doors) if (dz < -0.2 && Math.hypot(P.x - d.x, P.z - d.z) < d.r) { goInterior(d); return; }
         if (SC.exit && dz > 0.2 && Math.hypot(P.x - SC.exit.x, P.z - SC.exit.z) < 1.6) { leaveInterior(); return; }
@@ -1146,7 +1179,7 @@
     const loc = world ? locName(P.x, P.z) : SC.kind === "center" ? "Pokémon Center" : SC.kind === "mart" ? "Poké Mart" : SC.kind === "gym" ? GYMS[+SC.id.split(":")[1]].badge + " Gym" : SC.kind === "lab" ? "Prof. Linden’s Lab" : SC.kind === "home" ? "Your Home" : SC.kind === "rocket" ? "Team Rocket Hideout" : "Champions Stadium";
     if (loc !== G.loc) { G.loc = loc; const lb = $("av-loc"); lb.textContent = loc; lb.classList.remove("show"); void lb.offsetWidth; lb.classList.add("show"); }
     const h = G.hist, lastp = h[h.length - 1]; if (!lastp || Math.hypot(lastp.x - P.x, lastp.z - P.z) > 0.15) { h.push({ x: P.x, z: P.z }); if (h.length > 400) h.shift(); }
-    if (world) (G.fm || []).forEach((o) => { if (o.state !== "follow") return; const p = h[h.length - 1 - (o.key === "a" ? 1 : 2) * 10]; if (p) { const dx = p.x - o.x, dz = p.z - o.z; if (Math.hypot(dx, dz) > 0.02) o.mesh.rotation.y = Math.atan2(dx, dz); o.x = p.x; o.z = p.z; o.mesh.position.set(o.x, 0, o.z); const lg = o.mesh.userData.legs, sw = P.moving ? Math.sin(T * 12 + (o.key === "a" ? 0 : 1)) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; } });
+    G.idleT = P.moving ? 0 : (G.idleT || 0) + dt; if (world) friendsTick(dt);
     setHud(`<div class="av-hbox"><small>BADGES</small><b class="bds">${GYMS.map((g, i) => badgeImg(i, G.badges.includes(i), 22)).join("")}</b></div><div class="av-zbar"><span>LOCATION</span><b>${loc}</b></div><div class="av-hbox"><small>PARTY</small><b>${G.squad.filter((c) => c.hp > 0).length}/${G.squad.length}</b></div>`);
     drawMap();
   }
@@ -1179,7 +1212,7 @@
   }
   function menu() {
     abortBattle(); runId++; if (G) { saveStory(); } clearRoamers(); if (WORLD && WORLD.fm) WORLD.fm.forEach((o) => { o.mesh.visible = false; }); DL = null; mode = null; G = null; enterLobby();
-    ["av-dlg", "av-prompt", "av-act", "av-menu"].forEach((id) => { $(id).hidden = true; }); $("av-loc").classList.remove("show"); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "ADVENTURE"; $("av-team").innerHTML = ""; $("av-res").textContent = "🥮 " + getCoins().toLocaleString() + "  ·  ⚪ " + totalBalls();
+    ["av-dlg", "av-prompt", "av-act", "av-menu", "av-view"].forEach((id) => { $(id).hidden = true; }); $("av-loc").classList.remove("show"); setHud(""); showPad(false); $("av-map").hidden = true; $("av-title").textContent = "ADVENTURE"; $("av-team").innerHTML = ""; $("av-res").textContent = "🥮 " + getCoins().toLocaleString() + "  ·  ⚪ " + totalBalls();
     const saves = DB.saves.slice().sort((a, b) => (b.played || 0) - (a.played || 0));
     modal(`<h2>STORY ADVENTURE</h2><p>Journey across the region with your two friends, earn 6 badges and win the Champions Cup. Each story has its own trainer.</p>
       <div>${saves.map((s) => `<div class="slot${s.id === DB.active ? " act" : ""}"><canvas data-s="${s.id}" width="124" height="152"></canvas><div><b>${s.name}</b><span>ID ${s.id.slice(-6).toUpperCase()} · 🏅 ${s.story.badges.length}/6 · ${s.story.squad.length} Pokémon${s.story.flags && s.story.flags.won ? " · 🏆 Champion" : ""}</span></div><button class="av-btn" data-p="${s.id}">PLAY</button><button class="av-btn ghost" data-x="${s.id}">✕</button></div>`).join("") || '<p style="color:#7fa6cf">No stories yet — create your first trainer!</p>'}</div>
@@ -1239,10 +1272,70 @@
     upd(); addEventListener("pf-adv-change", upd);
   }
 
+  /* ---------- background music (generated live with WebAudio — no audio files) ---------- */
+  const MU = { ctx: null, master: null, tg: null, key: null, step: 0, nextT: 0, timer: null, tr: null, noise: null, cache: {}, chk: 0 };
+  const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], pent: [0, 2, 4, 7, 9], dor: [0, 2, 3, 5, 7, 9, 10], phr: [0, 1, 3, 5, 7, 8, 10] };
+  const TRACKS = {
+    town: { bpm: 112, root: 60, scale: "maj", lead: "square", seed: 11, dens: 0.72, drums: 1 }, route: { bpm: 126, root: 57, scale: "dor", lead: "square", seed: 23, dens: 0.8, drums: 2 },
+    inside: { bpm: 86, root: 64, scale: "pent", lead: "sine", seed: 5, dens: 0.55, drums: 0 }, gym: { bpm: 136, root: 55, scale: "min", lead: "sawtooth", seed: 37, dens: 0.85, drums: 3 },
+    rocket: { bpm: 104, root: 52, scale: "phr", lead: "sawtooth", seed: 41, dens: 0.6, drums: 4 }, battle: { bpm: 158, root: 57, scale: "min", lead: "square", seed: 53, dens: 0.95, drums: 3 },
+  };
+  function muGen(def) {
+    let s = def.seed; const rn = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }, sc = SCALES[def.scale], mel = [], bas = []; let deg = 2 + Math.floor(rn() * 3);
+    for (let i = 0; i < 64; i++) {
+      if (i % 2 === 0 && rn() < def.dens) { const m = rn(); deg += m < 0.34 ? 1 : m < 0.68 ? -1 : m < 0.78 ? 2 : m < 0.88 ? -2 : 0; deg = Math.max(-1, Math.min(sc.length + 2, deg)); if (i === 62) deg = 0; mel.push(deg); } else mel.push(null);
+      bas.push(i % 8 === 0 ? (i % 32 === 16 ? 3 : 0) : i % 8 === 4 ? (rn() < 0.5 ? 4 : 2) : null);
+    }
+    return { def, sc, mel, bas };
+  }
+  const muFreq = (root, sc, deg) => { const n = sc.length, oct = Math.floor(deg / n), idx = ((deg % n) + n) % n; return 440 * Math.pow(2, (root + sc[idx] + 12 * oct - 69) / 12); };
+  const muMuted = () => DB.sound === false || (typeof settings !== "undefined" && settings && settings.sound === false);
+  function muInit() {
+    if (MU.ctx) { try { MU.ctx.resume(); } catch (e) {} return; }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; MU.ctx = new AC(); MU.master = MU.ctx.createGain(); MU.master.gain.value = muMuted() ? 0 : 0.5; MU.master.connect(MU.ctx.destination);
+      const len = MU.ctx.sampleRate * 0.5, buf = MU.ctx.createBuffer(1, len, MU.ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; MU.noise = buf;
+      MU.timer = setInterval(muSchedule, 40); document.addEventListener("visibilitychange", () => { try { if (document.hidden) MU.ctx.suspend(); else if (!$("adventure-page").classList.contains("hidden")) MU.ctx.resume(); } catch (e) {} });
+    } catch (e) { MU.ctx = null; }
+  }
+  function muTone(f, t, d, type, v) { const o = MU.ctx.createOscillator(), g = MU.ctx.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(MU.tg); o.start(t); o.stop(t + d + 0.05); }
+  function muNoise(t, d, v, hp) { const s = MU.ctx.createBufferSource(); s.buffer = MU.noise; const f = MU.ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp; const g = MU.ctx.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(f); f.connect(g); g.connect(MU.tg); s.start(t); s.stop(t + d + 0.02); }
+  function muKick(t, v) { const o = MU.ctx.createOscillator(), g = MU.ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(g); g.connect(MU.tg); o.start(t); o.stop(t + 0.2); }
+  function muStep(tr, st, t, dur) {
+    const def = tr.def, i = st % 64, m = tr.mel[i], b = tr.bas[i];
+    if (m != null) muTone(muFreq(def.root + 12, tr.sc, m), t, dur * (def.lead === "sine" ? 3 : 1.7), def.lead, def.lead === "sawtooth" ? 0.03 : 0.04);
+    if (b != null) muTone(muFreq(def.root - 12, tr.sc, b), t, dur * 3.6, "triangle", 0.1);
+    if (st % 16 === 0) { [0, 2, 4].forEach((k) => muTone(muFreq(def.root, tr.sc, k + (i >= 32 ? 3 : 0)), t, dur * 14, "sine", 0.018)); }
+    const dr = def.drums, s8 = st % 8;
+    if (dr === 1) { if (st % 2 === 1) muNoise(t, 0.04, 0.025, 7000); if (s8 === 0) muKick(t, 0.09); }
+    else if (dr === 2) { if (s8 === 0 || s8 === 5) muKick(t, 0.12); if (s8 === 4) muNoise(t, 0.09, 0.07, 1800); if (st % 2 === 0) muNoise(t, 0.03, 0.03, 8000); }
+    else if (dr === 3) { if (s8 === 0 || s8 === 4 || (s8 === 6 && st % 16 > 7)) muKick(t, 0.15); if (s8 === 2 || s8 === 6) muNoise(t, 0.1, 0.09, 1500); muNoise(t, 0.025, 0.035, 8500); }
+    else if (dr === 4) { if (s8 === 0) muKick(t, 0.13); if (s8 === 6) muNoise(t, 0.12, 0.06, 900); }
+  }
+  function muSchedule() {
+    if (!MU.ctx || !MU.tr) return; const ctx = MU.ctx, muted = muMuted(); MU.master.gain.value = muted ? 0 : 0.5;
+    if (muted || ctx.state !== "running") { MU.nextT = ctx.currentTime + 0.1; return; }
+    const dur = 60 / MU.tr.def.bpm / 4; if (MU.nextT < ctx.currentTime) MU.nextT = ctx.currentTime + 0.05;
+    while (MU.nextT < ctx.currentTime + 0.2) { muStep(MU.tr, MU.step, MU.nextT, dur); MU.step++; MU.nextT += dur; }
+  }
+  function muSet(key) {
+    if (!MU.ctx || MU.key === key) return; MU.key = key; const now = MU.ctx.currentTime;
+    if (MU.tg) { const old = MU.tg; old.gain.setTargetAtTime(0, now, 0.12); setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 900); }
+    MU.tg = MU.ctx.createGain(); MU.tg.gain.value = 0; MU.tg.gain.setTargetAtTime(1, now + 0.05, 0.2); MU.tg.connect(MU.master);
+    MU.tr = MU.cache[key] || (MU.cache[key] = muGen(TRACKS[key])); MU.step = 0; MU.nextT = now + 0.15;
+  }
+  function muStop() { if (!MU.ctx) return; try { if (MU.tg) MU.tg.gain.setTargetAtTime(0, MU.ctx.currentTime, 0.1); } catch (e) {} MU.key = null; MU.tr = null; try { setTimeout(() => { if (!MU.key) MU.ctx.suspend(); }, 600); } catch (e) {} }
+  function musicKey() {
+    if (BT) return "battle"; if (mode === "story" && SC) { if (SC.id === "world") return areaAt(P.x, P.z).k === "t" ? "town" : "route"; return SC.kind === "rocket" ? "rocket" : SC.kind === "gym" || SC.kind === "stadium" ? "gym" : "inside"; } return "town";
+  }
+  function musicTick(dt) { if (!MU.ctx) return; MU.chk -= dt; if (MU.chk > 0) return; MU.chk = 0.25; try { if (MU.ctx.state === "suspended" && !muMuted()) MU.ctx.resume(); } catch (e) {} muSet(musicKey()); }
+  function updSoundBtn() { const b = $("av-sound"); if (b) b.textContent = muMuted() ? "🔇" : "🔊"; }
+  function toggleSound() { DB.sound = muMuted() ? true : false; if (DB.sound !== false && typeof settings !== "undefined" && settings && settings.sound === false) { try { settings.sound = true; saveSettings(); } catch (e) {} } saveDB(); muInit(); updSoundBtn(); }
+
   /* ----- loop, camera, setup ----- */
   let running = false, last = 0;
   function update(dt) {
-    T += dt; tickPart(dt);
+    T += dt; tickPart(dt); musicTick(dt);
     if (BT && BT.cam) {
       [BT.pH, BT.fH].forEach((h) => h && tickMon(h, dt));
       let sx = 0, sy = 0; if (shakeT > 0) { shakeT -= dt; sx = (Math.random() - 0.5) * shakeP; sy = (Math.random() - 0.5) * shakeP * 0.6; }
@@ -1251,15 +1344,22 @@
     if (WORLD) WORLD.clouds.forEach((c) => { c.position.x += dt * 0.8; if (c.position.x > 1120) c.position.x = -100; });
     if (partnerH) tickMon(partnerH, dt);
     if (mode === "story" && G) story(dt);
+    if (trainer && !BT) trainer.visible = !(mode === "story" && (DB.view || 0) === 3);
     if (trainer) { trainer.position.set(P.x, 0, P.z); trainer.rotation.y = P.rot; const lg = trainer.userData.legs, sw = P.moving ? Math.sin(T * 12) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; }
     if (partnerH && mode === "story") {
       const tx = P.x - Math.sin(P.rot) * 1.7 + Math.cos(P.rot), tz = P.z - Math.cos(P.rot) * 1.7 - Math.sin(P.rot), ox = partnerH.position.x, oz = partnerH.position.z;
       partnerH.position.x += (tx - ox) * (1 - Math.exp(-5 * dt)); partnerH.position.z += (tz - oz) * (1 - Math.exp(-5 * dt)); const mx = partnerH.position.x - ox; if (Math.abs(mx) > 0.002) face(partnerH, mx > 0);
     }
     let cx, cy, cz, lx, ly, lz;
-    if (mode === "story" && SC) { const inn = SC.id !== "world"; cx = P.x; cy = inn ? 11 : 9; cz = P.z + (inn ? 10.5 : 11); lx = P.x; ly = 1; lz = P.z; }
+    if (mode === "story" && SC) {
+      const inn = SC.id !== "world", vw = DB.view || 0;
+      if (vw === 1) { cx = P.x; cy = inn ? 7.6 : 5.4; cz = P.z + (inn ? 7 : 7.2); lx = P.x; ly = 1.2; lz = P.z; }
+      else if (vw === 2) { cx = P.x; cy = inn ? 30 : 26; cz = P.z + 3.5; lx = P.x; ly = 0; lz = P.z; }
+      else if (vw === 3) { const fx = Math.sin(P.rot), fz = Math.cos(P.rot); cx = P.x + fx * 0.25; cy = 1.75; cz = P.z + fz * 0.25; lx = P.x + fx * 10; ly = 1.55; lz = P.z + fz * 10; }
+      else { cx = P.x; cy = inn ? 11 : 9; cz = P.z + (inn ? 10.5 : 11); lx = P.x; ly = 1; lz = P.z; }
+    }
     else { const a = T * 0.12; cx = P.x + Math.sin(a) * 11; cy = 5; cz = P.z + Math.cos(a) * 11; lx = P.x; ly = 1.5; lz = P.z; }
-    const k = camSnap ? 1 : 1 - Math.exp(-4.5 * dt); camSnap = false; camera.position.x += (cx - camera.position.x) * k; camera.position.y += (cy - camera.position.y) * k; camera.position.z += (cz - camera.position.z) * k;
+    const k = camSnap || (mode === "story" && (DB.view || 0) === 3) ? 1 : 1 - Math.exp(-4.5 * dt); camSnap = false; camera.position.x += (cx - camera.position.x) * k; camera.position.y += (cy - camera.position.y) * k; camera.position.z += (cz - camera.position.z) * k;
     camLook.x += (lx - camLook.x) * k; camLook.y += (ly - camLook.y) * k; camLook.z += (lz - camLook.z) * k; camera.lookAt(camLook.x, camLook.y, camLook.z);
   }
   const camLook = { x: 0, y: 1, z: 0 };
@@ -1275,13 +1375,13 @@
   function setup(cb) {
     if (built) return cb(); built = true; injectCSS();
     $("adventure-page").innerHTML = `<div id="av-3d"></div>
-      <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><button class="av-btn ghost" id="av-menu" hidden>☰ MENU</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
+      <div id="av-top"><button class="av-btn ghost" id="av-back">← BACK</button><button class="av-btn ghost" id="av-menu" hidden>☰ MENU</button><button class="av-btn ghost" id="av-view" hidden>👁 VIEW</button><button class="av-btn ghost" id="av-sound">🔊</button><div id="av-title"></div><span class="av-pill" id="av-res"></span></div>
       <div id="av-hud" hidden></div><canvas id="av-map" width="300" height="300" hidden></canvas><div id="av-feed"></div>
       <div id="av-bottom"><div id="av-team"></div><div id="av-pad" hidden><button class="av-btn u" data-k="up">▲</button><button class="av-btn l" data-k="left">◀</button><button class="av-btn d" data-k="down">▼</button><button class="av-btn r" data-k="right">▶</button></div></div>
       <div id="av-prompt" hidden></div><button class="av-btn" id="av-act" hidden>A</button><div id="av-joy" hidden><i></i></div><button class="av-btn" id="av-run" hidden>RUN</button><div id="av-loc"></div><div id="av-dlg" hidden></div><div id="av-flash"></div>
       <div id="bt" hidden><div id="bt-flash"></div><div class="bt-box foe" id="bt-foe"></div><div class="bt-box me" id="bt-me"></div><div id="bt-bottom"><div id="bt-text"></div><div id="bt-cmd"></div></div></div>
       <div id="av-modal" hidden></div><div id="av-err" hidden></div>`;
-    $("av-back").onclick = onBack; $("av-menu").onclick = () => hub("party"); $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); };
+    $("av-back").onclick = onBack; $("av-menu").onclick = () => hub("party"); $("av-view").onclick = cycleView; $("av-sound").onclick = toggleSound; ["pointerdown", "keydown"].forEach((ev) => $("adventure-page").addEventListener(ev, () => { muInit(); updSoundBtn(); }, { passive: true })); $("av-act").onclick = interact; $("av-dlg").onclick = () => advanceDlg(); $("av-map").onclick = () => { $("av-map").classList.toggle("big"); };
     $("av-run").onclick = () => { if (G) { G.run = !G.run; $("av-run").classList.toggle("on", G.run); } };
     { const jz = $("av-joy"), kn = jz.firstChild; const jm = (e) => { const r = jz.getBoundingClientRect(), R2 = r.width / 2; let dx = e.clientX - (r.left + R2), dy = e.clientY - (r.top + R2); const l = Math.hypot(dx, dy) || 1, m = Math.min(1, l / R2); dx = (dx / l) * m; dy = (dy / l) * m; kn.style.transform = "translate(" + dx * R2 * 0.6 + "px," + dy * R2 * 0.6 + "px)"; joy.x = m > 0.2 ? dx : 0; joy.z = m > 0.2 ? dy : 0; }; let on = false; jz.addEventListener("pointerdown", (e) => { e.preventDefault(); on = true; try { jz.setPointerCapture(e.pointerId); } catch (x) {} jm(e); }); jz.addEventListener("pointermove", (e) => { if (on) jm(e); }); const je = () => { on = false; joy.x = 0; joy.z = 0; kn.style.transform = ""; }; ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => jz.addEventListener(ev, je)); }
     document.querySelectorAll("#av-pad button").forEach((b) => { const k = b.dataset.k; b.addEventListener("pointerdown", (e) => { e.preventDefault(); pad[k] = true; }); ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { pad[k] = false; })); });
@@ -1297,19 +1397,21 @@
     scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(52, 1, 0.1, 520); scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a5a, 0.95)); const sun = new THREE.DirectionalLight(0xfff2d0, 0.65); sun.position.set(14, 24, 10); scene.add(sun);
     fxGroup = new THREE.Group(); scene.add(fxGroup); initTex(); trainer = makeTrainer(DEF_LOOK); scene.add(trainer); initStage(); addEventListener("resize", resize);
   }
+  const VIEWS = ["Classic", "Close-up", "Top-down", "Player view (first person)"];
+  function cycleView() { DB.view = ((DB.view || 0) + 1) % 4; saveDB(); camSnap = true; toast({ icon: "👁", title: "View: " + VIEWS[DB.view], message: DB.view === 3 ? "W/S move, A/D turn (joystick: up/down move, left/right turn)." : "" }); }
   function onBack() { if (BT || DL) return; if (mode) { menu(); return; } close(); }
   function open() {
-    loadDB(); $("home-page").classList.add("hidden"); $("adventure-page").classList.remove("hidden");
-    setup(() => { resize(); menu(); if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } });
+    loadDB(); muInit(); $("home-page").classList.add("hidden"); $("adventure-page").classList.remove("hidden");
+    setup(() => { resize(); updSoundBtn(); menu(); if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } });
   }
   function close() {
-    try { if (G) saveStory(); } catch (e) {} running = false; runId++; abortBattle(); $("adventure-page").classList.add("hidden");
+    try { if (G) saveStory(); } catch (e) {} running = false; runId++; abortBattle(); muStop(); $("adventure-page").classList.add("hidden");
     if (typeof showHomeScreen === "function") showHomeScreen(); else $("home-page").classList.remove("hidden");
   }
   addEventListener("keydown", (e) => {
     const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) return; if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName || "")) return;
     held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault();
-    if (!e.repeat && mode === "story") { if (e.key === "e" || e.key === "E" || e.key === " " || e.key === "Enter") { e.preventDefault(); interact(); } else if ((e.key === "m" || e.key === "M") && !modalOpen()) hub("party"); }
+    if (!e.repeat && mode === "story") { if (e.key === "e" || e.key === "E" || e.key === " " || e.key === "Enter") { e.preventDefault(); interact(); } else if ((e.key === "m" || e.key === "M") && !modalOpen()) hub("party"); else if ((e.key === "v" || e.key === "V") && !modalOpen()) cycleView(); }
   });
   addEventListener("keyup", (e) => { held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
   addEventListener("blur", () => { Object.keys(held).forEach((k) => { held[k] = false; }); });
@@ -1401,7 +1503,29 @@
     };
     new MutationObserver(add).observe(list, { childList: true }); add();
   }
-  function patchSite() { if (window.__pfAdvPatched) return; window.__pfAdvPatched = true; [patchBattleDraw, patchAI, patchRevive, injectReviveShop].forEach((f) => { try { f(); } catch (e) { console.warn("[adventure] site patch skipped:", e && e.message); } }); }
+  function patchAuth() {
+    /* "asks for login twice": the page used to reload the instant Google sign-in finished, before the browser had saved the session — so after the reload you were signed out again. Wait for the session to be stored, and fall back to a redirect if the popup is blocked. */
+    if (typeof window.pullCloudProgressThenReload === "function") window.pullCloudProgressThenReload = async function () {
+      if (!fbDb || !googleProfile) { location.reload(); return; }
+      const uid = googleProfile.sub;
+      try { const snap = await cloudDocFor(uid).get(); if (snap.exists) applyCloudDataToLocalStorage(uid, snap.data()); } catch (e) { console.warn("[cloud] pull failed:", e); }
+      try { if (fbAuth && fbAuth.currentUser) await fbAuth.currentUser.getIdToken(true); } catch (e) {}
+      await new Promise((r) => setTimeout(r, 1300));
+      try { sessionStorage.setItem("pf_pending_toast", JSON.stringify({ icon: "✅", title: "Signed in with Google", message: googleProfile.given_name || googleProfile.name || googleProfile.email, tone: "success" })); } catch (e) {}
+      location.reload();
+    };
+    if (typeof window.startGoogleSignIn === "function") window.startGoogleSignIn = function () {
+      if (!fbAuth || !window.firebase) { toast({ icon: "⚠️", title: "Sign-in unavailable", message: "Firebase didn’t load. Check your connection and try again.", tone: "error" }); return; }
+      const provider = new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({ prompt: "select_account" });
+      const go = () => fbAuth.signInWithPopup(provider).catch((err) => {
+        const c = err && err.code; if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request") return;
+        if (c === "auth/popup-blocked" || c === "auth/operation-not-supported-in-this-environment") { try { fbAuth.signInWithRedirect(provider); } catch (e) {} return; }
+        toast({ icon: "⚠️", title: "Sign-in failed", message: (err && err.message) || "Please try again.", tone: "error" });
+      });
+      try { fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(go, go); } catch (e) { go(); }
+    };
+  }
+  function patchSite() { if (window.__pfAdvPatched) return; window.__pfAdvPatched = true; [patchAuth, patchBattleDraw, patchAI, patchRevive, injectReviveShop].forEach((f) => { try { f(); } catch (e) { console.warn("[adventure] site patch skipped:", e && e.message); } }); }
 
   /* ---------- boot ---------- */
   const CSS = `
@@ -1547,6 +1671,7 @@
 `;
   function injectCSS() { if ($("av-css")) return; const s = document.createElement("style"); s.id = "av-css"; s.textContent = CSS; document.head.appendChild(s); }
   function boot() { injectCSS(); loadDB(); initHome(); patchSite(); const b = $("btn-adventure"); if (b) b.onclick = open; }
+  loadDB(); try { patchSite(); } catch (e) {}
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
   window.openAdventure = open;
 })();
