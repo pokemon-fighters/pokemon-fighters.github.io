@@ -59,7 +59,7 @@ const GAME = {
   attackDuration: 270,
   attackHitFrame: 155,
 
-  maxParticles: 60,
+  maxParticles: 140,
   maxProjectiles: 10,
   maxEffects: 30,
   maxFloatingTexts: 10,
@@ -3076,17 +3076,27 @@ function createAttackChargeEffect(fighter, move) {
 function createImpactEffect(x, y, move) {
   addEffect({
     type: "impact",
-
     x: x,
     y: y,
-
     color: move.color,
-
     life: 220,
     maxLife: 220,
-
     radius: 20,
   });
+  const n = Math.min(14, GAME.maxParticles - particles.length);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 3 + Math.random() * 7;
+    addParticle(
+      x,
+      y,
+      i % 3 === 0 ? "#ffffff" : move.color,
+      Math.cos(a) * s,
+      Math.sin(a) * s - 1,
+      220 + Math.random() * 220,
+      2 + Math.random() * 3.5,
+    );
+  }
 }
 
 /* Poké Ball send-out/recall animation — see the "pokeball" branch
@@ -3297,6 +3307,9 @@ function draw() {
 
   ctx.clearRect(0, 0, GAME.width, GAME.height);
 
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
   ctx.save();
 
   if (screenShake > 0) {
@@ -3313,6 +3326,8 @@ function draw() {
 
   drawFighters();
 
+  drawAtmosphere();
+
   drawProjectiles();
 
   drawParticles();
@@ -3322,6 +3337,8 @@ function draw() {
   drawFloatingTexts();
 
   ctx.restore();
+
+  drawBloom();
 }
 
 /* ============================================================
@@ -3703,9 +3720,94 @@ function drawArena() {
 ============================================================ */
 
 function drawFighters() {
+  drawReflection(player, playerPokemon, playerImage);
+  drawReflection(enemy, enemyPokemon, enemyImage);
   drawFighter(player, playerPokemon, playerImage);
-
   drawFighter(enemy, enemyPokemon, enemyImage);
+}
+
+/* Soft contact shadow + faint mirrored reflection on the wet arena
+   floor. The shadow shrinks and fades as the fighter jumps. */
+function drawReflection(fighter, pokemon, image) {
+  const appear = sendOutAppear(fighter);
+  if (appear < 0.05) return;
+  const sizeScale = getSizeScale(pokemon);
+  const air = clamp((GAME.ground - fighter.y) / 380, 0, 1);
+
+  ctx.save();
+  ctx.translate(fighter.x, GAME.ground + 7);
+  ctx.scale(1, 0.25);
+  const R = 80 * sizeScale * (1 - air * 0.45);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+  g.addColorStop(0, "rgba(0,0,0," + 0.6 * (1 - air * 0.5) * appear + ")");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, 6.2832);
+  ctx.fill();
+  ctx.restore();
+
+  if (!image || !image.complete || image.naturalWidth <= 0) return;
+  const size = 245 * sizeScale;
+  const naturalFacing = getArtworkNaturalFacing(pokemon);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, GAME.ground + 4, GAME.width, GAME.height - GAME.ground);
+  ctx.clip();
+  ctx.globalAlpha = 0.17 * appear * (1 - air * 0.6);
+  ctx.translate(fighter.x, 2 * GAME.ground - fighter.y);
+  ctx.scale(naturalFacing * fighter.facing, -0.55);
+  ctx.drawImage(image, -size / 2, -size + 15, size, size);
+  ctx.restore();
+}
+
+/* Drifting light motes + a soft horizon glow, drawn in front of the
+   fighters for depth. Fully time-based, so no extra state is kept. */
+function drawAtmosphere() {
+  const t = performance.now() * 0.001;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const hg = ctx.createLinearGradient(0, GAME.ground - 90, 0, GAME.ground + 60);
+  hg.addColorStop(0, "rgba(100,226,255,0)");
+  hg.addColorStop(0.6, "rgba(100,226,255,0.10)");
+  hg.addColorStop(1, "rgba(100,226,255,0)");
+  ctx.fillStyle = hg;
+  ctx.fillRect(0, GAME.ground - 90, GAME.width, 150);
+  for (let i = 0; i < 34; i++) {
+    const x = ((i * 211 + t * (8 + (i % 7) * 3)) % (GAME.width + 40)) - 20;
+    const y = GAME.ground - 20 - ((i * 97) % 380) + Math.sin(t * 0.8 + i) * 14;
+    const a = 0.25 + 0.25 * Math.sin(t * 1.7 + i * 3.1);
+    ctx.fillStyle =
+      i % 5 === 0 ? "rgba(255,210,120," + a + ")" : "rgba(150,225,255," + a + ")";
+    ctx.beginPath();
+    ctx.arc(x, y, 1.2 + (i % 4) * 0.7, 0, 6.2832);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Cheap bloom: shrink the finished frame, then stretch it back over
+   itself with additive-ish blending. Works on every browser (no
+   ctx.filter) and costs one tiny offscreen copy per frame. */
+let bloomCanvas = null;
+let bloomCtx = null;
+function drawBloom() {
+  if (!bloomCanvas) {
+    bloomCanvas = document.createElement("canvas");
+    bloomCanvas.width = 240;
+    bloomCanvas.height = Math.round((240 * GAME.height) / GAME.width);
+    bloomCtx = bloomCanvas.getContext("2d");
+    bloomCtx.imageSmoothingEnabled = true;
+    bloomCtx.imageSmoothingQuality = "high";
+  }
+  bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
+  bloomCtx.drawImage(canvas, 0, 0, bloomCanvas.width, bloomCanvas.height);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.globalAlpha = 0.2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bloomCanvas, 0, 0, GAME.width, GAME.height);
+  ctx.restore();
 }
 
 /* ============================================================
@@ -3736,7 +3838,7 @@ function drawFighter(fighter, pokemon, image) {
 
   ctx.globalAlpha = appearNow;
 
-  ctx.fillStyle = "rgba(0,0,0,.35)";
+  ctx.fillStyle = "rgba(0,0,0,0)"; /* soft shadow drawn in drawReflection() */
 
   ctx.beginPath();
 
@@ -4292,18 +4394,23 @@ function drawParticles() {
   if (!particles.length) {
     return;
   }
-
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
   for (let i = 0; i < particles.length; i++) {
     const p = particles[i];
-
-    ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
-
+    const k = clamp(p.life / p.maxLife, 0, 1);
+    const r = Math.max(0.6, p.size * (0.4 + 0.6 * k));
     ctx.fillStyle = p.color;
-
-    ctx.fillRect(p.x, p.y, p.size, p.size);
+    ctx.globalAlpha = k * 0.28;
+    ctx.beginPath();
+    ctx.arc(p.x + p.size / 2, p.y + p.size / 2, r * 2.6, 0, 6.2832);
+    ctx.fill();
+    ctx.globalAlpha = k;
+    ctx.beginPath();
+    ctx.arc(p.x + p.size / 2, p.y + p.size / 2, r, 0, 6.2832);
+    ctx.fill();
   }
-
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 /* ============================================================
@@ -4551,25 +4658,23 @@ function drawEffects() {
 function drawFloatingTexts() {
   for (let i = 0; i < floatingTexts.length; i++) {
     const item = floatingTexts[i];
-
+    const k = clamp(item.life / item.maxLife, 0, 1);
+    const age = 1 - k;
+    const pop = age < 0.18 ? 1 + (1 - age / 0.18) * 0.55 : 1;
     ctx.save();
-
-    ctx.globalAlpha = clamp(item.life / item.maxLife, 0, 1);
-
+    ctx.globalAlpha = k;
+    ctx.translate(item.x, item.y);
+    ctx.scale(pop, pop);
     ctx.textAlign = "center";
-
-    ctx.font = "900 23px Arial";
-
+    ctx.font = "900 26px Rajdhani, Inter, Arial";
+    ctx.shadowColor = item.color;
+    ctx.shadowBlur = 12;
     ctx.fillStyle = item.color;
-
     ctx.strokeStyle = "#06111d";
-
     ctx.lineWidth = 5;
-
-    ctx.strokeText(item.text, item.x, item.y);
-
-    ctx.fillText(item.text, item.x, item.y);
-
+    ctx.lineJoin = "round";
+    ctx.strokeText(item.text, 0, 0);
+    ctx.fillText(item.text, 0, 0);
     ctx.restore();
   }
 }
@@ -6032,4 +6137,3 @@ window.PokemonOnlineBattle = {
 /* ============================================================
    STARTUP
 ============================================================ */
-
