@@ -374,12 +374,56 @@
   }
   function gateHit(x, z) { return WORLD.gates.some((g) => !g.req() && Math.abs((x - g.x) * g.dx + (z - g.z) * g.dz) < 1 && Math.abs(-(x - g.x) * g.dz + (z - g.z) * g.dx) < RW + 3); }
 
+
+  /* ---------- graphics upgrade: sky, shadows, water, pollen ---------- */
+  let SUN = null, SKY = null, POLLEN = null, WTEX0 = null; const WTEX = [], SHADOWED = new WeakSet(), SKY_H = 0xb4defa;
+  function waterMat(col, w, h) {
+    if (!WTEX0) WTEX0 = canvasTex(128, 128, (x) => {
+      x.fillStyle = "#d4d4d4"; x.fillRect(0, 0, 128, 128); let s = 11; const rr = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+      for (let i = 0; i < 46; i++) { const px = rr() * 128, py = rr() * 128, len = 8 + rr() * 14, light = rr() > 0.35; x.strokeStyle = light ? "rgba(255,255,255,.9)" : "rgba(150,170,200,.55)"; x.lineWidth = 1.4 + rr() * 1.4; x.lineCap = "round"; const bend = 3 + rr() * 3;
+        for (const ox of [-128, 0, 128]) for (const oy of [-128, 0, 128]) { x.beginPath(); x.moveTo(px + ox - len / 2, py + oy); x.quadraticCurveTo(px + ox, py + oy - bend, px + ox + len / 2, py + oy); x.stroke(); } }
+    });
+    const t = WTEX0.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 9, h / 9); WTEX.push(t);
+    return lam(new THREE.Color(col).multiplyScalar(1.2).getHex(), { map: t, emissive: 0x0a2236 });
+  }
+  function shadowPass(g) {
+    if (!g || SHADOWED.has(g)) return; SHADOWED.add(g);
+    g.traverse((o) => { if (!o.isMesh || o.isInstancedMesh) return; const ty = o.geometry && o.geometry.type; if (ty === "PlaneGeometry" || ty === "CircleGeometry" || ty === "RingGeometry") { o.receiveShadow = true; return; } const mt = o.material; o.castShadow = !(mt && (mt.type === "MeshBasicMaterial" || mt.transparent)); o.receiveShadow = true; });
+  }
+  function initFx() {
+    const mat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+      vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: "varying vec3 vP; void main(){ vec3 d = normalize(vP); float h = clamp(d.y, 0.0, 1.0); vec3 hor = vec3(0.706, 0.871, 0.980); vec3 mid = vec3(0.50, 0.75, 0.96); vec3 top = vec3(0.25, 0.52, 0.86); vec3 c = mix(hor, mid, smoothstep(0.0, 0.28, h)); c = mix(c, top, smoothstep(0.22, 0.95, h)); vec3 sd = normalize(vec3(22.0, 38.0, 16.0)); float s = max(dot(d, sd), 0.0); c += vec3(1.0, 0.86, 0.55) * (pow(s, 380.0) * 1.2 + pow(s, 18.0) * 0.22 + pow(s, 4.0) * 0.06); gl_FragColor = vec4(c, 1.0); }" });
+    SKY = new THREE.Mesh(new THREE.SphereGeometry(420, 24, 14), mat); SKY.frustumCulled = false; SKY.renderOrder = -1000; SKY.visible = false; scene.add(SKY);
+    const N = 80, pos = new Float32Array(N * 3), geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    POLLEN = new THREE.Points(geo, new THREE.PointsMaterial({ map: TX.glow, color: 0xfff3b0, size: 0.5, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+    POLLEN.frustumCulled = false; POLLEN.visible = false; POLLEN.userData.v = Array.from({ length: N }, () => ({ vx: (Math.random() - 0.5) * 0.5, vy: 0.1 + Math.random() * 0.25, vz: (Math.random() - 0.5) * 0.5, ph: Math.random() * 6 }));
+    for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 28; pos[i * 3 + 1] = Math.random() * 6; pos[i * 3 + 2] = (Math.random() - 0.5) * 28; }
+    scene.add(POLLEN);
+  }
+  function fxEnter(sc) { shadowPass(sc.group); }
+  function fxTick(dt) {
+    if (!SKY) return;
+    const world = !!(SC && SC.id === "world") && !(BT && BT.cam);
+    SKY.visible = world; if (POLLEN) POLLEN.visible = world && mode === "story";
+    if (world) { SKY.position.copy(camera.position); if (scene.fog) scene.fog.color.setHex(SKY_H); if (scene.background && scene.background.isColor) scene.background.setHex(SKY_H); }
+    if (SUN) { SUN.target.position.set(P.x, 0, P.z); SUN.position.set(P.x + 22, 38, P.z + 16); }
+    WTEX.forEach((t) => { t.offset.x = Math.sin(T * 0.15) * 0.5 + T * 0.01; t.offset.y = Math.cos(T * 0.12) * 0.5; });
+    if (POLLEN && POLLEN.visible) {
+      const a = POLLEN.geometry.attributes.position, v = POLLEN.userData.v;
+      for (let i = 0; i < v.length; i++) { const q = v[i]; let x = a.array[i * 3] + (q.vx + Math.sin(T + q.ph) * 0.3) * dt, y = a.array[i * 3 + 1] + q.vy * dt, z = a.array[i * 3 + 2] + (q.vz + Math.cos(T * 0.8 + q.ph) * 0.3) * dt;
+        if (y > 7 || Math.hypot(x - P.x, z - P.z) > 15) { const an = Math.random() * 6.283, r = 3 + Math.random() * 11; x = P.x + Math.cos(an) * r; z = P.z + Math.sin(an) * r; y = Math.random() * 1.2; }
+        a.array[i * 3] = x; a.array[i * 3 + 1] = y; a.array[i * 3 + 2] = z; }
+      a.needsUpdate = true;
+    }
+  }
   function buildWorld() {
     const sc = (WORLD = mkScene("world", { x0: -5, x1: 905, z0: -5, z1: 905 }, 0x8fd0ff, [70, 230])); sc.kind = "world"; sc.water = WATER; const g = sc.group;
     let seed = 77; const r = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
     const flat = (m, y) => { m.rotation.x = -Math.PI / 2; m.position.y = y; g.add(m); return m; };
-    flat(mesh(new THREE.PlaneGeometry(6000, 6000), lam(0x2a79c9), 450, 0, 450), -0.5); flat(mesh(new THREE.PlaneGeometry(940, 940), lam(0xffffff, { map: grassTex(190, 190) }), 450, 0, 450), 0);
-    const blob = (x, z, rx, rz, col, y) => { const m = mesh(new THREE.CircleGeometry(1, 36), lam(col), x, 0, z); m.scale.set(rx, rz, 1); flat(m, y); };
+    flat(mesh(new THREE.PlaneGeometry(6000, 6000), waterMat(0x2a79c9, 6000, 6000), 450, 0, 450), -0.5); flat(mesh(new THREE.PlaneGeometry(940, 940), lam(0xffffff, { map: grassTex(190, 190) }), 450, 0, 450), 0);
+    { const mt = canvasTex(512, 512, (x) => { for (let i = 0; i < 70; i++) { const px = Math.random() * 512, py = Math.random() * 512, rr = 40 + Math.random() * 90, dark = Math.random() < 0.5; for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) { const gr = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rr); gr.addColorStop(0, dark ? "rgba(10,60,20,.22)" : "rgba(210,255,140,.16)"); gr.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = gr; x.fillRect(px + ox - rr, py + oy - rr, rr * 2, rr * 2); } } }); mt.wrapS = mt.wrapT = THREE.RepeatWrapping; mt.repeat.set(3, 3); flat(mesh(new THREE.PlaneGeometry(940, 940), new THREE.MeshBasicMaterial({ map: mt, transparent: true, depthWrite: false }), 450, 0, 450), 0.012); }
+    const blob = (x, z, rx, rz, col, y) => { const m = mesh(new THREE.CircleGeometry(1, 36), col === 0x2a79c9 || col === 0x3fa7e8 ? waterMat(col, rx * 2, rz * 2) : lam(col), x, 0, z); m.scale.set(rx, rz, 1); flat(m, y); };
     [[40, 890, 120, 70], [330, 912, 160, 70], [620, 912, 150, 80], [880, 870, 110, 110], [920, 640, 70, 150], [920, 330, 60, 120], [-15, 300, 60, 140], [-15, 620, 60, 120], [250, -12, 160, 60], [560, -12, 170, 60]].forEach(([x, z, rx, rz]) => { blob(x, z, rx + 7, rz + 7, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x2a79c9, 0.03); WATER.push({ x, z, rx: rx + 2, rz: rz + 2 }); });
     [[330, 470, 34, 26], [590, 505, 30, 24], [255, 645, 36, 28], [560, 150, 38, 30], [470, 430, 26, 20], [700, 560, 30, 24], [60, 400, 30, 24], [300, 220, 28, 22]].forEach(([x, z, rx, rz]) => { const q = nearSeg(x, z, 60); if ((q.s && q.d < Math.max(rx, rz) + 10) || TOWNS.some((t) => inTownRect(x, z, t, Math.max(rx, rz) + 8))) return; blob(x, z, rx + 4, rz + 4, 0xe6d9a0, 0.02); blob(x, z, rx, rz, 0x3fa7e8, 0.03); WATER.push({ x, z, rx: rx + 1, rz: rz + 1 }); });
     SEGS.forEach((s) => { const grp = new THREE.Group(); grp.position.set((s.ax + s.bx) / 2, 0.035, (s.az + s.bz) / 2); grp.rotation.y = -Math.atan2(s.bz - s.az, s.bx - s.ax); const pl = mesh(new THREE.PlaneGeometry(s.len + 0.6, s.hw > 11 ? 6.5 : 5), lam(0xcdb98a)); pl.rotation.x = -Math.PI / 2; grp.add(pl); g.add(grp); const j = mesh(new THREE.CircleGeometry(s.hw > 11 ? 3.25 : 2.5, 14), lam(0xcdb98a), s.ax, 0, s.az); flat(j, 0.036); });
@@ -434,10 +478,11 @@
     mkGate(6, routeLen(6) - 70, "Only trainers with all 6 badges may enter Champions Stadium!", () => G.badges.length >= 6);
     /* trees, rocks, flowers, mountains, clouds (instanced) */
     const NT = 7400, trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.3, 1.5, 6), lam(0x7a5230), NT), lg = new THREE.IcosahedronGeometry(1.25, 0), la = new THREE.InstancedMesh(lg, lam(0xffffff), NT), lb2 = new THREE.InstancedMesh(lg, lam(0xffffff), NT);
-    let n = 0; const putTree = (x, z, collide) => { const s = 0.8 + r() * 0.8; dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix); dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb2.setMatrixAt(n, dm.matrix); const nearTown = TOWNS.findIndex((t) => Math.hypot(x - t.x, z - t.z) < 160), hue = nearTown === 6 || nearTown === 7 ? 0.5 : nearTown === 5 ? 0.1 : 0.29 + r() * 0.09; col.setHSL(hue, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col); lb2.setColorAt(n, col); if (collide) sc.col.add(x, z, 0.9 * s); n++; };
+    const TS = []; let n = 0; const putTree = (x, z, collide) => { const s = 0.8 + r() * 0.8; TS.push(x, z, s); dm.rotation.set(0, 0, 0); dm.scale.setScalar(s); dm.position.set(x, 0.75 * s, z); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix); dm.rotation.y = r() * 6; dm.position.set(x, 2.2 * s, z); dm.updateMatrix(); la.setMatrixAt(n, dm.matrix); dm.scale.setScalar(0.75 * s); dm.position.set(x + 0.3 * s, 3.1 * s, z + 0.1 * s); dm.updateMatrix(); lb2.setMatrixAt(n, dm.matrix); const nearTown = TOWNS.findIndex((t) => Math.hypot(x - t.x, z - t.z) < 160), hue = nearTown === 6 || nearTown === 7 ? 0.5 : nearTown === 5 ? 0.1 : 0.29 + r() * 0.09; col.setHSL(hue, 0.5, 0.24 + r() * 0.1); la.setColorAt(n, col); lb2.setColorAt(n, col); if (collide) sc.col.add(x, z, 0.9 * s); n++; };
     for (let i = 0; i < 160000 && n < 6200; i++) { const x = -15 + r() * 930, z = -15 + r() * 930; if (TOWNS.some((t) => inTownRect(x, z, t, 6))) continue; const q = nearSeg(x, z, 6); if (q.s && q.d < 3) continue; putTree(x, z, false); }
     for (let i = 0; i < 20000 && n < NT; i++) { const s = SEGS[Math.floor(r() * SEGS.length)], t2 = r(), side = r() < 0.5 ? -1 : 1, off = side * (4.4 + r() * (s.hw - 5.4)), x = s.ax + (s.bx - s.ax) * t2 + (-(s.bz - s.az) / s.len) * off, z = s.az + (s.bz - s.az) * t2 + ((s.bx - s.ax) / s.len) * off; if (TOWNS.some((t) => inTownRect(x, z, t, 4)) || sc.patches.some((p) => Math.abs(x - p.x) < p.w / 2 && Math.abs(z - p.z) < p.d / 2)) continue; putTree(x, z, true); }
     [trunk, la, lb2].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; g.add(m); });
+    { const cnt = TS.length / 3, tsh = new THREE.InstancedMesh(new THREE.CircleGeometry(1.5, 10), new THREE.MeshBasicMaterial({ color: 0x0a1a08, transparent: true, opacity: 0.3, depthWrite: false }), cnt); for (let i = 0; i < cnt; i++) { dm.rotation.set(-Math.PI / 2, 0, 0); dm.scale.setScalar(TS[i * 3 + 2] * 1.15); dm.position.set(TS[i * 3], 0.05, TS[i * 3 + 1]); dm.updateMatrix(); tsh.setMatrixAt(i, dm.matrix); } tsh.instanceMatrix.needsUpdate = true; g.add(tsh); }
     const NR = 140, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.8, 0), lam(0x9a9aa8), NR); n = 0;
     for (let i = 0; i < 20000 && n < NR; i++) { const s = SEGS[Math.floor(r() * SEGS.length)], t2 = r(), off = (r() < 0.5 ? -1 : 1) * (5 + r() * (s.hw - 5.5)), x = s.ax + (s.bx - s.ax) * t2 - ((s.bz - s.az) / s.len) * off, z = s.az + (s.bz - s.az) * t2 + ((s.bx - s.ax) / s.len) * off; if (TOWNS.some((t) => inTownRect(x, z, t, 4))) continue; const sz = 0.6 + r() * 1.1; dm.rotation.set(0, r() * 6, 0); dm.scale.set(sz, sz * 0.8, sz); dm.position.set(x, 0.4 * sz, z); dm.updateMatrix(); rocks.setMatrixAt(n, dm.matrix); sc.col.add(x, z, 0.8 * sz); n++; }
     rocks.count = n; rocks.instanceMatrix.needsUpdate = true; g.add(rocks);
@@ -766,7 +811,7 @@
   /* ----- scenes ----- */
   function enterScene(sc, x, z, rot) {
     if (SC) SC.group.visible = false; SC = sc; sc.group.visible = true; scene.background = new THREE.Color(sc.bg); scene.fog = new THREE.Fog(sc.bg, sc.fog[0], sc.fog[1]);
-    P.x = x; P.z = z; if (rot !== undefined) P.rot = rot; camSnap = true; if (G) { G.near = null; G.hist = []; } refreshMarks();
+    fxEnter(sc); P.x = x; P.z = z; if (rot !== undefined) P.rot = rot; camSnap = true; if (G) { G.near = null; G.hist = []; } refreshMarks();
     if (partnerH) partnerH.position.set(x + 1, 0, z + 1);
   }
   function setPartner(force) {
@@ -1335,7 +1380,7 @@
   /* ----- loop, camera, setup ----- */
   let running = false, last = 0;
   function update(dt) {
-    T += dt; tickPart(dt); musicTick(dt);
+    T += dt; tickPart(dt); musicTick(dt); fxTick(dt);
     if (BT && BT.cam) {
       [BT.pH, BT.fH].forEach((h) => h && tickMon(h, dt));
       let sx = 0, sy = 0; if (shakeT > 0) { shakeT -= dt; sx = (Math.random() - 0.5) * shakeP; sy = (Math.random() - 0.5) * shakeP * 0.6; }
@@ -1393,9 +1438,9 @@
   }
   function init3d() {
     THREE = window.THREE; try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { renderer = new THREE.WebGLRenderer({ antialias: false }); }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6)); $("av-3d").appendChild(renderer.domElement);
-    scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(52, 1, 0.1, 520); scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a5a, 0.95)); const sun = new THREE.DirectionalLight(0xfff2d0, 0.65); sun.position.set(14, 24, 10); scene.add(sun);
-    fxGroup = new THREE.Group(); scene.add(fxGroup); initTex(); trainer = makeTrainer(DEF_LOOK); scene.add(trainer); initStage(); addEventListener("resize", resize);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; $("av-3d").appendChild(renderer.domElement);
+    scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(52, 1, 0.1, 520); scene.add(new THREE.HemisphereLight(0xdcecff, 0x6a8a5a, 0.78)); const sun = new THREE.DirectionalLight(0xfff0cf, 0.95); sun.position.set(22, 38, 16); sun.castShadow = true; const shs = matchMedia("(pointer:coarse)").matches ? 1024 : 2048; sun.shadow.mapSize.set(shs, shs); const sc2 = sun.shadow.camera; sc2.left = -38; sc2.right = 38; sc2.top = 38; sc2.bottom = -38; sc2.near = 1; sc2.far = 120; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; scene.add(sun, sun.target); SUN = sun;
+    fxGroup = new THREE.Group(); scene.add(fxGroup); initTex(); initFx(); trainer = makeTrainer(DEF_LOOK); shadowPass(trainer); scene.add(trainer); initStage(); addEventListener("resize", resize);
   }
   const VIEWS = ["Classic", "Close-up", "Top-down", "Player view (first person)"];
   function cycleView() { DB.view = ((DB.view || 0) + 1) % 4; saveDB(); camSnap = true; toast({ icon: "👁", title: "View: " + VIEWS[DB.view], message: DB.view === 3 ? "W/S move, A/D turn (joystick: up/down move, left/right turn)." : "" }); }
@@ -1531,7 +1576,7 @@
   const CSS = `
 #adventure-page{padding:0!important;display:block;background:#0b1220!important;overflow:hidden;font-family:var(--font-body)}
 #adventure-page *{box-sizing:border-box}#adventure-page [hidden]{display:none!important}
-#av-3d{position:absolute;inset:0}#av-3d canvas{display:block;width:100%;height:100%}
+#av-3d{position:absolute;inset:0}#av-3d canvas{display:block;width:100%;height:100%}#av-3d::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(5,12,28,.38) 100%)}@media (hover:hover) and (pointer:fine){#av-3d canvas{filter:saturate(1.12) contrast(1.05)}}
 #av-top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px 18px;background:linear-gradient(180deg,rgba(5,11,20,.8),transparent);pointer-events:none}
 #av-top>*{pointer-events:auto}#av-title{flex:1;text-align:center;font:800 14px var(--font-display);letter-spacing:2px;color:#cfe6ff}
 .av-btn{font:800 14px var(--font-display);letter-spacing:.6px;color:#fff;min-height:44px;padding:0 16px;border-radius:12px;background:linear-gradient(145deg,#ffcf45,#ff762e);box-shadow:0 6px 18px rgba(255,118,46,.35);cursor:pointer;border:0;touch-action:manipulation}
