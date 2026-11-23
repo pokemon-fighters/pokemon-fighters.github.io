@@ -1606,6 +1606,73 @@
     try { if (G) saveStory(); } catch (e) {} running = false; runId++; abortBattle(); muStop(); $("adventure-page").classList.add("hidden");
     if (typeof showHomeScreen === "function") showHomeScreen(); else $("home-page").classList.remove("hidden");
   }
+  /* ---------- keyboard control for every menu, shop, PC, battle command and prompt ---------- */
+  const KB = { cur: null, idx: 0, n: 0, used: false, obs: false, hint: null };
+  const KB_SEL = "button,[onclick],[data-a],[data-x],[data-i],[data-k],[data-s],[data-t],[data-id],[data-q],[data-c],[data-r],.slot";
+  const kbOk = (el) => !el.disabled && el.getAttribute("aria-disabled") !== "true";
+  function kbRoot() {
+    const pg = $("adventure-page"); if (!pg || pg.classList.contains("hidden") || DL) return null;
+    if (modalOpen()) return $("av-modal");
+    const bt = $("bt"), cmd = $("bt-cmd"); if (BT && bt && !bt.hidden && cmd && cmd.children.length) return cmd;
+    return null;
+  }
+  function kbList(root) {
+    const els = Array.from(root.querySelectorAll("*")).filter((el) => (el.matches(KB_SEL) || el.onclick) && !el.hidden && el.getClientRects().length);
+    return els.filter((el) => !els.some((o) => o !== el && el.contains(o)));
+  }
+  function kbSet(el) { if (KB.cur && KB.cur !== el) KB.cur.classList.remove("kb-focus"); KB.cur = el; if (el) { if (KB.used) el.classList.add("kb-focus"); try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (e) {} } }
+  function kbHint(on) {
+    const pg = $("adventure-page"); if (!pg) return; if (!KB.hint) { KB.hint = document.createElement("div"); KB.hint.id = "av-kbhint"; KB.hint.textContent = "↑ ↓ ← → Move · Enter Select · Esc Back · 1-9 Quick pick"; pg.appendChild(KB.hint); }
+    KB.hint.hidden = !on;
+  }
+  function kbEnsure() {
+    const root = kbRoot(); kbHint(!!root);
+    if (!root) { if (KB.cur) { KB.cur.classList.remove("kb-focus"); KB.cur = null; } KB.n = 0; return null; }
+    const nav = kbList(root).filter(kbOk); if (nav.length !== KB.n) { if (!KB.cur || !nav.includes(KB.cur)) KB.idx = KB.n && nav.length > KB.n ? KB.idx : 0; KB.n = nav.length; }
+    if (nav.length && (!KB.cur || !nav.includes(KB.cur))) kbSet(nav[Math.max(0, Math.min(KB.idx, nav.length - 1))]); else if (KB.cur && KB.used) KB.cur.classList.add("kb-focus");
+    return { root, nav };
+  }
+  function kbMove(nav, cur, dir) {
+    const rc = (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, c0 = rc(cur); let best = null, bs = 1e9;
+    for (const el of nav) {
+      if (el === cur) continue; const c = rc(el), dx = c.x - c0.x, dy = c.y - c0.y; let p, s;
+      if (dir === "left") { p = -dx; s = Math.abs(dy); } else if (dir === "right") { p = dx; s = Math.abs(dy); } else if (dir === "up") { p = -dy; s = Math.abs(dx); } else { p = dy; s = Math.abs(dx); }
+      if (p < 4) continue; const sc = p + s * 2.5; if (sc < bs) { bs = sc; best = el; }
+    }
+    if (best) return best; const i = nav.indexOf(cur);
+    if (dir === "down") return nav[(i + 1) % nav.length]; if (dir === "up") return nav[(i - 1 + nav.length) % nav.length]; return cur;
+  }
+  function kbBack(root) {
+    const isBack = (el) => /^(←|◀|⬅)?\s*(BACK|CLOSE|RESUME|CANCEL|NOT YET|NO|LATER|LEAVE)\b/i.test((el.textContent || "").trim()) || ["x", "no", "back", "close", "home", "cancel"].includes(el.dataset && el.dataset.a) || el.classList.contains("back");
+    const b = kbList(root).filter(kbOk).find(isBack); if (b) { b.click(); return true; } return false;
+  }
+  function kbInit() {
+    if (KB.obs) return; KB.obs = true; const re = () => { if (KB.used) (window.requestAnimationFrame || setTimeout)(kbEnsure); };
+    [$("av-modal"), $("bt-cmd")].forEach((el) => { if (el && window.MutationObserver) new window.MutationObserver(re).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "disabled"] }); });
+  }
+  function kbKey(e) {
+    const pg = $("adventure-page"); if (!pg || pg.classList.contains("hidden")) return;
+    kbInit(); const k = e.key, tag = (e.target && e.target.tagName) || "";
+    if (/INPUT|TEXTAREA|SELECT/.test(tag)) {
+      if (k === "Enter" && modalOpen()) { const pri = kbList($("av-modal")).filter(kbOk).filter((b) => b.tagName === "BUTTON" && !b.classList.contains("ghost")).pop(); if (pri) { e.preventDefault(); e.stopImmediatePropagation(); pri.click(); } }
+      else if (k === "Escape" && modalOpen()) e.target.blur();
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const st = kbEnsure(), hit = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+    if (!st) {
+      if (mode === "story" && G && !G.cut && !DL && !BT && !e.repeat) { if (k === "Escape") { hit(); hub("party"); } else if (k === "n" || k === "N") toggleSound(); }
+      return;
+    }
+    const { root, nav } = st, dirs = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
+    if (dirs[k]) { hit(); KB.used = true; if (nav.length) { const nx = kbMove(nav, KB.cur || nav[0], dirs[k]); KB.idx = nav.indexOf(nx); kbSet(nx); } return; }
+    if (k === "Tab") { hit(); KB.used = true; if (nav.length) { const i = Math.max(0, nav.indexOf(KB.cur)), nx = nav[(i + (e.shiftKey ? -1 : 1) + nav.length) % nav.length]; KB.idx = nav.indexOf(nx); kbSet(nx); } return; }
+    if (k === "Enter" || k === " " || k === "e" || k === "E") { hit(); if (!KB.used) { KB.used = true; kbEnsure(); return; } if (!e.repeat && KB.cur) KB.cur.click(); return; }
+    if (k === "Escape" || k === "Backspace" || k === "b" || k === "B" || k === "q" || k === "Q") { hit(); if (!e.repeat) kbBack(root); return; }
+    if (/^[1-9]$/.test(k)) { hit(); const el = kbList(root)[+k - 1]; if (el && kbOk(el) && !e.repeat) { KB.used = true; kbSet(el); KB.idx = nav.indexOf(el); el.click(); } }
+  }
+  function kbPointer() { if (KB.used) { KB.used = false; if (KB.cur) KB.cur.classList.remove("kb-focus"); } }
+  window.addEventListener("keydown", kbKey, true); window.addEventListener("pointerdown", kbPointer, true);
   addEventListener("keydown", (e) => {
     const p = $("adventure-page"); if (!p || p.classList.contains("hidden")) return; if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName || "")) return;
     held[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true; if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault();
@@ -1787,7 +1854,7 @@
 .av-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.av-stat{background:#0f1d2f;border:1px solid #23405c;border-radius:12px;padding:10px 4px}.av-stat small{display:block;font:700 9px var(--font-display);letter-spacing:1px;color:#7590aa}.av-stat b{font:900 18px var(--font-display);color:#fff}
 .av-shop{display:flex;flex-direction:column;gap:8px;margin:10px 0}.av-item{display:flex;align-items:center;gap:10px;text-align:left;background:#0f1d2f;border:1px solid #23405c;border-radius:14px;padding:10px 12px}
 .av-item div{flex:1}.av-item b{display:block;font:800 13px var(--font-display);color:#fff}.av-item span{font-size:11px;color:#8ba3bd}
-.av-row2{display:flex;gap:10px;margin-top:12px}.av-row2 .av-btn{flex:1}
+.av-row2{display:flex;gap:10px;margin-top:12px}.av-row2 .av-btn{flex:1}.kb-focus{outline:3px solid #ffcf45!important;outline-offset:2px;box-shadow:0 0 0 5px rgba(255,207,69,.22),0 0 20px rgba(255,207,69,.6)!important;position:relative;z-index:1}#av-kbhint{position:absolute;left:50%;bottom:calc(4px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;padding:4px 12px;border-radius:999px;background:rgba(8,16,30,.82);border:1px solid #36506b;color:#cfe0f0;font:700 11px var(--font-body);letter-spacing:.4px;pointer-events:none;white-space:nowrap}#av-kbhint[hidden]{display:none}@media (pointer:coarse){#av-kbhint{display:none}}
 #av-bottom{flex-direction:row;justify-content:space-between;align-items:flex-end}
 #av-team{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:6px;max-width:46vw}
 .av-chip{padding:4px 12px 4px 6px;min-width:150px;border-radius:14px;background:linear-gradient(90deg,rgba(14,30,52,.92),rgba(7,17,31,.88))}.av-chip img{width:42px;height:42px;filter:drop-shadow(0 3px 4px #0008)}
