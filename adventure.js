@@ -533,7 +533,7 @@
     }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
-  /* ---------- real-world Pokémon sizes (Pokédex heights in metres; the trainer is ~1.85 units = ~1.8 m) ---------- */
+  /* ---------- Pokémon sizes from real Pokédex heights (metres), softened so small ones stay visible; trainer = 1.85 units. Tune: 0.9 (base) and 0.75 (spread) below ---------- */
   const MON_H = { 1: 0.7, 2: 1.0, 3: 2.0, 4: 0.6, 5: 1.1, 6: 1.7, 7: 0.5, 8: 1.0, 9: 1.6, 19: 0.3, 20: 0.7, 25: 0.4, 26: 0.8, 39: 0.5, 41: 0.8, 42: 1.6, 43: 0.5, 44: 0.8, 54: 0.8, 58: 0.7, 59: 1.9, 63: 0.9, 64: 1.3, 65: 1.5, 66: 0.8, 67: 1.5, 68: 1.6, 74: 0.4, 75: 1.0, 76: 1.4, 78: 1.7, 81: 0.3, 87: 1.7, 91: 1.5, 92: 1.3, 93: 1.6, 94: 1.5, 124: 1.4, 130: 6.5, 131: 2.5, 133: 0.3, 143: 2.1, 149: 2.2, 150: 2.0, 248: 2.0, 376: 1.6, 445: 1.9, 448: 1.2 };
   const MON_BOX = {};
   function monBox(id, img) {
@@ -548,8 +548,8 @@
   }
   function fitMon(g, c, img, opt) {
     const u = g.userData, real = MON_H[c.id] || 1, bb = monBox(c.id, img), frac = Math.max(0.2, bb.bot - bb.top);
-    const units = opt.mode === "battle" ? clamp(3.0 * Math.pow(real, 0.55), 1.9, 7.2) * (opt.k || 1) : Math.max(0.5, real * 1.03);
-    const s = units / frac, old = u.s || s; u.s = s; u.units = units; u.yb = s * (bb.bot - 0.5); u.sp.scale.set(s, s, 1); u.sp.position.y = u.yb;
+    const units = opt.mode === "battle" ? clamp(3.0 * Math.pow(real, 0.55), 1.9, 7.2) * (opt.k || 1) : 0.9 + 0.75 * Math.pow(real, 0.85);
+    const s = units / frac, old = u.s || s; u.s = s; u.units = units; u.yb = s * (bb.bot - 0.5); u.sp.scale.set((u.sp.scale.x < 0 ? -1 : 1) * s, s, 1); u.sp.position.y = u.yb;
     if (g.children[1]) g.children[1].scale.setScalar(Math.max(0.3, s / old));
   }
   function buildWorld() {
