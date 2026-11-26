@@ -41,22 +41,185 @@
   const sfx = (f, d, ty, g) => { try { playTone(f, d, ty || "square", g || 0.08); } catch (e) {} };
 
   /* ---------- species ---------- */
-  const POOL = [
-    [25, "Pikachu", "electric", 1], [4, "Charmander", "fire", 1], [7, "Squirtle", "water", 1], [1, "Bulbasaur", "grass", 1],
-    [133, "Eevee", "normal", 1], [92, "Gastly", "ghost,poison", 1], [74, "Geodude", "rock,ground", 1], [66, "Machop", "fighting", 1],
-    [58, "Growlithe", "fire", 1], [54, "Psyduck", "water", 1], [43, "Oddish", "grass,poison", 1], [81, "Magnemite", "electric,steel", 1],
-    [39, "Jigglypuff", "normal,fairy", 1], [41, "Zubat", "poison,flying", 1], [63, "Abra", "psychic", 1], [19, "Rattata", "normal", 1],
-    [6, "Charizard", "fire,flying", 2], [9, "Blastoise", "water", 2], [3, "Venusaur", "grass,poison", 2], [94, "Gengar", "ghost,poison", 2],
-    [65, "Alakazam", "psychic", 2], [26, "Raichu", "electric", 2], [130, "Gyarados", "water,flying", 2], [448, "Lucario", "fighting,steel", 2],
-    [68, "Machamp", "fighting", 2], [59, "Arcanine", "fire", 2], [149, "Dragonite", "dragon,flying", 3], [248, "Tyranitar", "rock,dark", 3],
-    [445, "Garchomp", "dragon,ground", 3], [376, "Metagross", "steel,psychic", 3], [143, "Snorlax", "normal", 3],
-    [2, "Ivysaur", "grass,poison", 2], [5, "Charmeleon", "fire", 2], [8, "Wartortle", "water", 2], [64, "Kadabra", "psychic", 2], [93, "Haunter", "ghost,poison", 2],
-    [75, "Graveler", "rock,ground", 2], [67, "Machoke", "fighting", 2], [42, "Golbat", "poison,flying", 2], [44, "Gloom", "grass,poison", 2], [20, "Raticate", "normal", 1],
-    [76, "Golem", "rock,ground", 3], [87, "Dewgong", "water,ice", 2], [131, "Lapras", "water,ice", 3], [124, "Jynx", "ice,psychic", 2], [91, "Cloyster", "water,ice", 2], [78, "Rapidash", "fire", 2],
-    [150, "Mewtwo", "psychic", 3],
-  ].map(([id, n, t, k]) => ({ id, n, s: n.toLowerCase(), t: t.split(","), k }));
+  /* ---------- every Pokémon (1–1025): [id, name, types, base-stat total, height in dm, flag 1=legendary/mythical 2=baby] ---------- */
+  const ALLP = [
+    [1,"Bulbasaur","grass,poison",318,7,0], [2,"Ivysaur","grass,poison",405,10,0], [3,"Venusaur","grass,poison",525,20,0], [4,"Charmander","fire",309,6,0], [5,"Charmeleon","fire",405,11,0], [6,"Charizard","fire,flying",534,17,0],
+    [7,"Squirtle","water",314,5,0], [8,"Wartortle","water",405,10,0], [9,"Blastoise","water",530,16,0], [10,"Caterpie","bug",195,3,0], [11,"Metapod","bug",205,7,0], [12,"Butterfree","bug,flying",395,11,0],
+    [13,"Weedle","bug,poison",195,3,0], [14,"Kakuna","bug,poison",205,6,0], [15,"Beedrill","bug,poison",395,10,0], [16,"Pidgey","normal,flying",251,3,0], [17,"Pidgeotto","normal,flying",349,11,0], [18,"Pidgeot","normal,flying",479,15,0],
+    [19,"Rattata","normal",253,3,0], [20,"Raticate","normal",413,7,0], [21,"Spearow","normal,flying",262,3,0], [22,"Fearow","normal,flying",442,12,0], [23,"Ekans","poison",288,20,0], [24,"Arbok","poison",448,35,0],
+    [25,"Pikachu","electric",320,4,0], [26,"Raichu","electric",485,8,0], [27,"Sandshrew","ground",300,6,0], [28,"Sandslash","ground",450,10,0], [29,"Nidoran♀","poison",275,4,0], [30,"Nidorina","poison",365,8,0],
+    [31,"Nidoqueen","poison,ground",505,13,0], [32,"Nidoran♂","poison",273,5,0], [33,"Nidorino","poison",365,9,0], [34,"Nidoking","poison,ground",505,14,0], [35,"Clefairy","fairy",323,6,0], [36,"Clefable","fairy",483,13,0],
+    [37,"Vulpix","fire",299,6,0], [38,"Ninetales","fire",505,11,0], [39,"Jigglypuff","normal,fairy",270,5,0], [40,"Wigglytuff","normal,fairy",435,10,0], [41,"Zubat","poison,flying",245,8,0], [42,"Golbat","poison,flying",455,16,0],
+    [43,"Oddish","grass,poison",320,5,0], [44,"Gloom","grass,poison",395,8,0], [45,"Vileplume","grass,poison",490,12,0], [46,"Paras","bug,grass",285,3,0], [47,"Parasect","bug,grass",405,10,0], [48,"Venonat","bug,poison",305,10,0],
+    [49,"Venomoth","bug,poison",450,15,0], [50,"Diglett","ground",265,2,0], [51,"Dugtrio","ground",425,7,0], [52,"Meowth","normal",290,4,0], [53,"Persian","normal",440,10,0], [54,"Psyduck","water",320,8,0],
+    [55,"Golduck","water",500,17,0], [56,"Mankey","fighting",305,5,0], [57,"Primeape","fighting",455,10,0], [58,"Growlithe","fire",350,7,0], [59,"Arcanine","fire",555,19,0], [60,"Poliwag","water",300,6,0],
+    [61,"Poliwhirl","water",385,10,0], [62,"Poliwrath","water,fighting",510,13,0], [63,"Abra","psychic",310,9,0], [64,"Kadabra","psychic",400,13,0], [65,"Alakazam","psychic",500,15,0], [66,"Machop","fighting",305,8,0],
+    [67,"Machoke","fighting",405,15,0], [68,"Machamp","fighting",505,16,0], [69,"Bellsprout","grass,poison",300,7,0], [70,"Weepinbell","grass,poison",390,10,0], [71,"Victreebel","grass,poison",490,17,0], [72,"Tentacool","water,poison",335,9,0],
+    [73,"Tentacruel","water,poison",515,16,0], [74,"Geodude","rock,ground",300,4,0], [75,"Graveler","rock,ground",390,10,0], [76,"Golem","rock,ground",495,14,0], [77,"Ponyta","fire",410,10,0], [78,"Rapidash","fire",500,17,0],
+    [79,"Slowpoke","water,psychic",315,12,0], [80,"Slowbro","water,psychic",490,16,0], [81,"Magnemite","electric,steel",325,3,0], [82,"Magneton","electric,steel",465,10,0], [83,"Farfetch’d","normal,flying",377,8,0], [84,"Doduo","normal,flying",310,14,0],
+    [85,"Dodrio","normal,flying",470,18,0], [86,"Seel","water",325,11,0], [87,"Dewgong","water,ice",475,17,0], [88,"Grimer","poison",325,9,0], [89,"Muk","poison",500,12,0], [90,"Shellder","water",305,3,0],
+    [91,"Cloyster","water,ice",525,15,0], [92,"Gastly","ghost,poison",310,13,0], [93,"Haunter","ghost,poison",405,16,0], [94,"Gengar","ghost,poison",500,15,0], [95,"Onix","rock,ground",385,88,0], [96,"Drowzee","psychic",328,10,0],
+    [97,"Hypno","psychic",483,16,0], [98,"Krabby","water",325,4,0], [99,"Kingler","water",475,13,0], [100,"Voltorb","electric",330,5,0], [101,"Electrode","electric",490,12,0], [102,"Exeggcute","grass,psychic",325,4,0],
+    [103,"Exeggutor","grass,psychic",530,20,0], [104,"Cubone","ground",320,4,0], [105,"Marowak","ground",425,10,0], [106,"Hitmonlee","fighting",455,15,0], [107,"Hitmonchan","fighting",455,14,0], [108,"Lickitung","normal",385,12,0],
+    [109,"Koffing","poison",340,6,0], [110,"Weezing","poison",490,12,0], [111,"Rhyhorn","ground,rock",345,10,0], [112,"Rhydon","ground,rock",485,19,0], [113,"Chansey","normal",450,11,0], [114,"Tangela","grass",435,10,0],
+    [115,"Kangaskhan","normal",490,22,0], [116,"Horsea","water",295,4,0], [117,"Seadra","water",440,12,0], [118,"Goldeen","water",320,6,0], [119,"Seaking","water",450,13,0], [120,"Staryu","water",340,8,0],
+    [121,"Starmie","water,psychic",520,11,0], [122,"Mr. Mime","psychic,fairy",460,13,0], [123,"Scyther","bug,flying",500,15,0], [124,"Jynx","ice,psychic",455,14,0], [125,"Electabuzz","electric",490,11,0], [126,"Magmar","fire",495,13,0],
+    [127,"Pinsir","bug",500,15,0], [128,"Tauros","normal",490,14,0], [129,"Magikarp","water",200,9,0], [130,"Gyarados","water,flying",540,65,0], [131,"Lapras","water,ice",535,25,0], [132,"Ditto","normal",288,3,0],
+    [133,"Eevee","normal",325,3,0], [134,"Vaporeon","water",525,10,0], [135,"Jolteon","electric",525,8,0], [136,"Flareon","fire",525,9,0], [137,"Porygon","normal",395,8,0], [138,"Omanyte","rock,water",355,4,0],
+    [139,"Omastar","rock,water",495,10,0], [140,"Kabuto","rock,water",355,5,0], [141,"Kabutops","rock,water",495,13,0], [142,"Aerodactyl","rock,flying",515,18,0], [143,"Snorlax","normal",540,21,0], [144,"Articuno","ice,flying",580,17,1],
+    [145,"Zapdos","electric,flying",580,16,1], [146,"Moltres","fire,flying",580,20,1], [147,"Dratini","dragon",300,18,0], [148,"Dragonair","dragon",420,40,0], [149,"Dragonite","dragon,flying",600,22,0], [150,"Mewtwo","psychic",680,20,1],
+    [151,"Mew","psychic",600,4,1], [152,"Chikorita","grass",318,9,0], [153,"Bayleef","grass",405,12,0], [154,"Meganium","grass",525,18,0], [155,"Cyndaquil","fire",309,5,0], [156,"Quilava","fire",405,9,0],
+    [157,"Typhlosion","fire",534,17,0], [158,"Totodile","water",314,6,0], [159,"Croconaw","water",405,11,0], [160,"Feraligatr","water",530,23,0], [161,"Sentret","normal",215,8,0], [162,"Furret","normal",415,18,0],
+    [163,"Hoothoot","normal,flying",262,7,0], [164,"Noctowl","normal,flying",452,16,0], [165,"Ledyba","bug,flying",265,10,0], [166,"Ledian","bug,flying",390,14,0], [167,"Spinarak","bug,poison",250,5,0], [168,"Ariados","bug,poison",400,11,0],
+    [169,"Crobat","poison,flying",535,18,0], [170,"Chinchou","water,electric",330,5,0], [171,"Lanturn","water,electric",460,12,0], [172,"Pichu","electric",205,3,2], [173,"Cleffa","fairy",218,3,2], [174,"Igglybuff","normal,fairy",210,3,2],
+    [175,"Togepi","fairy",245,3,2], [176,"Togetic","fairy,flying",405,6,0], [177,"Natu","psychic,flying",320,2,0], [178,"Xatu","psychic,flying",470,15,0], [179,"Mareep","electric",280,6,0], [180,"Flaaffy","electric",365,8,0],
+    [181,"Ampharos","electric",510,14,0], [182,"Bellossom","grass",490,4,0], [183,"Marill","water,fairy",250,4,0], [184,"Azumarill","water,fairy",420,8,0], [185,"Sudowoodo","rock",410,12,0], [186,"Politoed","water",500,11,0],
+    [187,"Hoppip","grass,flying",250,4,0], [188,"Skiploom","grass,flying",340,6,0], [189,"Jumpluff","grass,flying",460,8,0], [190,"Aipom","normal",360,8,0], [191,"Sunkern","grass",180,3,0], [192,"Sunflora","grass",425,8,0],
+    [193,"Yanma","bug,flying",390,12,0], [194,"Wooper","water,ground",210,4,0], [195,"Quagsire","water,ground",430,14,0], [196,"Espeon","psychic",525,9,0], [197,"Umbreon","dark",525,10,0], [198,"Murkrow","dark,flying",405,5,0],
+    [199,"Slowking","water,psychic",490,20,0], [200,"Misdreavus","ghost",435,7,0], [201,"Unown","psychic",336,5,0], [202,"Wobbuffet","psychic",405,13,0], [203,"Girafarig","normal,psychic",455,15,0], [204,"Pineco","bug",290,6,0],
+    [205,"Forretress","bug,steel",465,12,0], [206,"Dunsparce","normal",415,15,0], [207,"Gligar","ground,flying",430,11,0], [208,"Steelix","steel,ground",510,92,0], [209,"Snubbull","fairy",300,6,0], [210,"Granbull","fairy",450,14,0],
+    [211,"Qwilfish","water,poison",440,5,0], [212,"Scizor","bug,steel",500,18,0], [213,"Shuckle","bug,rock",505,6,0], [214,"Heracross","bug,fighting",500,15,0], [215,"Sneasel","dark,ice",430,9,0], [216,"Teddiursa","normal",330,6,0],
+    [217,"Ursaring","normal",500,18,0], [218,"Slugma","fire",250,7,0], [219,"Magcargo","fire,rock",430,8,0], [220,"Swinub","ice,ground",250,4,0], [221,"Piloswine","ice,ground",450,11,0], [222,"Corsola","water,rock",410,6,0],
+    [223,"Remoraid","water",300,6,0], [224,"Octillery","water",480,9,0], [225,"Delibird","ice,flying",330,9,0], [226,"Mantine","water,flying",485,21,0], [227,"Skarmory","steel,flying",465,17,0], [228,"Houndour","dark,fire",330,6,0],
+    [229,"Houndoom","dark,fire",500,14,0], [230,"Kingdra","water,dragon",540,18,0], [231,"Phanpy","ground",330,5,0], [232,"Donphan","ground",500,11,0], [233,"Porygon2","normal",515,6,0], [234,"Stantler","normal",465,14,0],
+    [235,"Smeargle","normal",250,12,0], [236,"Tyrogue","fighting",210,7,2], [237,"Hitmontop","fighting",455,14,0], [238,"Smoochum","ice,psychic",305,4,2], [239,"Elekid","electric",360,6,2], [240,"Magby","fire",365,7,2],
+    [241,"Miltank","normal",490,12,0], [242,"Blissey","normal",540,15,0], [243,"Raikou","electric",580,19,1], [244,"Entei","fire",580,21,1], [245,"Suicune","water",580,20,1], [246,"Larvitar","rock,ground",300,6,0],
+    [247,"Pupitar","rock,ground",410,12,0], [248,"Tyranitar","rock,dark",600,20,0], [249,"Lugia","psychic,flying",680,52,1], [250,"Ho-Oh","fire,flying",680,38,1], [251,"Celebi","psychic,grass",600,6,1], [252,"Treecko","grass",310,5,0],
+    [253,"Grovyle","grass",405,9,0], [254,"Sceptile","grass",530,17,0], [255,"Torchic","fire",310,4,0], [256,"Combusken","fire,fighting",405,9,0], [257,"Blaziken","fire,fighting",530,19,0], [258,"Mudkip","water",310,4,0],
+    [259,"Marshtomp","water,ground",405,7,0], [260,"Swampert","water,ground",535,15,0], [261,"Poochyena","dark",220,5,0], [262,"Mightyena","dark",420,10,0], [263,"Zigzagoon","normal",240,4,0], [264,"Linoone","normal",420,5,0],
+    [265,"Wurmple","bug",195,3,0], [266,"Silcoon","bug",205,6,0], [267,"Beautifly","bug,flying",395,10,0], [268,"Cascoon","bug",205,7,0], [269,"Dustox","bug,poison",385,12,0], [270,"Lotad","water,grass",220,5,0],
+    [271,"Lombre","water,grass",340,12,0], [272,"Ludicolo","water,grass",480,15,0], [273,"Seedot","grass",220,5,0], [274,"Nuzleaf","grass,dark",340,10,0], [275,"Shiftry","grass,dark",480,13,0], [276,"Taillow","normal,flying",270,3,0],
+    [277,"Swellow","normal,flying",455,7,0], [278,"Wingull","water,flying",270,6,0], [279,"Pelipper","water,flying",440,12,0], [280,"Ralts","psychic,fairy",198,4,0], [281,"Kirlia","psychic,fairy",278,8,0], [282,"Gardevoir","psychic,fairy",518,16,0],
+    [283,"Surskit","bug,water",269,5,0], [284,"Masquerain","bug,flying",454,8,0], [285,"Shroomish","grass",295,4,0], [286,"Breloom","grass,fighting",460,12,0], [287,"Slakoth","normal",280,8,0], [288,"Vigoroth","normal",440,14,0],
+    [289,"Slaking","normal",670,20,0], [290,"Nincada","bug,ground",266,5,0], [291,"Ninjask","bug,flying",456,8,0], [292,"Shedinja","bug,ghost",236,8,0], [293,"Whismur","normal",240,6,0], [294,"Loudred","normal",360,10,0],
+    [295,"Exploud","normal",490,15,0], [296,"Makuhita","fighting",237,10,0], [297,"Hariyama","fighting",474,23,0], [298,"Azurill","normal,fairy",190,2,2], [299,"Nosepass","rock",375,10,0], [300,"Skitty","normal",260,6,0],
+    [301,"Delcatty","normal",400,11,0], [302,"Sableye","dark,ghost",380,5,0], [303,"Mawile","steel,fairy",380,6,0], [304,"Aron","steel,rock",330,4,0], [305,"Lairon","steel,rock",430,9,0], [306,"Aggron","steel,rock",530,21,0],
+    [307,"Meditite","fighting,psychic",280,6,0], [308,"Medicham","fighting,psychic",410,13,0], [309,"Electrike","electric",295,6,0], [310,"Manectric","electric",475,15,0], [311,"Plusle","electric",405,4,0], [312,"Minun","electric",405,4,0],
+    [313,"Volbeat","bug",430,7,0], [314,"Illumise","bug",430,6,0], [315,"Roselia","grass,poison",400,3,0], [316,"Gulpin","poison",302,4,0], [317,"Swalot","poison",467,17,0], [318,"Carvanha","water,dark",305,8,0],
+    [319,"Sharpedo","water,dark",460,18,0], [320,"Wailmer","water",400,20,0], [321,"Wailord","water",500,145,0], [322,"Numel","fire,ground",305,7,0], [323,"Camerupt","fire,ground",460,19,0], [324,"Torkoal","fire",470,5,0],
+    [325,"Spoink","psychic",330,7,0], [326,"Grumpig","psychic",470,9,0], [327,"Spinda","normal",360,11,0], [328,"Trapinch","ground",290,7,0], [329,"Vibrava","ground,dragon",340,11,0], [330,"Flygon","ground,dragon",520,20,0],
+    [331,"Cacnea","grass",335,4,0], [332,"Cacturne","grass,dark",475,13,0], [333,"Swablu","normal,flying",310,4,0], [334,"Altaria","dragon,flying",490,11,0], [335,"Zangoose","normal",458,13,0], [336,"Seviper","poison",458,27,0],
+    [337,"Lunatone","rock,psychic",460,10,0], [338,"Solrock","rock,psychic",460,12,0], [339,"Barboach","water,ground",288,4,0], [340,"Whiscash","water,ground",468,9,0], [341,"Corphish","water",308,6,0], [342,"Crawdaunt","water,dark",468,11,0],
+    [343,"Baltoy","ground,psychic",300,5,0], [344,"Claydol","ground,psychic",500,15,0], [345,"Lileep","rock,grass",355,10,0], [346,"Cradily","rock,grass",495,15,0], [347,"Anorith","rock,bug",355,7,0], [348,"Armaldo","rock,bug",495,15,0],
+    [349,"Feebas","water",200,6,0], [350,"Milotic","water",540,62,0], [351,"Castform","normal",420,3,0], [352,"Kecleon","normal",440,10,0], [353,"Shuppet","ghost",295,6,0], [354,"Banette","ghost",455,11,0],
+    [355,"Duskull","ghost",295,8,0], [356,"Dusclops","ghost",455,16,0], [357,"Tropius","grass,flying",460,20,0], [358,"Chimecho","psychic",455,6,0], [359,"Absol","dark",465,12,0], [360,"Wynaut","psychic",260,6,2],
+    [361,"Snorunt","ice",300,7,0], [362,"Glalie","ice",480,15,0], [363,"Spheal","ice,water",290,8,0], [364,"Sealeo","ice,water",410,11,0], [365,"Walrein","ice,water",530,14,0], [366,"Clamperl","water",345,4,0],
+    [367,"Huntail","water",485,17,0], [368,"Gorebyss","water",485,18,0], [369,"Relicanth","water,rock",485,10,0], [370,"Luvdisc","water",330,6,0], [371,"Bagon","dragon",300,6,0], [372,"Shelgon","dragon",420,11,0],
+    [373,"Salamence","dragon,flying",600,15,0], [374,"Beldum","steel,psychic",300,6,0], [375,"Metang","steel,psychic",420,12,0], [376,"Metagross","steel,psychic",600,16,0], [377,"Regirock","rock",580,17,1], [378,"Regice","ice",580,18,1],
+    [379,"Registeel","steel",580,19,1], [380,"Latias","dragon,psychic",600,14,1], [381,"Latios","dragon,psychic",600,20,1], [382,"Kyogre","water",670,45,1], [383,"Groudon","ground",670,35,1], [384,"Rayquaza","dragon,flying",680,70,1],
+    [385,"Jirachi","steel,psychic",600,3,1], [386,"Deoxys","psychic",600,17,1], [387,"Turtwig","grass",318,4,0], [388,"Grotle","grass",405,11,0], [389,"Torterra","grass,ground",525,22,0], [390,"Chimchar","fire",309,5,0],
+    [391,"Monferno","fire,fighting",405,9,0], [392,"Infernape","fire,fighting",534,12,0], [393,"Piplup","water",314,4,0], [394,"Prinplup","water",405,8,0], [395,"Empoleon","water,steel",530,17,0], [396,"Starly","normal,flying",245,3,0],
+    [397,"Staravia","normal,flying",340,6,0], [398,"Staraptor","normal,flying",485,12,0], [399,"Bidoof","normal",250,5,0], [400,"Bibarel","normal,water",410,10,0], [401,"Kricketot","bug",194,3,0], [402,"Kricketune","bug",384,10,0],
+    [403,"Shinx","electric",263,5,0], [404,"Luxio","electric",363,9,0], [405,"Luxray","electric",523,14,0], [406,"Budew","grass,poison",280,2,2], [407,"Roserade","grass,poison",515,9,0], [408,"Cranidos","rock",350,9,0],
+    [409,"Rampardos","rock",495,16,0], [410,"Shieldon","rock,steel",350,5,0], [411,"Bastiodon","rock,steel",495,13,0], [412,"Burmy","bug",224,2,0], [413,"Wormadam","bug,grass",424,5,0], [414,"Mothim","bug,flying",424,9,0],
+    [415,"Combee","bug,flying",244,3,0], [416,"Vespiquen","bug,flying",474,12,0], [417,"Pachirisu","electric",405,4,0], [418,"Buizel","water",330,7,0], [419,"Floatzel","water",495,11,0], [420,"Cherubi","grass",275,4,0],
+    [421,"Cherrim","grass",450,5,0], [422,"Shellos","water",325,3,0], [423,"Gastrodon","water,ground",475,9,0], [424,"Ambipom","normal",482,12,0], [425,"Drifloon","ghost,flying",348,4,0], [426,"Drifblim","ghost,flying",498,12,0],
+    [427,"Buneary","normal",350,4,0], [428,"Lopunny","normal",480,12,0], [429,"Mismagius","ghost",495,9,0], [430,"Honchkrow","dark,flying",505,9,0], [431,"Glameow","normal",310,5,0], [432,"Purugly","normal",452,10,0],
+    [433,"Chingling","psychic",285,2,2], [434,"Stunky","poison,dark",329,4,0], [435,"Skuntank","poison,dark",479,10,0], [436,"Bronzor","steel,psychic",300,5,0], [437,"Bronzong","steel,psychic",500,13,0], [438,"Bonsly","rock",290,5,2],
+    [439,"Mime Jr.","psychic,fairy",310,6,2], [440,"Happiny","normal",220,6,2], [441,"Chatot","normal,flying",411,5,0], [442,"Spiritomb","ghost,dark",485,10,0], [443,"Gible","dragon,ground",300,7,0], [444,"Gabite","dragon,ground",410,14,0],
+    [445,"Garchomp","dragon,ground",600,19,0], [446,"Munchlax","normal",390,6,2], [447,"Riolu","fighting",285,7,2], [448,"Lucario","fighting,steel",525,12,0], [449,"Hippopotas","ground",330,8,0], [450,"Hippowdon","ground",525,20,0],
+    [451,"Skorupi","poison,bug",330,8,0], [452,"Drapion","poison,dark",500,13,0], [453,"Croagunk","poison,fighting",300,7,0], [454,"Toxicroak","poison,fighting",490,13,0], [455,"Carnivine","grass",454,14,0], [456,"Finneon","water",330,4,0],
+    [457,"Lumineon","water",460,12,0], [458,"Mantyke","water,flying",345,10,2], [459,"Snover","grass,ice",334,10,0], [460,"Abomasnow","grass,ice",494,22,0], [461,"Weavile","dark,ice",510,11,0], [462,"Magnezone","electric,steel",535,12,0],
+    [463,"Lickilicky","normal",515,17,0], [464,"Rhyperior","ground,rock",535,24,0], [465,"Tangrowth","grass",535,20,0], [466,"Electivire","electric",540,18,0], [467,"Magmortar","fire",540,16,0], [468,"Togekiss","fairy,flying",545,15,0],
+    [469,"Yanmega","bug,flying",515,19,0], [470,"Leafeon","grass",525,10,0], [471,"Glaceon","ice",525,8,0], [472,"Gliscor","ground,flying",510,20,0], [473,"Mamoswine","ice,ground",530,25,0], [474,"Porygon-Z","normal",535,9,0],
+    [475,"Gallade","psychic,fighting",518,16,0], [476,"Probopass","rock,steel",525,14,0], [477,"Dusknoir","ghost",525,22,0], [478,"Froslass","ice,ghost",480,13,0], [479,"Rotom","electric,ghost",440,3,0], [480,"Uxie","psychic",580,3,1],
+    [481,"Mesprit","psychic",580,3,1], [482,"Azelf","psychic",580,3,1], [483,"Dialga","steel,dragon",680,54,1], [484,"Palkia","water,dragon",680,42,1], [485,"Heatran","fire,steel",600,17,1], [486,"Regigigas","normal",670,37,1],
+    [487,"Giratina","ghost,dragon",680,45,1], [488,"Cresselia","psychic",580,15,1], [489,"Phione","water",480,4,1], [490,"Manaphy","water",600,3,1], [491,"Darkrai","dark",600,15,1], [492,"Shaymin","grass",600,2,1],
+    [493,"Arceus","normal",720,32,1], [494,"Victini","psychic,fire",600,4,1], [495,"Snivy","grass",308,6,0], [496,"Servine","grass",413,8,0], [497,"Serperior","grass",528,33,0], [498,"Tepig","fire",308,5,0],
+    [499,"Pignite","fire,fighting",418,10,0], [500,"Emboar","fire,fighting",528,16,0], [501,"Oshawott","water",308,5,0], [502,"Dewott","water",413,8,0], [503,"Samurott","water",528,15,0], [504,"Patrat","normal",255,5,0],
+    [505,"Watchog","normal",420,11,0], [506,"Lillipup","normal",275,4,0], [507,"Herdier","normal",370,9,0], [508,"Stoutland","normal",500,12,0], [509,"Purrloin","dark",281,4,0], [510,"Liepard","dark",446,11,0],
+    [511,"Pansage","grass",316,6,0], [512,"Simisage","grass",498,11,0], [513,"Pansear","fire",316,6,0], [514,"Simisear","fire",498,10,0], [515,"Panpour","water",316,6,0], [516,"Simipour","water",498,10,0],
+    [517,"Munna","psychic",292,6,0], [518,"Musharna","psychic",487,11,0], [519,"Pidove","normal,flying",264,3,0], [520,"Tranquill","normal,flying",358,6,0], [521,"Unfezant","normal,flying",488,12,0], [522,"Blitzle","electric",295,8,0],
+    [523,"Zebstrika","electric",497,16,0], [524,"Roggenrola","rock",280,4,0], [525,"Boldore","rock",390,9,0], [526,"Gigalith","rock",515,17,0], [527,"Woobat","psychic,flying",323,4,0], [528,"Swoobat","psychic,flying",425,9,0],
+    [529,"Drilbur","ground",328,3,0], [530,"Excadrill","ground,steel",508,7,0], [531,"Audino","normal",445,11,0], [532,"Timburr","fighting",305,6,0], [533,"Gurdurr","fighting",405,12,0], [534,"Conkeldurr","fighting",505,14,0],
+    [535,"Tympole","water",294,5,0], [536,"Palpitoad","water,ground",384,8,0], [537,"Seismitoad","water,ground",509,15,0], [538,"Throh","fighting",465,13,0], [539,"Sawk","fighting",465,14,0], [540,"Sewaddle","bug,grass",310,3,0],
+    [541,"Swadloon","bug,grass",380,5,0], [542,"Leavanny","bug,grass",500,12,0], [543,"Venipede","bug,poison",260,4,0], [544,"Whirlipede","bug,poison",360,12,0], [545,"Scolipede","bug,poison",485,25,0], [546,"Cottonee","grass,fairy",280,3,0],
+    [547,"Whimsicott","grass,fairy",480,7,0], [548,"Petilil","grass",280,5,0], [549,"Lilligant","grass",480,11,0], [550,"Basculin","water",460,10,0], [551,"Sandile","ground,dark",292,7,0], [552,"Krokorok","ground,dark",351,10,0],
+    [553,"Krookodile","ground,dark",519,15,0], [554,"Darumaka","fire",315,6,0], [555,"Darmanitan","fire",480,13,0], [556,"Maractus","grass",461,10,0], [557,"Dwebble","bug,rock",325,3,0], [558,"Crustle","bug,rock",485,14,0],
+    [559,"Scraggy","dark,fighting",348,6,0], [560,"Scrafty","dark,fighting",488,11,0], [561,"Sigilyph","psychic,flying",490,14,0], [562,"Yamask","ghost",303,5,0], [563,"Cofagrigus","ghost",483,17,0], [564,"Tirtouga","water,rock",355,7,0],
+    [565,"Carracosta","water,rock",495,12,0], [566,"Archen","rock,flying",401,5,0], [567,"Archeops","rock,flying",567,14,0], [568,"Trubbish","poison",329,6,0], [569,"Garbodor","poison",474,19,0], [570,"Zorua","dark",330,7,0],
+    [571,"Zoroark","dark",510,16,0], [572,"Minccino","normal",300,4,0], [573,"Cinccino","normal",470,5,0], [574,"Gothita","psychic",290,4,0], [575,"Gothorita","psychic",390,7,0], [576,"Gothitelle","psychic",490,15,0],
+    [577,"Solosis","psychic",290,3,0], [578,"Duosion","psychic",370,6,0], [579,"Reuniclus","psychic",490,10,0], [580,"Ducklett","water,flying",305,5,0], [581,"Swanna","water,flying",473,13,0], [582,"Vanillite","ice",305,4,0],
+    [583,"Vanillish","ice",395,11,0], [584,"Vanilluxe","ice",535,13,0], [585,"Deerling","normal,grass",335,6,0], [586,"Sawsbuck","normal,grass",475,19,0], [587,"Emolga","electric,flying",428,4,0], [588,"Karrablast","bug",315,5,0],
+    [589,"Escavalier","bug,steel",495,10,0], [590,"Foongus","grass,poison",294,2,0], [591,"Amoonguss","grass,poison",464,6,0], [592,"Frillish","water,ghost",335,12,0], [593,"Jellicent","water,ghost",480,22,0], [594,"Alomomola","water",470,12,0],
+    [595,"Joltik","bug,electric",319,1,0], [596,"Galvantula","bug,electric",472,8,0], [597,"Ferroseed","grass,steel",305,6,0], [598,"Ferrothorn","grass,steel",489,10,0], [599,"Klink","steel",300,3,0], [600,"Klang","steel",440,6,0],
+    [601,"Klinklang","steel",520,6,0], [602,"Tynamo","electric",275,2,0], [603,"Eelektrik","electric",405,12,0], [604,"Eelektross","electric",515,21,0], [605,"Elgyem","psychic",335,5,0], [606,"Beheeyem","psychic",485,10,0],
+    [607,"Litwick","ghost,fire",275,3,0], [608,"Lampent","ghost,fire",370,6,0], [609,"Chandelure","ghost,fire",520,10,0], [610,"Axew","dragon",320,6,0], [611,"Fraxure","dragon",410,10,0], [612,"Haxorus","dragon",540,18,0],
+    [613,"Cubchoo","ice",305,5,0], [614,"Beartic","ice",505,26,0], [615,"Cryogonal","ice",515,11,0], [616,"Shelmet","bug",305,4,0], [617,"Accelgor","bug",495,8,0], [618,"Stunfisk","ground,electric",471,7,0],
+    [619,"Mienfoo","fighting",350,9,0], [620,"Mienshao","fighting",510,14,0], [621,"Druddigon","dragon",485,16,0], [622,"Golett","ground,ghost",303,10,0], [623,"Golurk","ground,ghost",483,28,0], [624,"Pawniard","dark,steel",340,5,0],
+    [625,"Bisharp","dark,steel",490,16,0], [626,"Bouffalant","normal",490,16,0], [627,"Rufflet","normal,flying",350,5,0], [628,"Braviary","normal,flying",510,15,0], [629,"Vullaby","dark,flying",370,5,0], [630,"Mandibuzz","dark,flying",510,12,0],
+    [631,"Heatmor","fire",484,14,0], [632,"Durant","bug,steel",484,3,0], [633,"Deino","dark,dragon",300,8,0], [634,"Zweilous","dark,dragon",420,14,0], [635,"Hydreigon","dark,dragon",600,18,0], [636,"Larvesta","bug,fire",360,11,0],
+    [637,"Volcarona","bug,fire",550,16,0], [638,"Cobalion","steel,fighting",580,21,1], [639,"Terrakion","rock,fighting",580,19,1], [640,"Virizion","grass,fighting",580,20,1], [641,"Tornadus","flying",580,15,1], [642,"Thundurus","electric,flying",580,15,1],
+    [643,"Reshiram","dragon,fire",680,32,1], [644,"Zekrom","dragon,electric",680,29,1], [645,"Landorus","ground,flying",600,15,1], [646,"Kyurem","dragon,ice",660,30,1], [647,"Keldeo","water,fighting",580,14,1], [648,"Meloetta","normal,psychic",600,6,1],
+    [649,"Genesect","bug,steel",600,15,1], [650,"Chespin","grass",313,4,0], [651,"Quilladin","grass",405,7,0], [652,"Chesnaught","grass,fighting",530,16,0], [653,"Fennekin","fire",307,4,0], [654,"Braixen","fire",409,10,0],
+    [655,"Delphox","fire,psychic",534,15,0], [656,"Froakie","water",314,3,0], [657,"Frogadier","water",405,6,0], [658,"Greninja","water,dark",530,15,0], [659,"Bunnelby","normal",237,4,0], [660,"Diggersby","normal,ground",423,10,0],
+    [661,"Fletchling","normal,flying",278,3,0], [662,"Fletchinder","fire,flying",382,7,0], [663,"Talonflame","fire,flying",499,12,0], [664,"Scatterbug","bug",200,3,0], [665,"Spewpa","bug",213,3,0], [666,"Vivillon","bug,flying",411,12,0],
+    [667,"Litleo","fire,normal",369,6,0], [668,"Pyroar","fire,normal",507,15,0], [669,"Flabébé","fairy",303,1,0], [670,"Floette","fairy",371,2,0], [671,"Florges","fairy",552,11,0], [672,"Skiddo","grass",350,9,0],
+    [673,"Gogoat","grass",531,17,0], [674,"Pancham","fighting",348,6,0], [675,"Pangoro","fighting,dark",495,21,0], [676,"Furfrou","normal",472,12,0], [677,"Espurr","psychic",355,3,0], [678,"Meowstic","psychic",466,6,0],
+    [679,"Honedge","steel,ghost",325,8,0], [680,"Doublade","steel,ghost",448,8,0], [681,"Aegislash","steel,ghost",500,17,0], [682,"Spritzee","fairy",341,2,0], [683,"Aromatisse","fairy",462,8,0], [684,"Swirlix","fairy",341,4,0],
+    [685,"Slurpuff","fairy",480,8,0], [686,"Inkay","dark,psychic",288,4,0], [687,"Malamar","dark,psychic",482,15,0], [688,"Binacle","rock,water",306,5,0], [689,"Barbaracle","rock,water",500,13,0], [690,"Skrelp","poison,water",320,5,0],
+    [691,"Dragalge","poison,dragon",494,18,0], [692,"Clauncher","water",330,5,0], [693,"Clawitzer","water",500,13,0], [694,"Helioptile","electric,normal",289,5,0], [695,"Heliolisk","electric,normal",481,10,0], [696,"Tyrunt","rock,dragon",362,8,0],
+    [697,"Tyrantrum","rock,dragon",521,25,0], [698,"Amaura","rock,ice",362,13,0], [699,"Aurorus","rock,ice",521,27,0], [700,"Sylveon","fairy",525,10,0], [701,"Hawlucha","fighting,flying",500,8,0], [702,"Dedenne","electric,fairy",431,2,0],
+    [703,"Carbink","rock,fairy",500,3,0], [704,"Goomy","dragon",300,3,0], [705,"Sliggoo","dragon",452,8,0], [706,"Goodra","dragon",600,20,0], [707,"Klefki","steel,fairy",470,2,0], [708,"Phantump","ghost,grass",309,4,0],
+    [709,"Trevenant","ghost,grass",474,15,0], [710,"Pumpkaboo","ghost,grass",335,4,0], [711,"Gourgeist","ghost,grass",494,9,0], [712,"Bergmite","ice",304,10,0], [713,"Avalugg","ice",514,20,0], [714,"Noibat","flying,dragon",245,5,0],
+    [715,"Noivern","flying,dragon",535,15,0], [716,"Xerneas","fairy",680,30,1], [717,"Yveltal","dark,flying",680,58,1], [718,"Zygarde","dragon,ground",600,50,1], [719,"Diancie","rock,fairy",600,7,1], [720,"Hoopa","psychic,ghost",600,5,1],
+    [721,"Volcanion","fire,water",600,17,1], [722,"Rowlet","grass,flying",320,3,0], [723,"Dartrix","grass,flying",420,7,0], [724,"Decidueye","grass,ghost",530,16,0], [725,"Litten","fire",320,4,0], [726,"Torracat","fire",420,7,0],
+    [727,"Incineroar","fire,dark",530,18,0], [728,"Popplio","water",320,4,0], [729,"Brionne","water",420,6,0], [730,"Primarina","water,fairy",530,18,0], [731,"Pikipek","normal,flying",265,3,0], [732,"Trumbeak","normal,flying",355,6,0],
+    [733,"Toucannon","normal,flying",485,11,0], [734,"Yungoos","normal",253,4,0], [735,"Gumshoos","normal",418,7,0], [736,"Grubbin","bug",300,4,0], [737,"Charjabug","bug,electric",400,5,0], [738,"Vikavolt","bug,electric",500,15,0],
+    [739,"Crabrawler","fighting",338,6,0], [740,"Crabominable","fighting,ice",478,17,0], [741,"Oricorio","fire,flying",476,6,0], [742,"Cutiefly","bug,fairy",304,1,0], [743,"Ribombee","bug,fairy",464,2,0], [744,"Rockruff","rock",280,5,0],
+    [745,"Lycanroc","rock",487,8,0], [746,"Wishiwashi","water",175,2,0], [747,"Mareanie","poison,water",305,4,0], [748,"Toxapex","poison,water",495,7,0], [749,"Mudbray","ground",385,10,0], [750,"Mudsdale","ground",500,25,0],
+    [751,"Dewpider","water,bug",269,3,0], [752,"Araquanid","water,bug",454,18,0], [753,"Fomantis","grass",250,3,0], [754,"Lurantis","grass",480,9,0], [755,"Morelull","grass,fairy",285,2,0], [756,"Shiinotic","grass,fairy",405,10,0],
+    [757,"Salandit","poison,fire",320,6,0], [758,"Salazzle","poison,fire",480,12,0], [759,"Stufful","normal,fighting",340,5,0], [760,"Bewear","normal,fighting",500,21,0], [761,"Bounsweet","grass",210,3,0], [762,"Steenee","grass",290,7,0],
+    [763,"Tsareena","grass",510,12,0], [764,"Comfey","fairy",485,1,0], [765,"Oranguru","normal,psychic",490,15,0], [766,"Passimian","fighting",490,20,0], [767,"Wimpod","bug,water",230,5,0], [768,"Golisopod","bug,water",530,20,0],
+    [769,"Sandygast","ghost,ground",320,5,0], [770,"Palossand","ghost,ground",480,13,0], [771,"Pyukumuku","water",410,3,0], [772,"Type: Null","normal",534,19,1], [773,"Silvally","normal",570,23,1], [774,"Minior","rock,flying",440,3,0],
+    [775,"Komala","normal",480,4,0], [776,"Turtonator","fire,dragon",485,20,0], [777,"Togedemaru","electric,steel",435,3,0], [778,"Mimikyu","ghost,fairy",476,2,0], [779,"Bruxish","water,psychic",475,9,0], [780,"Drampa","normal,dragon",485,30,0],
+    [781,"Dhelmise","ghost,grass",517,39,0], [782,"Jangmo-o","dragon",300,6,0], [783,"Hakamo-o","dragon,fighting",420,12,0], [784,"Kommo-o","dragon,fighting",600,16,0], [785,"Tapu Koko","electric,fairy",570,18,1], [786,"Tapu Lele","psychic,fairy",570,12,1],
+    [787,"Tapu Bulu","grass,fairy",570,19,1], [788,"Tapu Fini","water,fairy",570,13,1], [789,"Cosmog","psychic",200,2,1], [790,"Cosmoem","psychic",400,1,1], [791,"Solgaleo","psychic,steel",680,34,1], [792,"Lunala","psychic,ghost",680,40,1],
+    [793,"Nihilego","rock,poison",570,12,0], [794,"Buzzwole","bug,fighting",570,24,0], [795,"Pheromosa","bug,fighting",570,18,0], [796,"Xurkitree","electric",570,38,0], [797,"Celesteela","steel,flying",570,92,0], [798,"Kartana","grass,steel",570,3,0],
+    [799,"Guzzlord","dark,dragon",570,55,0], [800,"Necrozma","psychic",600,24,1], [801,"Magearna","steel,fairy",600,10,1], [802,"Marshadow","fighting,ghost",600,7,1], [803,"Poipole","poison",420,6,0], [804,"Naganadel","poison,dragon",540,36,0],
+    [805,"Stakataka","rock,steel",570,55,0], [806,"Blacephalon","fire,ghost",570,18,0], [807,"Zeraora","electric",600,15,1], [808,"Meltan","steel",300,2,1], [809,"Melmetal","steel",600,25,1], [810,"Grookey","grass",310,3,0],
+    [811,"Thwackey","grass",420,7,0], [812,"Rillaboom","grass",530,21,0], [813,"Scorbunny","fire",310,3,0], [814,"Raboot","fire",420,6,0], [815,"Cinderace","fire",530,14,0], [816,"Sobble","water",310,3,0],
+    [817,"Drizzile","water",420,7,0], [818,"Inteleon","water",530,19,0], [819,"Skwovet","normal",275,3,0], [820,"Greedent","normal",460,6,0], [821,"Rookidee","flying",245,2,0], [822,"Corvisquire","flying",365,8,0],
+    [823,"Corviknight","flying,steel",495,22,0], [824,"Blipbug","bug",180,4,0], [825,"Dottler","bug,psychic",335,4,0], [826,"Orbeetle","bug,psychic",505,4,0], [827,"Nickit","dark",245,6,0], [828,"Thievul","dark",455,12,0],
+    [829,"Gossifleur","grass",250,4,0], [830,"Eldegoss","grass",460,5,0], [831,"Wooloo","normal",270,6,0], [832,"Dubwool","normal",490,13,0], [833,"Chewtle","water",284,3,0], [834,"Drednaw","water,rock",485,10,0],
+    [835,"Yamper","electric",270,3,0], [836,"Boltund","electric",490,10,0], [837,"Rolycoly","rock",240,3,0], [838,"Carkol","rock,fire",410,11,0], [839,"Coalossal","rock,fire",510,28,0], [840,"Applin","grass,dragon",260,2,0],
+    [841,"Flapple","grass,dragon",485,3,0], [842,"Appletun","grass,dragon",485,4,0], [843,"Silicobra","ground",315,22,0], [844,"Sandaconda","ground",510,38,0], [845,"Cramorant","flying,water",475,8,0], [846,"Arrokuda","water",280,5,0],
+    [847,"Barraskewda","water",490,13,0], [848,"Toxel","electric,poison",242,4,2], [849,"Toxtricity","electric,poison",502,16,0], [850,"Sizzlipede","fire,bug",305,7,0], [851,"Centiskorch","fire,bug",525,30,0], [852,"Clobbopus","fighting",310,6,0],
+    [853,"Grapploct","fighting",480,16,0], [854,"Sinistea","ghost",308,1,0], [855,"Polteageist","ghost",508,2,0], [856,"Hatenna","psychic",265,4,0], [857,"Hattrem","psychic",370,6,0], [858,"Hatterene","psychic,fairy",510,21,0],
+    [859,"Impidimp","dark,fairy",265,4,0], [860,"Morgrem","dark,fairy",370,8,0], [861,"Grimmsnarl","dark,fairy",510,15,0], [862,"Obstagoon","dark,normal",520,16,0], [863,"Perrserker","steel",440,8,0], [864,"Cursola","ghost",510,10,0],
+    [865,"Sirfetch’d","fighting",507,8,0], [866,"Mr. Rime","ice,psychic",520,15,0], [867,"Runerigus","ground,ghost",483,16,0], [868,"Milcery","fairy",270,2,0], [869,"Alcremie","fairy",495,3,0], [870,"Falinks","fighting",470,30,0],
+    [871,"Pincurchin","electric",435,3,0], [872,"Snom","ice,bug",185,3,0], [873,"Frosmoth","ice,bug",475,13,0], [874,"Stonjourner","rock",470,25,0], [875,"Eiscue","ice",470,14,0], [876,"Indeedee","psychic,normal",475,9,0],
+    [877,"Morpeko","electric,dark",436,3,0], [878,"Cufant","steel",330,12,0], [879,"Copperajah","steel",500,30,0], [880,"Dracozolt","electric,dragon",505,18,0], [881,"Arctozolt","electric,ice",505,23,0], [882,"Dracovish","water,dragon",505,23,0],
+    [883,"Arctovish","water,ice",505,20,0], [884,"Duraludon","steel,dragon",535,18,0], [885,"Dreepy","dragon,ghost",270,5,0], [886,"Drakloak","dragon,ghost",410,14,0], [887,"Dragapult","dragon,ghost",600,30,0], [888,"Zacian","fairy",660,28,1],
+    [889,"Zamazenta","fighting",660,29,1], [890,"Eternatus","poison,dragon",690,200,1], [891,"Kubfu","fighting",385,6,1], [892,"Urshifu","fighting,dark",550,19,1], [893,"Zarude","dark,grass",600,18,1], [894,"Regieleki","electric",580,12,1],
+    [895,"Regidrago","dragon",580,21,1], [896,"Glastrier","ice",580,22,1], [897,"Spectrier","ghost",580,20,1], [898,"Calyrex","psychic,grass",500,11,1], [899,"Wyrdeer","normal,psychic",525,18,0], [900,"Kleavor","bug,rock",500,18,0],
+    [901,"Ursaluna","ground,normal",550,24,0], [902,"Basculegion","water,ghost",530,30,0], [903,"Sneasler","fighting,poison",510,13,0], [904,"Overqwil","dark,poison",510,25,0], [905,"Enamorus","fairy,flying",580,16,1], [906,"Sprigatito","grass",310,4,0],
+    [907,"Floragato","grass",410,9,0], [908,"Meowscarada","grass,dark",530,15,0], [909,"Fuecoco","fire",310,4,0], [910,"Crocalor","fire",411,10,0], [911,"Skeledirge","fire,ghost",530,16,0], [912,"Quaxly","water",310,5,0],
+    [913,"Quaxwell","water",410,12,0], [914,"Quaquaval","water,fighting",530,18,0], [915,"Lechonk","normal",254,5,0], [916,"Oinkologne","normal",489,10,0], [917,"Tarountula","bug",210,3,0], [918,"Spidops","bug",404,10,0],
+    [919,"Nymble","bug",210,2,0], [920,"Lokix","bug,dark",450,10,0], [921,"Pawmi","electric",240,3,0], [922,"Pawmo","electric,fighting",350,4,0], [923,"Pawmot","electric,fighting",490,9,0], [924,"Tandemaus","normal",305,3,0],
+    [925,"Maushold","normal",470,3,0], [926,"Fidough","fairy",312,3,0], [927,"Dachsbun","fairy",477,5,0], [928,"Smoliv","grass,normal",260,3,0], [929,"Dolliv","grass,normal",354,6,0], [930,"Arboliva","grass,normal",510,14,0],
+    [931,"Squawkabilly","normal,flying",417,6,0], [932,"Nacli","rock",280,4,0], [933,"Naclstack","rock",355,6,0], [934,"Garganacl","rock",500,23,0], [935,"Charcadet","fire",255,6,0], [936,"Armarouge","fire,psychic",525,15,0],
+    [937,"Ceruledge","fire,ghost",525,16,0], [938,"Tadbulb","electric",272,3,0], [939,"Bellibolt","electric",495,12,0], [940,"Wattrel","electric,flying",280,4,0], [941,"Kilowattrel","electric,flying",490,14,0], [942,"Maschiff","dark",340,5,0],
+    [943,"Mabosstiff","dark",505,11,0], [944,"Shroodle","poison,normal",290,2,0], [945,"Grafaiai","poison,normal",485,7,0], [946,"Bramblin","grass,ghost",275,6,0], [947,"Brambleghast","grass,ghost",480,12,0], [948,"Toedscool","ground,grass",335,9,0],
+    [949,"Toedscruel","ground,grass",515,19,0], [950,"Klawf","rock",450,13,0], [951,"Capsakid","grass",304,3,0], [952,"Scovillain","grass,fire",486,9,0], [953,"Rellor","bug",270,2,0], [954,"Rabsca","bug,psychic",470,3,0],
+    [955,"Flittle","psychic",255,2,0], [956,"Espathra","psychic",481,19,0], [957,"Tinkatink","fairy,steel",297,4,0], [958,"Tinkatuff","fairy,steel",380,7,0], [959,"Tinkaton","fairy,steel",506,7,0], [960,"Wiglett","water",245,12,0],
+    [961,"Wugtrio","water",425,12,0], [962,"Bombirdier","flying,dark",485,15,0], [963,"Finizen","water",315,13,0], [964,"Palafin","water",457,13,0], [965,"Varoom","steel,poison",300,10,0], [966,"Revavroom","steel,poison",500,18,0],
+    [967,"Cyclizar","dragon,normal",501,16,0], [968,"Orthworm","steel",480,25,0], [969,"Glimmet","rock,poison",350,7,0], [970,"Glimmora","rock,poison",525,15,0], [971,"Greavard","ghost",290,6,0], [972,"Houndstone","ghost",488,20,0],
+    [973,"Flamigo","flying,fighting",500,16,0], [974,"Cetoddle","ice",334,12,0], [975,"Cetitan","ice",521,45,0], [976,"Veluza","water,psychic",478,25,0], [977,"Dondozo","water",530,120,0], [978,"Tatsugiri","dragon,water",475,3,0],
+    [979,"Annihilape","fighting,ghost",535,12,0], [980,"Clodsire","poison,ground",430,18,0], [981,"Farigiraf","normal,psychic",520,32,0], [982,"Dudunsparce","normal",520,36,0], [983,"Kingambit","dark,steel",550,20,0], [984,"Great Tusk","ground,fighting",570,22,0],
+    [985,"Scream Tail","fairy,psychic",570,12,0], [986,"Brute Bonnet","grass,dark",570,12,0], [987,"Flutter Mane","ghost,fairy",570,14,0], [988,"Slither Wing","bug,fighting",570,32,0], [989,"Sandy Shocks","electric,ground",570,23,0], [990,"Iron Treads","ground,steel",570,9,0],
+    [991,"Iron Bundle","ice,water",570,6,0], [992,"Iron Hands","fighting,electric",570,18,0], [993,"Iron Jugulis","dark,flying",570,13,0], [994,"Iron Moth","fire,poison",570,12,0], [995,"Iron Thorns","rock,electric",570,16,0], [996,"Frigibax","dragon,ice",320,5,0],
+    [997,"Arctibax","dragon,ice",423,8,0], [998,"Baxcalibur","dragon,ice",600,21,0], [999,"Gimmighoul","ghost",300,3,0], [1000,"Gholdengo","steel,ghost",550,12,0], [1001,"Wo-Chien","dark,grass",570,15,1], [1002,"Chien-Pao","dark,ice",570,19,1],
+    [1003,"Ting-Lu","dark,ground",570,27,1], [1004,"Chi-Yu","dark,fire",570,4,1], [1005,"Roaring Moon","dragon,dark",590,20,0], [1006,"Iron Valiant","fairy,fighting",590,14,0], [1007,"Koraidon","fighting,dragon",670,25,1], [1008,"Miraidon","electric,dragon",670,35,1],
+    [1009,"Walking Wake","water,dragon",590,35,0], [1010,"Iron Leaves","grass,psychic",590,15,0], [1011,"Dipplin","grass,dragon",485,4,0], [1012,"Poltchageist","grass,ghost",308,1,0], [1013,"Sinistcha","grass,ghost",508,2,0], [1014,"Okidogi","poison,fighting",555,18,1],
+    [1015,"Munkidori","poison,psychic",555,10,1], [1016,"Fezandipiti","poison,fairy",555,14,1], [1017,"Ogerpon","grass",550,12,1], [1018,"Archaludon","steel,dragon",600,20,0], [1019,"Hydrapple","grass,dragon",540,18,0], [1020,"Gouging Fire","fire,dragon",590,35,0],
+    [1021,"Raging Bolt","electric,dragon",590,52,0], [1022,"Iron Boulder","rock,psychic",590,15,0], [1023,"Iron Crown","steel,psychic",590,16,0], [1024,"Terapagos","normal",450,2,1], [1025,"Pecharunt","poison,ghost",600,3,1],
+  ];
+  const EVO_ALL = {1: [2, 16], 2: [3, 32], 4: [5, 16], 5: [6, 36], 7: [8, 16], 8: [9, 36], 10: [11, 8], 11: [12, 10], 13: [14, 8], 14: [15, 10], 16: [17, 18], 17: [18, 36], 19: [20, 20], 21: [22, 20], 23: [24, 22], 25: [26, 38], 27: [28, 22], 29: [30, 16], 30: [31, 38], 32: [33, 16], 33: [34, 38], 35: [36, 38], 37: [38, 30], 39: [40, 38], 41: [42, 22], 42: [169, 30], 43: [44, 21], 44: [45, 38], 46: [47, 24], 48: [49, 31], 50: [51, 26], 52: [53, 28], 54: [55, 33], 56: [57, 28], 57: [979, 38], 58: [59, 30], 60: [61, 25], 61: [62, 38], 63: [64, 16], 64: [65, 38], 66: [67, 28], 67: [68, 38], 69: [70, 21], 70: [71, 38], 72: [73, 30], 74: [75, 25], 75: [76, 38], 77: [78, 40], 79: [80, 37], 81: [82, 30], 82: [462, 38], 83: [865, 28], 84: [85, 31], 86: [87, 34], 88: [89, 38], 90: [91, 30], 92: [93, 25], 93: [94, 38], 95: [208, 30], 96: [97, 26], 98: [99, 28], 100: [101, 30], 102: [103, 30], 104: [105, 28], 108: [463, 28], 109: [110, 35], 111: [112, 42], 112: [464, 38], 113: [242, 30], 114: [465, 28], 116: [117, 32], 117: [230, 38], 118: [119, 33], 120: [121, 30], 122: [866, 42], 123: [212, 30], 125: [466, 38], 126: [467, 38], 129: [130, 20], 133: [134, 30], 137: [233, 30], 138: [139, 40], 140: [141, 40], 147: [148, 30], 148: [149, 55], 152: [153, 16], 153: [154, 32], 155: [156, 14], 156: [157, 36], 158: [159, 18], 159: [160, 30], 161: [162, 15], 163: [164, 20], 165: [166, 18], 167: [168, 22], 170: [171, 27], 172: [25, 24], 173: [35, 24], 174: [39, 24], 175: [176, 24], 176: [468, 38], 177: [178, 25], 179: [180, 15], 180: [181, 30], 183: [184, 18], 187: [188, 18], 188: [189, 27], 190: [424, 28], 191: [192, 30], 193: [469, 28], 194: [195, 20], 198: [430, 30], 200: [429, 30], 203: [981, 28], 204: [205, 31], 206: [982, 28], 207: [472, 28], 209: [210, 23], 211: [904, 28], 215: [461, 28], 216: [217, 30], 217: [901, 38], 218: [219, 38], 220: [221, 33], 221: [473, 38], 222: [864, 38], 223: [224, 25], 228: [229, 24], 231: [232, 25], 233: [474, 38], 234: [899, 28], 236: [106, 20], 238: [124, 30], 239: [125, 30], 240: [126, 30], 246: [247, 30], 247: [248, 55], 252: [253, 16], 253: [254, 36], 255: [256, 16], 256: [257, 36], 258: [259, 16], 259: [260, 36], 261: [262, 18], 263: [264, 20], 264: [862, 35], 265: [266, 8], 266: [267, 10], 268: [269, 10], 270: [271, 14], 271: [272, 38], 273: [274, 14], 274: [275, 38], 276: [277, 22], 278: [279, 25], 280: [281, 20], 281: [282, 30], 283: [284, 22], 285: [286, 23], 287: [288, 18], 288: [289, 36], 290: [291, 20], 293: [294, 20], 294: [295, 40], 296: [297, 24], 298: [183, 24], 299: [476, 28], 300: [301, 30], 304: [305, 32], 305: [306, 42], 307: [308, 37], 309: [310, 26], 315: [407, 38], 316: [317, 26], 318: [319, 30], 320: [321, 40], 322: [323, 33], 325: [326, 32], 328: [329, 35], 329: [330, 45], 331: [332, 32], 333: [334, 35], 339: [340, 30], 341: [342, 30], 343: [344, 36], 345: [346, 40], 347: [348, 40], 349: [350, 28], 353: [354, 37], 355: [356, 37], 356: [477, 38], 360: [202, 15], 361: [362, 42], 363: [364, 32], 364: [365, 44], 366: [367, 30], 371: [372, 30], 372: [373, 50], 374: [375, 20], 375: [376, 45], 387: [388, 18], 388: [389, 32], 390: [391, 14], 391: [392, 36], 393: [394, 16], 394: [395, 36], 396: [397, 14], 397: [398, 34], 399: [400, 15], 401: [402, 10], 403: [404, 15], 404: [405, 30], 406: [315, 24], 408: [409, 30], 410: [411, 30], 412: [413, 20], 415: [416, 21], 418: [419, 26], 420: [421, 25], 422: [423, 30], 425: [426, 28], 427: [428, 24], 431: [432, 38], 433: [358, 24], 434: [435, 34], 436: [437, 33], 438: [185, 28], 439: [122, 28], 440: [113, 28], 443: [444, 24], 444: [445, 48], 446: [143, 24], 447: [448, 24], 449: [450, 34], 451: [452, 40], 453: [454, 37], 456: [457, 31], 458: [226, 28], 459: [460, 40], 489: [490, 28], 495: [496, 17], 496: [497, 36], 498: [499, 17], 499: [500, 36], 501: [502, 17], 502: [503, 36], 504: [505, 20], 506: [507, 16], 507: [508, 32], 509: [510, 20], 511: [512, 30], 513: [514, 30], 515: [516, 30], 517: [518, 30], 519: [520, 21], 520: [521, 32], 522: [523, 27], 524: [525, 25], 525: [526, 38], 527: [528, 24], 529: [530, 31], 532: [533, 25], 533: [534, 38], 535: [536, 25], 536: [537, 36], 540: [541, 20], 541: [542, 30], 543: [544, 22], 544: [545, 30], 546: [547, 30], 548: [549, 30], 550: [902, 28], 551: [552, 29], 552: [553, 40], 554: [555, 35], 557: [558, 34], 559: [560, 39], 562: [563, 34], 564: [565, 37], 566: [567, 37], 568: [569, 36], 570: [571, 30], 572: [573, 30], 574: [575, 32], 575: [576, 41], 577: [578, 32], 578: [579, 41], 580: [581, 35], 582: [583, 35], 583: [584, 47], 585: [586, 34], 588: [589, 30], 590: [591, 39], 592: [593, 40], 595: [596, 36], 597: [598, 40], 599: [600, 38], 600: [601, 49], 602: [603, 39], 603: [604, 38], 605: [606, 42], 607: [608, 41], 608: [609, 38], 610: [611, 38], 611: [612, 48], 613: [614, 37], 616: [617, 30], 619: [620, 50], 622: [623, 43], 624: [625, 52], 625: [983, 38], 627: [628, 54], 629: [630, 54], 633: [634, 50], 634: [635, 60], 636: [637, 59], 650: [651, 16], 651: [652, 36], 653: [654, 16], 654: [655, 36], 656: [657, 16], 657: [658, 36], 659: [660, 20], 661: [662, 17], 662: [663, 35], 664: [665, 9], 665: [666, 12], 667: [668, 35], 669: [670, 19], 670: [671, 38], 672: [673, 32], 674: [675, 32], 677: [678, 25], 679: [680, 35], 680: [681, 38], 682: [683, 30], 684: [685, 30], 686: [687, 30], 688: [689, 39], 690: [691, 48], 692: [693, 37], 694: [695, 30], 696: [697, 39], 698: [699, 39], 704: [705, 40], 705: [706, 50], 708: [709, 30], 710: [711, 30], 712: [713, 37], 714: [715, 48], 722: [723, 17], 723: [724, 34], 725: [726, 17], 726: [727, 34], 728: [729, 17], 729: [730, 34], 731: [732, 14], 732: [733, 28], 734: [735, 20], 736: [737, 20], 737: [738, 38], 739: [740, 28], 742: [743, 25], 744: [745, 25], 747: [748, 38], 749: [750, 30], 751: [752, 22], 753: [754, 34], 755: [756, 24], 757: [758, 33], 759: [760, 27], 761: [762, 18], 762: [763, 38], 767: [768, 30], 769: [770, 42], 772: [773, 24], 782: [783, 35], 783: [784, 45], 789: [790, 43], 790: [791, 53], 803: [804, 28], 808: [809, 28], 810: [811, 16], 811: [812, 35], 813: [814, 16], 814: [815, 35], 816: [817, 16], 817: [818, 35], 819: [820, 24], 821: [822, 18], 822: [823, 38], 824: [825, 10], 825: [826, 30], 827: [828, 18], 829: [830, 20], 831: [832, 24], 833: [834, 22], 835: [836, 25], 837: [838, 18], 838: [839, 34], 840: [841, 30], 843: [844, 36], 846: [847, 26], 848: [849, 30], 850: [851, 28], 852: [853, 28], 854: [855, 30], 856: [857, 32], 857: [858, 42], 859: [860, 32], 860: [861, 42], 868: [869, 28], 872: [873, 24], 878: [879, 34], 884: [1018, 30], 885: [886, 50], 886: [887, 60], 891: [892, 28], 906: [907, 16], 907: [908, 36], 909: [910, 16], 910: [911, 36], 912: [913, 16], 913: [914, 36], 915: [916, 18], 917: [918, 15], 919: [920, 24], 921: [922, 18], 922: [923, 38], 924: [925, 25], 926: [927, 26], 928: [929, 25], 929: [930, 35], 932: [933, 24], 933: [934, 38], 935: [936, 30], 938: [939, 30], 940: [941, 25], 942: [943, 30], 944: [945, 28], 946: [947, 28], 948: [949, 30], 951: [952, 30], 953: [954, 28], 955: [956, 35], 957: [958, 24], 958: [959, 38], 960: [961, 26], 963: [964, 38], 965: [966, 40], 969: [970, 35], 971: [972, 30], 974: [975, 30], 996: [997, 35], 997: [998, 54], 999: [1000, 28], 1011: [1019, 38], 1012: [1013, 30]};
+  const K0 = {25: 1, 4: 1, 7: 1, 1: 1, 133: 1, 92: 1, 74: 1, 66: 1, 58: 1, 54: 1, 43: 1, 81: 1, 39: 1, 41: 1, 63: 1, 19: 1, 6: 2, 9: 2, 3: 2, 94: 2, 65: 2, 26: 2, 130: 2, 448: 2, 68: 2, 59: 2, 149: 3, 248: 3, 445: 3, 376: 3, 143: 3, 2: 2, 5: 2, 8: 2, 64: 2, 93: 2, 75: 2, 67: 2, 42: 2, 44: 2, 20: 1, 76: 3, 87: 2, 131: 3, 124: 2, 91: 2, 78: 2, 150: 3};
+  const POOL = ALLP.map(([id, n, t, b, h, f]) => ({ id, n, s: n.toLowerCase(), t: t.split(","), k: K0[id] || (b < 420 ? 1 : b < 525 ? 2 : 3), b, h: h / 10, f }));
   const SPECIES = {}; POOL.forEach((p) => { SPECIES[p.id] = p; });
-  const EVO = { 1: [2, 16], 2: [3, 32], 4: [5, 16], 5: [6, 36], 7: [8, 16], 8: [9, 36], 25: [26, 22], 19: [20, 20], 63: [64, 16], 64: [65, 36], 92: [93, 25], 93: [94, 38], 74: [75, 25], 75: [76, 38], 66: [67, 28], 67: [68, 38], 41: [42, 22], 43: [44, 21], 58: [59, 30] };
+  const EVO = Object.assign({}, EVO_ALL, { 1: [2, 16], 2: [3, 32], 4: [5, 16], 5: [6, 36], 7: [8, 16], 8: [9, 36], 25: [26, 22], 19: [20, 20], 63: [64, 16], 64: [65, 36], 92: [93, 25], 93: [94, 38], 74: [75, 25], 75: [76, 38], 66: [67, 28], 67: [68, 38], 41: [42, 22], 43: [44, 21], 58: [59, 30] });
   const evoAt = (id, lv) => { while (EVO[id] && lv >= EVO[id][1]) id = EVO[id][0]; return id; };
   const SE = { fire: "grass,ice,bug,steel", water: "fire,ground,rock", grass: "water,ground,rock", electric: "water,flying", ice: "grass,ground,flying,dragon", fighting: "normal,ice,rock,dark,steel", poison: "grass,fairy", ground: "fire,electric,poison,rock,steel", flying: "grass,fighting,bug", psychic: "fighting,poison", bug: "grass,psychic,dark", rock: "fire,ice,flying,bug", ghost: "psychic,ghost", dragon: "dragon", dark: "psychic,ghost", steel: "ice,rock,fairy", fairy: "fighting,dragon,dark" };
   const RES = { fire: "fire,water,rock,dragon", water: "water,grass,dragon", grass: "fire,grass,poison,flying,bug,dragon,steel", electric: "electric,grass,dragon", normal: "rock,steel", fighting: "poison,flying,psychic,bug,fairy", psychic: "psychic,steel", ghost: "dark", dragon: "steel", ice: "fire,water,ice,steel", rock: "fighting,ground,steel", ground: "grass,bug", poison: "poison,ground,rock,ghost", flying: "electric,rock,steel", bug: "fire,fighting,poison,flying,ghost,steel,fairy", steel: "fire,water,electric,steel", dark: "fighting,dark,fairy", fairy: "fire,poison,steel" };
@@ -273,18 +436,87 @@
     if (u.px !== null && dt > 0) u.walk += (Math.min(1, Math.hypot(h.position.x - u.px, h.position.z - u.pz) / dt / 4) - u.walk) * Math.min(1, dt * 8); u.px = h.position.x; u.pz = h.position.z;
     if (!u.cull) warpMon(u);
   }
+  /* ---------- clear, human-proportioned characters (smooth limbs, shaped head, painted face, styled hair) ---------- */
+  const FACE_TEX = {};
+  const EYEC = ["#4a2c1a", "#6a4020", "#2f7a8a", "#7a4a2a", "#2a56c8", "#8a3a9a"];
+  function drawFace(x, W, Hh, a) {
+    const px = (ph) => ((ph - a.p0) / a.pl) * W, py = (th) => ((th - a.t0) / a.tl) * Hh, cxm = px(Math.PI / 2), unit = W / a.pl;
+    x.clearRect(0, 0, W, Hh); x.lineCap = "round"; x.lineJoin = "round";
+    // cheeks
+    [-1, 1].forEach((s) => { const g = x.createRadialGradient(cxm + s * 0.62 * unit, py(1.82), 2, cxm + s * 0.62 * unit, py(1.82), 0.2 * unit); g.addColorStop(0, "rgba(235,110,110,.28)"); g.addColorStop(1, "rgba(235,110,110,0)"); x.fillStyle = g; x.fillRect(0, 0, W, Hh); });
+    // eyes
+    [-1, 1].forEach((s) => {
+      const cx = cxm + s * 0.37 * unit, cy = py(1.5), w = 0.17 * unit, h = 0.1 * unit;
+      x.save(); x.beginPath(); x.moveTo(cx - w, cy + h * 0.15); x.bezierCurveTo(cx - w * 0.45, cy - h * 1.25, cx + w * 0.5, cy - h * 1.25, cx + w, cy + h * 0.05); x.bezierCurveTo(cx + w * 0.5, cy + h * 0.95, cx - w * 0.45, cy + h * 0.95, cx - w, cy + h * 0.15); x.closePath(); x.fillStyle = "#fbfbfb"; x.fill(); x.clip();
+      const ig = x.createRadialGradient(cx + s * 2, cy - h * 0.2, 1, cx + s * 2, cy, h * 0.95); ig.addColorStop(0, a.eye.l); ig.addColorStop(0.65, a.eye.m); ig.addColorStop(1, a.eye.d); x.fillStyle = ig; x.beginPath(); x.arc(cx + s * 2, cy - h * 0.05, h * 0.66, 0, 6.2832); x.fill();
+      x.fillStyle = "#0b0b10"; x.beginPath(); x.arc(cx + s * 2, cy - h * 0.05, h * 0.3, 0, 6.2832); x.fill(); x.fillStyle = "rgba(255,255,255,.95)"; x.beginPath(); x.arc(cx - h * 0.28, cy - h * 0.42, h * 0.2, 0, 6.2832); x.fill(); x.beginPath(); x.arc(cx + h * 0.3, cy + h * 0.2, h * 0.09, 0, 6.2832); x.fill(); x.restore();
+      x.strokeStyle = "#1c1210"; x.lineWidth = unit * 0.024; x.beginPath(); x.moveTo(cx - w, cy + h * 0.15); x.bezierCurveTo(cx - w * 0.45, cy - h * 1.25, cx + w * 0.5, cy - h * 1.25, cx + w, cy + h * 0.05); x.stroke();
+      if (a.girl) { x.lineWidth = unit * 0.02; for (let k = 0; k < 3; k++) { x.beginPath(); x.moveTo(cx + s * w * (0.55 + k * 0.2), cy - h * (0.78 - k * 0.15)); x.lineTo(cx + s * (w + 0.018 * unit + k * 0.005 * unit), cy - h * (1.05 - k * 0.3)); x.stroke(); } }
+      x.strokeStyle = "rgba(120,70,60,.35)"; x.lineWidth = unit * 0.012; x.beginPath(); x.moveTo(cx - w * 0.7, cy + h * 0.78); x.quadraticCurveTo(cx, cy + h * 1.08, cx + w * 0.7, cy + h * 0.75); x.stroke();
+      // brow
+      x.strokeStyle = a.brow; x.lineWidth = unit * (a.girl ? 0.036 : 0.05); x.beginPath(); x.moveTo(cx - s * w * 0.9, cy - h * 1.95 + s * -0.01 * unit); x.quadraticCurveTo(cx, cy - h * 2.5, cx + s * w * 1.0, cy - h * 1.95 - s * 0.0 * unit); x.stroke();
+    });
+    // nose
+    x.fillStyle = "rgba(130,75,55,.28)"; [-1, 1].forEach((s) => { x.beginPath(); x.ellipse(cxm + s * 0.045 * unit, py(1.78), 0.03 * unit, 0.018 * unit, 0, 0, 6.2832); x.fill(); });
+    x.strokeStyle = "rgba(130,75,55,.22)"; x.lineWidth = unit * 0.02; x.beginPath(); x.moveTo(cxm - 0.03 * unit, py(1.62)); x.quadraticCurveTo(cxm - 0.045 * unit, py(1.74), cxm - 0.03 * unit, py(1.76)); x.stroke();
+    // mouth
+    const my = py(2.02); if (a.girl) { x.fillStyle = "rgba(215,95,110,.75)"; x.beginPath(); x.ellipse(cxm, my + 0.004 * unit, 0.13 * unit, 0.028 * unit, 0, 0, 6.2832); x.fill(); }
+    x.strokeStyle = "rgba(120,45,50,.95)"; x.lineWidth = unit * 0.026; x.beginPath(); x.moveTo(cxm - 0.14 * unit, my - 0.004 * unit); x.quadraticCurveTo(cxm, my + 0.07 * unit, cxm + 0.14 * unit, my - 0.004 * unit); x.stroke();
+  }
   function makeTrainer(look) {
-    const L = look || DEF_LOOK, g = new THREE.Group(), skin = hx(SKIN[L.skin]), hair = hx(HAIR[L.hairC]), jk = hx(CLOTH[L.jacket]), pn = hx(PANTS[L.pants]), bg = hx(CLOTH[L.bag]), cp = hx(CLOTH[L.capC]);
-    const box = (w, h, d, c, x, y, z) => mesh(new THREE.BoxGeometry(w, h, d), lam(c), x, y, z), sph = (r, c, x, y, z) => mesh(new THREE.SphereGeometry(r, 14, 10), lam(c), x, y, z);
-    const legs = [box(0.2, 0.62, 0.22, pn, -0.14, 0.31, 0), box(0.2, 0.62, 0.22, pn, 0.14, 0.31, 0)]; g.add(legs[0], legs[1], box(0.2, 0.12, 0.28, 0xf2f2f2, -0.14, 0.06, 0.03), box(0.2, 0.12, 0.28, 0xf2f2f2, 0.14, 0.06, 0.03));
-    if (L.g === "g") g.add(mesh(new THREE.CylinderGeometry(0.22, 0.4, 0.34, 10), lam(pn), 0, 0.62, 0));
-    g.add(box(0.56, 0.74, 0.34, jk, 0, 0.99, 0), sph(0.26, skin, 0, 1.58, 0), box(0.4, 0.5, 0.18, bg, 0, 1, -0.26));
-    [-1, 1].forEach((k) => g.add(box(0.15, 0.58, 0.17, jk, k * 0.37, 0.98, 0), sph(0.08, skin, k * 0.37, 0.64, 0)));
-    g.add(sph(0.035, 0x111111, -0.09, 1.6, 0.24), sph(0.035, 0x111111, 0.09, 1.6, 0.24));
-    const dome = (c) => mesh(new THREE.SphereGeometry(0.28, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), lam(c), 0, 1.62, 0);
-    if (L.capOn) { g.add(dome(cp), box(0.4, 0.04, 0.3, cp, 0, 1.62, 0.3)); if (L.hairS === 2 || L.g === "g") g.add(box(0.46, 0.4, 0.12, hair, 0, 1.45, -0.2)); }
-    else { g.add(dome(hair)); if (L.hairS === 1) for (let i = -1; i <= 1; i++) g.add(mesh(new THREE.ConeGeometry(0.08, 0.3, 5), lam(hair), i * 0.15, 1.95, 0)); if (L.hairS === 2 || L.g === "g") g.add(box(0.5, 0.5, 0.14, hair, 0, 1.45, -0.2)); if (L.hairS === 3) g.add(sph(0.14, hair, 0, 1.62, -0.3)); }
-    g.userData.legs = legs; return g;
+    const L = look || DEF_LOOK, girl = L.g === "g", g = new THREE.Group(), skin = hx(SKIN[L.skin]), hairC = hx(HAIR[L.hairC]), jk = hx(CLOTH[L.jacket]), pn = hx(PANTS[L.pants]), bgc = hx(CLOTH[L.bag]), cp = hx(CLOTH[L.capC]);
+    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), S = new THREE.Vector3();
+    const tf = (px, py, pz, rx, ry, rz, sx, sy, sz) => M4.compose(V.set(px, py, pz), Q.setFromEuler(E.set(rx || 0, ry || 0, rz || 0)), S.set(sx == null ? 1 : sx, sy == null ? 1 : sy, sz == null ? 1 : sz)).clone();
+    const bin = () => ({ p: [], n: [], c: [], i: [] });
+    const add = (b, geo, color, m) => { if (m) geo.applyMatrix4(m); const pos = geo.attributes.position, nor = geo.attributes.normal, base = b.p.length / 3, col = new THREE.Color(color); for (let k = 0; k < pos.count; k++) { b.p.push(pos.getX(k), pos.getY(k), pos.getZ(k)); b.n.push(nor.getX(k), nor.getY(k), nor.getZ(k)); b.c.push(col.r, col.g, col.b); } const ix = geo.index; if (ix) for (let k = 0; k < ix.count; k++) b.i.push(base + ix.array[k]); else for (let k = 0; k < pos.count; k++) b.i.push(base + k); geo.dispose(); };
+    const build = (b, noShadow) => { const gg = new THREE.BufferGeometry(); gg.setAttribute("position", new THREE.Float32BufferAttribute(b.p, 3)); gg.setAttribute("normal", new THREE.Float32BufferAttribute(b.n, 3)); gg.setAttribute("color", new THREE.Float32BufferAttribute(b.c, 3)); gg.setIndex(b.i); const m = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ vertexColors: true })); if (noShadow) m.userData.noShadow = true; return m; };
+    const tube = (rt, rb, len, seg) => new THREE.CylinderGeometry(rt, rb, len, seg || 12, 1), sph = (r, ws, hs) => new THREE.SphereGeometry(r, ws || 14, hs || 10), lathe = (pts, seg) => new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), seg || 24);
+    const skinS = new THREE.Color(skin).multiplyScalar(0.96).getHex(), shoeC = 0xf4f4f4, soleC = 0x2c2f36, jkD = new THREE.Color(jk).multiplyScalar(0.72).getHex(), jkL = new THREE.Color(jk).lerp(new THREE.Color(0xffffff), 0.35).getHex(), pnL = new THREE.Color(pn).lerp(new THREE.Color(0xffffff), 0.18).getHex();
+    // ---- body (torso, hips, neck, collar, belt, zipper, backpack) ----
+    const body = bin(), prof = girl ? [[0, 0.9], [0.165, 0.9], [0.168, 0.97], [0.122, 1.08], [0.142, 1.22], [0.155, 1.34], [0.15, 1.43], [0.11, 1.49], [0.058, 1.52], [0, 1.53]] : [[0, 0.9], [0.16, 0.9], [0.165, 0.97], [0.15, 1.08], [0.166, 1.22], [0.186, 1.34], [0.18, 1.43], [0.12, 1.49], [0.062, 1.52], [0, 1.53]];
+    const rAt = (y) => { for (let k = 1; k < prof.length; k++) if (y <= prof[k][1]) { const a = prof[k - 1], b2 = prof[k], t = (y - a[1]) / (b2[1] - a[1] || 1); return (a[0] + (b2[0] - a[0]) * t) * 0.72; } return 0.05; };
+    add(body, lathe(prof, 26), jk, tf(0, 0, 0, 0, 0, 0, 1, 1, 0.72));
+    add(body, lathe([[0, 0.8], [0.15, 0.82], [0.172, 0.9], [0.17, 0.97], [0, 0.97]], 24), pn, tf(0, 0, 0, 0, 0, 0, 1, 1, 0.74));
+    if (girl) { add(body, lathe([[0.15, 0.99], [0.19, 0.86], [0.235, 0.74], [0.245, 0.7], [0.23, 0.7], [0.18, 0.84], [0.135, 0.97]], 28), pn, tf(0, 0, 0, 0, 0, 0, 1, 1, 0.8)); add(body, new THREE.TorusGeometry(0.236, 0.012, 6, 28), pnL, tf(0, 0.705, 0, Math.PI / 2, 0, 0, 1, 0.8, 1)); }
+    add(body, tube(0.046, 0.05, 0.13, 12), skin, tf(0, 1.545, 0));
+    add(body, new THREE.TorusGeometry(0.075, 0.022, 8, 22), jkD, tf(0, 1.5, 0, Math.PI / 2, 0, 0, 1, 0.8, 1));
+    add(body, new THREE.TorusGeometry(girl ? 0.158 : 0.172, 0.014, 6, 28), 0x1d2030, tf(0, 0.975, 0, Math.PI / 2, 0, 0, 1, 0.74, 1)); add(body, new THREE.BoxGeometry(0.05, 0.04, 0.012), 0xd9b44a, tf(0, 0.975, rAt(0.975) + 0.012));
+    add(body, new THREE.TorusGeometry(girl ? 0.162 : 0.17, 0.018, 6, 28), jkL, tf(0, 0.915, 0, Math.PI / 2, 0, 0, 1, 0.73, 1));
+    for (let k = 0; k < 6; k++) { const yy = 1.0 + k * 0.078; add(body, new THREE.BoxGeometry(0.014, 0.07, 0.008), 0xe2e6ee, tf(0, yy + 0.035, rAt(yy + 0.035) + 0.004)); }
+    [-1, 1].forEach((s) => { add(body, sph(0.062, 12, 8), jk, tf(s * 0.19, 1.41, 0)); add(body, new THREE.BoxGeometry(0.024, 0.44, 0.01), new THREE.Color(bgc).multiplyScalar(0.55).getHex(), tf(s * 0.1, 1.25, rAt(1.25) + 0.005, 0, 0, s * 0.06)); });
+    add(body, sph(0.17, 16, 12), bgc, tf(0, 1.2, -0.185, 0, 0, 0, 1, 1.25, 0.62)); add(body, sph(0.1, 12, 8), new THREE.Color(bgc).multiplyScalar(0.8).getHex(), tf(0, 1.02, -0.27, 0, 0, 0, 1, 0.8, 0.5)); add(body, new THREE.BoxGeometry(0.27, 0.05, 0.13), new THREE.Color(bgc).multiplyScalar(0.7).getHex(), tf(0, 1.45, -0.18));
+    const bodyM = build(body); g.add(bodyM);
+    // ---- legs ----
+    const legs = [-1, 1].map((s) => { const b = bin(), top = girl ? skin : pn; add(b, tube(0.08, 0.063, 0.44, 14), top, tf(0, -0.22, 0)); add(b, sph(0.063, 12, 8), girl ? skin : pn, tf(0, -0.44, 0)); add(b, tube(0.062, 0.044, 0.44, 14), girl ? pn : pn, tf(0, -0.66, 0)); add(b, tube(0.052, 0.052, 0.05, 12), pnL, tf(0, -0.85, 0)); add(b, sph(0.05, 14, 10), shoeC, tf(0, -0.915, 0.045, 0, 0, 0, 1.05, 0.82, 2.0)); add(b, new THREE.BoxGeometry(0.108, 0.022, 0.2), soleC, tf(0, -0.945, 0.04)); add(b, new THREE.BoxGeometry(0.06, 0.012, 0.05), jk, tf(0, -0.885, 0.1)); const m = build(b), pv = new THREE.Group(); pv.position.set(s * 0.095, 0.95, 0); pv.add(m); g.add(pv); return pv; });
+    // ---- arms (slight elbow bend baked in) ----
+    const bend = 0.28, dir = new THREE.Vector3(0, -Math.cos(bend), Math.sin(bend)), arms = [-1, 1].map((s) => { const b = bin(), el = new THREE.Vector3(0, -0.29, 0); add(b, tube(0.056, 0.047, 0.29, 12), jk, tf(0, -0.145, 0)); add(b, sph(0.045, 10, 8), jk, tf(el.x, el.y, el.z));
+      const mid = el.clone().addScaledVector(dir, 0.13), wr = el.clone().addScaledVector(dir, 0.27), hd = el.clone().addScaledVector(dir, 0.31); add(b, tube(0.036, 0.044, 0.26, 12), jk, tf(mid.x, mid.y, mid.z, Math.PI - bend, 0, 0)); add(b, tube(0.043, 0.043, 0.04, 12), jkL, tf(wr.x, wr.y, wr.z, Math.PI - bend, 0, 0));
+      add(b, sph(0.042, 12, 8), skin, tf(hd.x, hd.y, hd.z, 0, 0, 0, 0.95, 1.25, 0.85)); add(b, sph(0.019, 8, 6), skin, tf(hd.x + s * 0.034, hd.y + 0.015, hd.z + 0.03)); const m = build(b), pv = new THREE.Group(); pv.position.set(s * 0.195, 1.405, 0); pv.rotation.z = s * 0.07; pv.add(m); g.add(pv); return pv; });
+    // ---- head ----
+    const head = new THREE.Group(); head.position.set(0, 1.6, 0); head.scale.setScalar(1.1); g.add(head);
+    const R0 = 0.125, deform = (geo, k) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i); const yn = y / R0; if (yn < 0) { const j = -yn; x *= 1 - 0.24 * j * j; z *= 1 - 0.16 * j * j; } p.setXYZ(i, x * 0.93, y * 1.08, z * 0.98); } geo.computeVertexNormals(); return geo; };
+    const hb = bin(); add(hb, deform(sph(R0, 30, 22)), skin); [-1, 1].forEach((s) => add(hb, sph(0.027, 8, 6), skinS, tf(s * 0.118, -0.006, -0.004, 0, 0, 0, 0.6, 1.05, 0.85))); add(hb, sph(0.012, 8, 6), skinS, tf(0, -0.024, 0.122, 0, 0, 0, 1, 1.2, 1.1)); const headM = build(hb); head.add(headM);
+    const fa = { p0: Math.PI / 2 - 0.95, pl: 1.9, t0: 0.95, tl: 1.5, girl, eye: { l: "#" + new THREE.Color(EYEC[L.hairC % 6]).lerp(new THREE.Color(0xffffff), 0.35).getHexString(), m: EYEC[L.hairC % 6], d: "#" + new THREE.Color(EYEC[L.hairC % 6]).multiplyScalar(0.55).getHexString() }, brow: "#" + new THREE.Color(hairC).multiplyScalar(0.85).getHexString() };
+    const FW = 512, FH = 404, fk = (girl ? 1 : 0) + "_" + (L.hairC % 6) + "_" + hairC, ft = FACE_TEX[fk] || (FACE_TEX[fk] = canvasTex(FW, FH, (x) => drawFace(x, FW, FH, fa))), fg = deform(new THREE.SphereGeometry(R0 * 1.012, 32, 22, fa.p0, fa.pl, fa.t0, fa.tl));
+    const face = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ map: ft, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); face.userData.noShadow = true; head.add(face);
+    // ---- hair ----
+    const hr = bin(), hs = L.hairS | 0, hairD = new THREE.Color(hairC).multiplyScalar(0.8).getHex();
+    add(hr, new THREE.SphereGeometry(R0 * 1.07, 28, 16, 0, 6.2832, 0, 1.12), hairC, tf(0, 0.004, -0.004, 0, 0, 0, 0.93, 1.1, 1.02));
+    add(hr, new THREE.SphereGeometry(R0 * 1.075, 26, 14, Math.PI / 2 + 1.25, 6.2832 - 2.5, 1.05, 1.0), hairC, tf(0, 0.004, -0.008, 0, 0, 0, 0.93, 1.1, 1.02));
+    const fringe = (n, spread, len) => { for (let k = 0; k < n; k++) { const t = n === 1 ? 0 : k / (n - 1) - 0.5, ph = Math.PI / 2 + t * spread, th = 1.08 + Math.abs(t) * 0.12, r = R0 * 1.06, x = r * Math.cos(ph) * -1 * Math.sin(th) * 0.93, y = r * Math.cos(th) * 1.1, z = r * Math.sin(ph) * Math.sin(th) * 0.98; add(hr, sph(0.05, 8, 6), k % 2 ? hairD : hairC, tf(x, y - len * 0.3 + 0.004, z + 0.004, 0.25, -t * 0.9, t * 0.5, 0.85, (len / 0.05) * 0.62, 0.6)); } };
+    if (hs === 0) { fringe(5, 1.7, 0.045); }
+    else if (hs === 1) { fringe(5, 1.7, 0.04); for (let k = 0; k < 9; k++) { const a = (k / 9) * 6.2832; add(hr, new THREE.ConeGeometry(0.045, 0.15, 6), k % 2 ? hairD : hairC, tf(Math.cos(a) * 0.075, 0.115, Math.sin(a) * 0.075, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5)); } add(hr, new THREE.ConeGeometry(0.05, 0.17, 6), hairC, tf(0, 0.14, 0)); }
+    else if (hs === 2) { fringe(5, 1.8, 0.055); add(hr, tube(0.105, 0.09, 0.4, 16), hairC, tf(0, -0.15, -0.075, 0.05, 0, 0, 1, 1, 0.78)); add(hr, sph(0.09, 12, 8), hairD, tf(0, -0.35, -0.08, 0, 0, 0, 1, 0.7, 0.7)); [-1, 1].forEach((s) => add(hr, tube(0.03, 0.022, 0.3, 8), hairC, tf(s * 0.112, -0.1, 0.035, 0, 0, s * 0.03))); }
+    else { fringe(5, 1.7, 0.04); add(hr, sph(0.03, 8, 6), 0xff5577, tf(0, 0.04, -0.125)); [[0, -0.03, -0.15, 0.1, 0.045], [0, -0.13, -0.19, 0.2, 0.04], [0, -0.23, -0.2, 0.28, 0.03]].forEach(([x, y, z, rx, r]) => add(hr, sph(r, 10, 8), hairC, tf(x, y, z, rx, 0, 0, 1, 1.6, 1))); }
+    const hairM = build(hr); head.add(hairM);
+    if (L.capOn) { const cb = bin(); add(cb, new THREE.SphereGeometry(R0 * 1.14, 28, 16, 0, 6.2832, 0, 1.3), cp, tf(0, 0.01, -0.004, 0, 0, 0, 0.95, 1.05, 1.04)); const brim = new THREE.CylinderGeometry(0.2, 0.2, 0.013, 28, 1, false, -0.95, 1.9); add(cb, brim, new THREE.Color(cp).multiplyScalar(0.85).getHex(), tf(0, 0.05, 0.0, -0.1, 0, 0, 1, 1, 0.9)); add(cb, new THREE.CircleGeometry(0.03, 16), 0xf4f4f4, tf(0, 0.095, 0.125, -0.5, 0, 0)); add(cb, new THREE.TorusGeometry(R0 * 1.0, 0.009, 6, 28), 0xf4f4f4, tf(0, 0.03, 0, Math.PI / 2, 0, 0, 0.95, 1.0, 1)); head.add(build(cb)); }
+    g.userData.legs = legs; g.userData.arms = arms; g.userData.head = head; g.userData.body = bodyM; g.userData.ph = Math.random() * 6.28;
+    return g;
+  }
+  function swingArms(m, sw) {
+    const u = m && m.userData; if (!u || !u.arms) return; u.arms[0].rotation.x = -sw * 0.9; u.arms[1].rotation.x = sw * 0.9;
+    const wob = Math.abs(sw) * 0.03, br = Math.sin(T * 1.8 + u.ph) * 0.004;
+    if (u.body) { u.body.position.y = wob; u.body.scale.y = 1 + br * 2; } if (u.head) { u.head.position.y = 1.6 + wob + br; u.head.rotation.y = Math.sin(T * 0.6 + u.ph) * 0.12 * (1 - Math.min(1, Math.abs(sw) * 3)); }
   }
 
   /* ---------- scenes, collisions, world ---------- */
@@ -348,6 +580,11 @@
   function pointAlong(ri, d) { let acc = 0, last = null; for (const s of SEGS) { if (s.r !== ri) continue; last = s; if (acc + s.len >= d) { const t = (d - acc) / s.len; return { x: s.ax + (s.bx - s.ax) * t, z: s.az + (s.bz - s.az) * t, dx: (s.bx - s.ax) / s.len, dz: (s.bz - s.az) / s.len }; } acc += s.len; } return { x: last.bx, z: last.bz, dx: (last.bx - last.ax) / last.len, dz: (last.bz - last.az) / last.len }; }
   const routeLen = (ri) => SEGS.filter((s) => s.r === ri).reduce((a, s) => a + s.len, 0);
   const RT = [{ ids: [19, 133, 43, 41, 25, 39], lv: [3, 6] }, { ids: [74, 66, 54, 63, 81, 58, 92], lv: [8, 12] }, { ids: [93, 75, 64, 67, 42, 44, 59], lv: [14, 18] }, { ids: [43, 44, 2, 20, 133, 41, 75], lv: [20, 24] }, { ids: [58, 59, 74, 75, 5, 66, 67, 78], lv: [26, 30] }, { ids: [42, 93, 64, 81, 87, 124, 91], lv: [32, 36] }, { ids: [93, 64, 67, 76, 59, 26, 131, 130], lv: [38, 42] }];
+  /* wild Pokémon: every non-legendary species shows up on the routes that fit its strength and evolution level; the hand-picked favourites stay the most common */
+  const MLV = {}; Object.keys(EVO).forEach((k) => { MLV[EVO[k][0]] = Math.max(MLV[EVO[k][0]] || 0, EVO[k][1]); });
+  const LEGENDS = POOL.filter((p) => p.f === 1).map((p) => p.id), repeatArr = (a, n) => { const o = []; for (let i = 0; i < n; i++) o.push(...a); return o; };
+  RT.forEach((r, i) => { const cap = 250 + r.lv[1] * 9, ex = POOL.filter((p) => p.f !== 1 && p.b <= cap && (MLV[p.id] || 1) <= r.lv[1] + 2 && !r.ids.includes(p.id)).map((p) => p.id); r.base = r.ids.slice(); r.ids = repeatArr(r.base, Math.max(2, Math.round(ex.length * 0.09))).concat(ex); r.leg = i >= 5; });
+  const wildPick = (rt) => (rt.leg && Math.random() < 0.012 ? rnd(LEGENDS) : rnd(rt.ids));
   const GYMS = [
     { badge: "Stone", ic: "🪨", ty: "rock", leader: "Flint", team: [[74, 13], [74, 14], [75, 16]], pat: ["speck", "#6b6258", "#8a7f72"], wall: 0x7a6e60, acc: 0xb9a37a, reward: 300, line: "Rock-solid defense beats everything!" },
     { badge: "Wave", ic: "💧", ty: "water", leader: "Marina", team: [[54, 19], [8, 21], [130, 23]], pat: ["tile", "#2b6fa8", "#5aa9e0"], wall: 0x2b5f9a, acc: 0x4fb3ff, reward: 500, line: "Let the tide carry you!" },
@@ -446,7 +683,7 @@
   }
   function shadowPass(g) {
     if (!g || SHADOWED.has(g)) return; SHADOWED.add(g);
-    g.traverse((o) => { if (!o.isMesh || o.isInstancedMesh) return; const ty = o.geometry && o.geometry.type; if (ty === "PlaneGeometry" || ty === "CircleGeometry" || ty === "RingGeometry") { o.receiveShadow = true; return; } const mt = o.material; o.castShadow = !(mt && (mt.type === "MeshBasicMaterial" || mt.transparent)); o.receiveShadow = true; });
+    g.traverse((o) => { if (!o.isMesh || o.isInstancedMesh) return; if (o.userData && o.userData.noShadow) { o.castShadow = false; o.receiveShadow = true; return; } const ty = o.geometry && o.geometry.type; if (ty === "PlaneGeometry" || ty === "CircleGeometry" || ty === "RingGeometry") { o.receiveShadow = true; return; } const mt = o.material; o.castShadow = !(mt && (mt.type === "MeshBasicMaterial" || mt.transparent)); o.receiveShadow = true; });
   }
   function initFx() {
     const sv = new THREE.Vector3(SUN_V[0], SUN_V[1], SUN_V[2]).normalize(), sd = "vec3(" + sv.x.toFixed(4) + ", " + sv.y.toFixed(4) + ", " + sv.z.toFixed(4) + ")";
@@ -548,8 +785,8 @@
     return (MON_BOX[id] = b);
   }
   function fitMon(g, c, img, opt) {
-    const u = g.userData, real = MON_H[c.id] || 1, bb = monBox(c.id, img), frac = Math.max(0.2, bb.bot - bb.top);
-    const units = opt.mode === "battle" ? clamp(3.0 * Math.pow(real, 0.55), 1.9, 7.2) * (opt.k || 1) : 0.9 + 0.75 * Math.pow(real, 0.85);
+    const u = g.userData, real = (typeof SPECIES !== "undefined" && SPECIES[c.id] && SPECIES[c.id].h) || MON_H[c.id] || 1, bb = monBox(c.id, img), frac = Math.max(0.2, bb.bot - bb.top);
+    const units = opt.mode === "battle" ? clamp(3.0 * Math.pow(real, 0.55), 1.9, 7.2) * (opt.k || 1) : Math.min(7, 0.9 + 0.75 * Math.pow(real, 0.85));
     const s = units / frac, old = u.s || s; u.s = s; u.units = units; u.yb = s * (bb.bot - 0.5); u.sp.scale.set((u.sp.scale.x < 0 ? -1 : 1) * s, s, 1); u.sp.position.y = u.yb;
     if (g.children[1]) g.children[1].scale.setScalar(Math.max(0.3, s / old));
   }
@@ -1213,7 +1450,7 @@
   const dexSeen = (id) => { if (G && !G.dex.seen[id]) G.dex.seen[id] = 1; };
   const dexCaught = (id) => { if (G) { G.dex.seen[id] = 1; G.dex.caught[id] = 1; } };
   function refreshStory() { if (WORLD) WORLD.gates.forEach((g) => { g.mesh.visible = !g.req(); }); refreshMarks(); }
-  const habitat = (id) => { const r = RT.map((t, i) => (t.ids.includes(id) ? "Route " + (i + 1) : null)).filter(Boolean); return r.length ? r.join(", ") : GYMS.some((g) => g.team.some((t) => t[0] === id)) ? "Gym trainers" : "Rare / evolved form"; };
+  const habitat = (id) => { const p = SPECIES[id], rs = []; RT.forEach((t, i) => { if (t.ids.includes(id)) rs.push(i + 1); }); if (rs.length) return rs.length === 1 || rs[0] === rs[rs.length - 1] ? "Route " + rs[0] : "Routes " + rs[0] + "–" + rs[rs.length - 1]; if (p && p.f === 1) return "Legendary — very rare on the late routes"; return GYMS.some((g) => g.team.some((t) => t[0] === id)) ? "Gym trainers" : "Rare / evolved form"; };
   function dexDetail(id) {
     const sp = SPECIES[id], seen = G.dex.seen[id], c = mkL(sp, 50), ev = EVO[id];
     modal(`<h2>#${String(id).padStart(3, "0")} ${seen ? sp.n : "???"}</h2><img src="${ART + id}.png" alt="" style="width:150px;height:150px;object-fit:contain;${seen ? "" : "filter:brightness(0) opacity(.6)"}"><p>${seen ? sp.t.map((x) => '<em style="background:' + hex(TC[x]) + ';color:#fff;font-style:normal;padding:2px 9px;border-radius:99px;font:800 10px var(--font-display)">' + x.toUpperCase() + "</em>").join(" ") : "Unknown type"}</p>
@@ -1255,7 +1492,7 @@
   }
   function floatMark(m) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.bang, transparent: true, depthWrite: false })); s.scale.set(1.6, 1.6, 1); s.position.set(0, ((m.userData && m.userData.units) || 2.4) + 1.1, 0); m.add(s); setTimeout(() => m.remove(s), 900); sfx(880, 0.15, "square", 0.08); }
   async function wildBattle(ri) {
-    const rt = RT[ri], sp = SPECIES[rnd(rt.ids)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), foe = mkL(sp, lv);
+    const rt = RT[ri], sp = SPECIES[wildPick(rt)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), foe = mkL(sp, lv);
     G.cut = true; await flashT(); const r = await battle({ foes: [foe], trainer: false, theme: "grass" }); refresh();
     if (r.res === "lose") return blackout();
     G.cut = false; if (r.res === "win") { qEvent("wins", 1); G.wins = (G.wins || 0) + 1; } if (r.res === "caught") qEvent("catch", 1);
@@ -1364,7 +1601,7 @@
   function spawnRoamer() {
     const an = Math.random() * 6.283, d = 26 + Math.random() * 44, x = P.x + Math.cos(an) * d, z = P.z + Math.sin(an) * d, ar = areaAt(x, z);
     if ((ar.k !== "r" && ar.k !== "s") || !walkable(x, z) || WORLD.col.hit(x, z) || townAt(x, z, 8) >= 0) return;
-    const rt = RT[ar.tab], sp = SPECIES[rnd(rt.ids)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), c = mkL(sp, lv), m = makeMon(c, 1.9, { mode: "world" });
+    const rt = RT[ar.tab], sp = SPECIES[wildPick(rt)], lv = rt.lv[0] + Math.floor(Math.random() * (rt.lv[1] - rt.lv[0] + 1)), c = mkL(sp, lv), m = makeMon(c, 1.9, { mode: "world" });
     m.position.set(x, 0, z); WORLD.group.add(m); ROAM.push({ c, mesh: m, x, z, tx: x, tz: z, wait: 0, cool: 0, aggro: Math.random() < 0.35 });
   }
   function roamTick(dt, busy) {
@@ -1385,7 +1622,7 @@
       if (!n.wander || Math.hypot(P.x - n.x, P.z - n.z) > 150) return; n.wait = (n.wait || 0) - dt;
       if (n.moving) { const dx = n.tx - n.x, dz = n.tz - n.z, l = Math.hypot(dx, dz); if (l < 0.3) { n.moving = false; n.wait = 1 + Math.random() * 3; } else { n.x += (dx / l) * 1.5 * dt; n.z += (dz / l) * 1.5 * dt; n.mesh.rotation.y = Math.atan2(dx, dz); } }
       else if (n.wait <= 0) { n.tx = n.home.x + (Math.random() - 0.5) * 2 * n.wr; n.tz = n.home.z + (Math.random() - 0.5) * 2 * n.wr; n.moving = true; }
-      n.mesh.position.x = n.x; n.mesh.position.z = n.z; const lg = n.mesh.userData.legs, sw = n.moving ? Math.sin(T * 10) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw;
+      n.mesh.position.x = n.x; n.mesh.position.z = n.z; const lg = n.mesh.userData.legs, sw = n.moving ? Math.sin(T * 10) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; swingArms(n.mesh, sw);
     });
     SC.ambient.forEach((o) => {
       if (Math.hypot(P.x - o.x, P.z - o.z) > 150) return; tickMon(o.mesh, dt); o.wait -= dt;
@@ -1417,7 +1654,7 @@
       } else { const want = Math.atan2(P.x - o.x, P.z - o.z); let da = want - o.mesh.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); o.mesh.rotation.y += da * Math.min(1, dt * 3); }
       fr.forEach((q) => { if (q !== o) { const sx = o.x - q.x, sz = o.z - q.z, sd = Math.hypot(sx, sz); if (sd < 1.8 && sd > 0.01) { o.x += (sx / sd) * (1.8 - sd) * 0.5; o.z += (sz / sd) * (1.8 - sd) * 0.5; } } });
       o.mesh.position.set(o.x, Math.abs(Math.sin(T * 9 + idx)) * 0.05 * Math.min(1, moved / 4), o.z);
-      const lg = o.mesh.userData.legs, sw = Math.sin(T * (6 + Math.min(1, moved / 8) * 8) + idx) * 0.55 * Math.min(1, moved / 3); lg[0].rotation.x = sw; lg[1].rotation.x = -sw;
+      const lg = o.mesh.userData.legs, sw = Math.sin(T * (6 + Math.min(1, moved / 8) * 8) + idx) * 0.55 * Math.min(1, moved / 3); lg[0].rotation.x = sw; lg[1].rotation.x = -sw; swingArms(o.mesh, sw);
     });
   }
 
@@ -1625,7 +1862,7 @@
     if (partnerH) tickMon(partnerH, dt);
     if (mode === "story" && G) story(dt);
     if (trainer && !BT) trainer.visible = !(mode === "story" && (DB.view || 0) === 3);
-    if (trainer) { trainer.position.set(P.x, 0, P.z); trainer.rotation.y = P.rot; const lg = trainer.userData.legs, sw = P.moving ? Math.sin(T * 12) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; }
+    if (trainer) { trainer.position.set(P.x, 0, P.z); trainer.rotation.y = P.rot; const lg = trainer.userData.legs, sw = P.moving ? Math.sin(T * 12) * 0.5 : 0; lg[0].rotation.x = sw; lg[1].rotation.x = -sw; swingArms(trainer, sw); }
     if (partnerH && mode === "story") {
       const fd = 1.7 + Math.max(0, ((partnerH.userData.units || 1) - 1) * 0.6), sd = Math.max(1, fd * 0.6), tx = P.x - Math.sin(P.rot) * fd + Math.cos(P.rot) * sd, tz = P.z - Math.cos(P.rot) * fd - Math.sin(P.rot) * sd, ox = partnerH.position.x, oz = partnerH.position.z;
       movePartner(dt, tx, tz, ox, oz); const mx = partnerH.position.x - ox; if (Math.abs(mx) > 0.002) face(partnerH, mx > 0);
@@ -1675,7 +1912,7 @@
     THREE = window.THREE; try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { renderer = new THREE.WebGLRenderer({ antialias: false }); }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; $("av-3d").appendChild(renderer.domElement);
     scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(52, 1, 0.1, 520); scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x5c6b3a, 0.64)); const sun = new THREE.DirectionalLight(0xffe2b0, 0.7); sun.position.set(34, 26, 20); sun.castShadow = true; const shs = matchMedia("(pointer:coarse)").matches ? 1024 : 2048; sun.shadow.mapSize.set(shs, shs); const sc2 = sun.shadow.camera; sc2.left = -40; sc2.right = 40; sc2.top = 40; sc2.bottom = -40; sc2.near = 1; sc2.far = 130; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; scene.add(sun, sun.target); SUN = sun;
-    fxGroup = new THREE.Group(); scene.add(fxGroup); initTex(); initFx(); trainer = makeTrainer(DEF_LOOK); shadowPass(trainer); scene.add(trainer); initStage(); addEventListener("resize", resize);
+    fxGroup = new THREE.Group(); scene.add(fxGroup); initTex(); initFx(); trainer = makeTrainer(DEF_LOOK); shadowPass(trainer); scene.add(trainer); initStage(); addEventListener("resize", resize); addEventListener("orientationchange", () => { setTimeout(resize, 120); setTimeout(resize, 450); }); if (window.visualViewport) visualViewport.addEventListener("resize", resize);
   }
   const VIEWS = ["Classic", "Close-up", "Top-down", "Player view (first person)"];
   function cycleView() { DB.view = ((DB.view || 0) + 1) % 4; saveDB(); camSnap = true; toast({ icon: "👁", title: "View: " + VIEWS[DB.view], message: DB.view === 3 ? "W/S move, A/D turn (joystick: up/down move, left/right turn)." : "" }); }
@@ -2015,6 +2252,47 @@
 #av-tmap{width:100%;max-width:460px;display:block;margin:0 auto;border-radius:14px;border:2px solid #36506b;cursor:pointer}
 @media(max-width:700px){#av-team{position:absolute;top:calc(104px + env(safe-area-inset-top));left:8px;flex-direction:row;flex-wrap:wrap;max-width:60vw;gap:4px}.av-chip{min-width:0;padding:2px 6px 2px 2px}.av-chip b{display:none}.av-chip img{width:30px;height:30px}#av-bottom{padding:0}#av-map{width:96px;height:96px;top:calc(98px + env(safe-area-inset-top))}#av-hud{top:calc(54px + env(safe-area-inset-top))}.av-sheet{padding:16px 12px}#av-top{padding-left:8px;padding-right:8px;gap:6px}#av-title{display:none}.dex{grid-template-columns:repeat(3,1fr)}.bt-box.me{bottom:clamp(200px,36vh,270px)}#bt-bottom{flex-direction:column}#bt-cmd{flex:none;max-height:36vh}#av-dlg{bottom:calc(10px + env(safe-area-inset-bottom))}.av-hbox b{font-size:19px}}
 @media(max-height:520px){#av-joy{width:112px;height:112px}.av-sheet{max-height:96%}}
+@media (orientation:landscape) and (max-height:540px){
+#av-top{padding:calc(4px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 10px calc(10px + env(safe-area-inset-left));gap:6px}
+#av-top .av-btn{min-height:32px;padding:0 10px;font-size:11px;border-radius:10px}
+#av-title{font-size:10px;letter-spacing:1.4px}.av-pill{padding:4px 9px;font-size:11px}
+#av-hud{top:calc(40px + env(safe-area-inset-top));gap:5px}
+.av-hbox{min-width:46px;padding:3px 7px;border-radius:9px}.av-hbox small{font-size:7px}.av-hbox b{font-size:16px}
+.av-zbar{min-width:104px;padding:3px 8px 9px;border-radius:9px}.av-zbar span{font-size:7.5px}.av-zbar b{font-size:14px}
+#av-map{width:82px;height:82px;top:calc(40px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));border-width:2px}
+#av-loc{top:calc(88px + env(safe-area-inset-top));font-size:17px;letter-spacing:2px}
+#av-feed{top:calc(84px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));max-width:34vw}.av-feedln{font-size:10px;padding:3px 7px}
+#av-team{position:absolute;top:calc(40px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));flex-direction:row;flex-wrap:wrap;max-width:122px;gap:3px}
+.av-chip{min-width:0;padding:2px 5px 2px 2px;border-radius:10px}.av-chip b{display:none}.av-chip img{width:26px;height:26px}
+#av-bottom{padding:0}
+#av-joy{width:104px;height:104px;left:calc(14px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom))}#av-joy i{width:46px;height:46px;margin:-23px 0 0 -23px}
+#av-act{width:68px;height:68px;font-size:26px;right:calc(18px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}
+#av-run{width:48px;height:48px;right:calc(26px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom));font-size:10px}
+#av-prompt{bottom:calc(14px + env(safe-area-inset-bottom));font-size:11px;padding:5px 12px}
+#av-msg{bottom:calc(52px + env(safe-area-inset-bottom));font-size:11.5px;padding:4px 10px}
+#av-dlg{bottom:calc(6px + env(safe-area-inset-bottom));width:min(640px,calc(100vw - 2*(30px + env(safe-area-inset-left))));font-size:12.5px;line-height:1.4;padding:7px 14px 11px;border-width:3px;border-radius:12px}#av-dlg .tx{min-height:2.7em}#av-dlg .nm{font-size:10.5px}
+.bt-box{min-width:130px;padding:4px 9px 6px;border-radius:10px;border-width:2px;box-shadow:0 3px 0 #1b2433}.bt-box .nm{font-size:13px}.bt-box small{font-size:10px}
+.bt-box.foe{top:calc(40px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left))}.bt-box.me{right:calc(8px + env(safe-area-inset-right));bottom:clamp(86px,28vh,130px)}
+.hpw span,.xpw span{font-size:8px}.hpbar{height:7px}.hpn{font-size:10px}.tys em{font-size:7px;padding:1px 5px}
+#bt-bottom{flex-wrap:nowrap;gap:8px;padding:6px calc(8px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
+#bt-text{flex:1 1 50%;min-height:58px;max-width:none;font-size:12.5px;padding:7px 11px;border-width:3px;box-shadow:0 4px 0 #1b2433}
+#bt-cmd{flex:0 0 44%;gap:6px;max-height:48vh}
+.bt-b{padding:7px 4px;font-size:12px;border-width:2px;box-shadow:0 3px 0 #1b2433;border-radius:10px}.bt-b.back{padding:5px}
+.bt-m{padding:4px 8px;border-width:2px;box-shadow:0 3px 0 #1b2433}.bt-m b{font-size:12px}.bt-m small{font-size:8.5px}
+#av-modal{padding:calc(6px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left))}
+.av-sheet{max-height:100%;padding:12px 14px;border-radius:16px;width:min(720px,100%)}.av-sheet.wide{width:min(820px,100%)}
+.av-sheet h2{font-size:19px;letter-spacing:1px}.av-sheet p{margin:3px 0 8px;font-size:11.5px}
+.av-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px}.av-mode{padding:9px;gap:9px}.av-mode .ic{width:38px;height:38px;font-size:20px}.av-mode b{font-size:14px}.av-mode span{font-size:10.5px}
+.av-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px}.av-pick img{width:46px;height:46px}
+.av-stats{margin:8px 0}.av-stat{padding:6px 2px}.av-stat b{font-size:15px}
+.av-tabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;margin:4px 0 8px;-webkit-overflow-scrolling:touch}.av-tabs button{flex:none;padding:6px 10px}
+.dex{grid-template-columns:repeat(7,1fr)}.dx img{width:40px;height:40px}
+.av-item{padding:7px 10px}.av-squad div{width:64px}.av-squad img{width:46px;height:46px}
+.cr{flex-wrap:nowrap}.cr canvas{height:min(62vh,300px);width:auto}.cr-ctl{flex:1 1 220px}
+.slot{padding:7px 10px;margin-bottom:6px}.slot canvas{width:48px;height:58px}
+#av-map.big{width:min(70vh,360px);height:min(70vh,360px)}
+}
+
 `;
   function injectCSS() { if ($("av-css")) return; const s = document.createElement("style"); s.id = "av-css"; s.textContent = CSS; document.head.appendChild(s); }
   function boot() { injectCSS(); loadDB(); initHome(); patchSite(); const b = $("btn-adventure"); if (b) b.onclick = open; }
