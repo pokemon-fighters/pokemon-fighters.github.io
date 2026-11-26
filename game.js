@@ -637,6 +637,16 @@ wrong way in-battle.
 
 const ARTWORK_FACES_RIGHT = new Set(["blaziken"]);
 
+/* Per-Pokémon fixes saved by the player: press [ to flip your Pokémon's
+   direction, ] to flip the opponent's (remembered on this device). */
+const FACING_OVERRIDES = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("pf-facing") || "{}");
+  } catch (e) {
+    return {};
+  }
+})();
+
 function getArtworkNaturalFacing(pokemon) {
   const name = cleanPokemonName(pokemon && pokemon.name);
 
@@ -644,6 +654,10 @@ function getArtworkNaturalFacing(pokemon) {
   1  = artwork naturally faces RIGHT
   -1 = artwork naturally faces LEFT (default)
   */
+
+  if (Object.prototype.hasOwnProperty.call(FACING_OVERRIDES, name)) {
+    return FACING_OVERRIDES[name] > 0 ? 1 : -1;
+  }
 
   return ARTWORK_FACES_RIGHT.has(name) ? 1 : -1;
 }
@@ -1370,6 +1384,7 @@ async function initTeamBattleEngine(
   isTwoPlayer,
 ) {
   twoPlayerMode = Boolean(isTwoPlayer);
+  if (window.Arena3D) Arena3D.load();
 
   const battlefield = document.getElementById("battlefield-page");
 
@@ -2230,12 +2245,8 @@ function updateFacing() {
       player faces LEFT
   */
 
-  if (!player.dodging && player.hitTimer <= 0) {
-    if (enemy.x > player.x) {
-      player.facing = 1;
-    } else {
-      player.facing = -1;
-    }
+  if (!player.dodging && Math.abs(enemy.x - player.x) > 4) {
+    player.facing = enemy.x > player.x ? 1 : -1;
   }
 
   /*
@@ -2250,12 +2261,8 @@ function updateFacing() {
       enemy faces LEFT
   */
 
-  if (!enemy.dodging && enemy.hitTimer <= 0) {
-    if (player.x > enemy.x) {
-      enemy.facing = 1;
-    } else {
-      enemy.facing = -1;
-    }
+  if (!enemy.dodging && Math.abs(player.x - enemy.x) > 4) {
+    enemy.facing = player.x > enemy.x ? 1 : -1;
   }
 }
 
@@ -3346,6 +3353,9 @@ function draw() {
 ============================================================ */
 
 function drawBackground() {
+  if (window.Arena3D && Arena3D.draw(ctx, arenaThemeName(), performance.now() * 0.001, arenaCamX())) {
+    return;
+  }
   const t = performance.now() * 0.001;
 
   /*
@@ -3510,6 +3520,9 @@ function drawFloodlight(x, y, angle) {
 ============================================================ */
 
 function drawArena() {
+  if (window.Arena3D && Arena3D.active) {
+    return;
+  }
   const t = performance.now() * 0.001;
 
   /*
@@ -3748,6 +3761,8 @@ function drawReflection(fighter, pokemon, image) {
   ctx.restore();
 
   if (!image || !image.complete || image.naturalWidth <= 0) return;
+  /* grass / sand do not mirror; only the glossy stadium floor does */
+  if (window.Arena3D && Arena3D.active && Arena3D.theme !== "stadium") return;
   const size = 245 * sizeScale;
   const naturalFacing = getArtworkNaturalFacing(pokemon);
   ctx.save();
@@ -5525,6 +5540,7 @@ let onlineBattleActive = false;
 let onlineMySide = null; // "a" or "b" — which snapshot side is "me"
 
 async function startOnlineBattleEngine(myTeamData, opponentTeamData, mySide) {
+  if (window.Arena3D) Arena3D.load();
   const battlefield = document.getElementById("battlefield-page");
   const home = document.getElementById("home-page");
 
@@ -6137,3 +6153,225 @@ window.PokemonOnlineBattle = {
 /* ============================================================
    STARTUP
 ============================================================ */
+
+/* ============================================================
+   ARENA 3D — Three.js-rendered backdrop for the fighting modes
+   (Computer / Online / League). The 2D fighters are still drawn
+   on top by the normal canvas code; this only replaces the
+   backdrop. If WebGL or the 3D engine isn't available the old
+   2D arena is used automatically.
+============================================================ */
+(function () {
+  const A = (window.Arena3D = { ready: false, failed: false, loading: false, active: false, theme: "" });
+  const W = 1200, H = 650, GROUND = 505;
+  let T = null, R = null, S = null, C = null, sun = null, hemi = null, cur = null, LOOKY = 6, frame = 0, q = 1, lastT = 0;
+  const themes = {};
+  let mkTex = (w, h, fn) => { const c = document.createElement("canvas"); c.width = w; c.height = h; fn(c.getContext("2d"), w, h); return new T.CanvasTexture(c); };
+  A._setTexFactory = (f) => { mkTex = f; };
+  const rng = (seed) => { let s = seed; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; };
+  const lam = (c, o) => new T.MeshLambertMaterial(Object.assign({ color: c }, o || {}));
+  const bas = (c, o) => new T.MeshBasicMaterial(Object.assign({ color: c }, o || {}));
+  const mesh = (g, m, x, y, z) => { const o = new T.Mesh(g, m); o.position.set(x || 0, y || 0, z || 0); return o; };
+  const flat = (m, y) => { m.rotation.x = -Math.PI / 2; m.position.y = y; return m; };
+
+  A.load = function () {
+    if (A.ready || A.loading || A.failed) return; A.loading = true;
+    const boot = () => { try { A._init(window.THREE, null); } catch (e) { A.failed = true; console.warn("[arena3d] disabled:", e && e.message); } };
+    if (window.THREE) return boot();
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"; s.onload = boot; s.onerror = () => { A.failed = true; }; document.head.appendChild(s);
+  };
+
+  A._init = function (THREEref, rendererRef) {
+    T = THREEref; q = typeof matchMedia === "function" && matchMedia("(pointer:coarse)").matches ? 0.75 : 1;
+    R = rendererRef || new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    if (!rendererRef) R.setPixelRatio(1);
+    R.setSize(Math.round(W * q), Math.round(H * q), false); R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
+    S = new T.Scene(); C = new T.PerspectiveCamera(38, W / H, 0.1, 600);
+    hemi = new T.HemisphereLight(0xffffff, 0x445533, 0.6); S.add(hemi);
+    sun = new T.DirectionalLight(0xffffff, 0.8); sun.castShadow = true; const ss = q < 1 ? 1024 : 2048; sun.shadow.mapSize.set(ss, ss);
+    const sc = sun.shadow.camera; sc.left = -46; sc.right = 46; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 160; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.05; S.add(sun, sun.target);
+    // camera: pitched slightly down; solve the look-at height so the fighters' ground line (z = 0) lands exactly on the 2D game's ground line
+    C.position.set(0, 6.5, 30); const target = 1 - (2 * GROUND) / H; let lo = -10, hi = 24;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; C.lookAt(0, m, 0); C.updateMatrixWorld(); const v = new T.Vector3(0, 0, 0).project(C); if (v.y > target) lo = m; else hi = m; }
+    LOOKY = (lo + hi) / 2; A.ready = true; A.loading = false;
+  };
+
+  /* ---------- shared pieces ---------- */
+  function skyDome(hor, mid, top, sd, sunCol, stars) {
+    const sv = new T.Vector3(sd[0], sd[1], sd[2]).normalize(), v3 = (c) => "vec3(" + c.map((n) => n.toFixed(3)).join(",") + ")";
+    const mat = new T.ShaderMaterial({ side: T.BackSide, depthWrite: false, depthTest: false, fog: false, uniforms: { uT: { value: 0 } },
+      vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: "uniform float uT; varying vec3 vP; void main(){ vec3 d = normalize(vP); float h = clamp(d.y, 0.0, 1.0); vec3 c = mix(" + v3(hor) + ", " + v3(mid) + ", smoothstep(0.0, 0.3, h)); c = mix(c, " + v3(top) + ", smoothstep(0.25, 0.95, h));" +
+        " float s = max(dot(d, vec3(" + sv.x.toFixed(4) + "," + sv.y.toFixed(4) + "," + sv.z.toFixed(4) + ")), 0.0); c += " + v3(sunCol) + " * (pow(s, 600.0) * 1.6 + pow(s, 30.0) * 0.35 + pow(s, 5.0) * 0.12);" +
+        (stars ? " vec3 g = floor(d * 170.0); float hs = fract(sin(dot(g, vec3(12.9898, 78.233, 37.719))) * 43758.5453); float st = step(0.9965, hs) * smoothstep(0.06, 0.4, d.y) * (0.55 + 0.45 * sin(uT * 2.0 + hs * 80.0)); c += vec3(st);" : "") +
+        " gl_FragColor = vec4(c, 1.0); }" });
+    const m = new T.Mesh(new T.SphereGeometry(400, 24, 14), mat); m.frustumCulled = false; m.renderOrder = -1000; return m;
+  }
+  function grassTex(rep) {
+    const t = mkTex(256, 256, (x) => { x.fillStyle = "#4c9a3e"; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 1800; i++) { x.fillStyle = "hsla(" + (84 + Math.random() * 40) + ",58%," + (22 + Math.random() * 24) + "%,.55)"; x.fillRect(Math.random() * 256, Math.random() * 256, 2, 5 + Math.random() * 4); } });
+    t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rep, rep); return t;
+  }
+  function paverTex(rep) {
+    const t = mkTex(128, 128, (x) => { x.fillStyle = "#9a8a64"; x.fillRect(0, 0, 128, 128); const r = rng(7), w = 128 / 6; for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) { const px = i * w + (j % 2 ? w / 2 : 0), py = j * w; x.fillStyle = "hsl(" + (38 + r() * 8) + ",32%," + (56 + r() * 14) + "%)"; for (const ox of [-128, 0, 128]) x.fillRect(px + ox + 1.2, py + 1.2, w - 2.4, w - 2.4); } });
+    t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rep, rep); return t;
+  }
+  function waterTex(rep) {
+    const t = mkTex(128, 128, (x) => { x.fillStyle = "#d4d4d4"; x.fillRect(0, 0, 128, 128); const r = rng(11); for (let i = 0; i < 46; i++) { const px = r() * 128, py = r() * 128, len = 8 + r() * 14, light = r() > 0.35; x.strokeStyle = light ? "rgba(255,255,255,.9)" : "rgba(150,170,200,.55)"; x.lineWidth = 1.4 + r() * 1.4; x.lineCap = "round"; const bend = 3 + r() * 3, ang = r() * 3.1416;
+      for (const ox of [-128, 0, 128]) for (const oy of [-128, 0, 128]) { x.save(); x.translate(px + ox, py + oy); x.rotate(ang); x.beginPath(); x.moveTo(-len / 2, 0); x.quadraticCurveTo(0, -bend, len / 2, 0); x.stroke(); x.restore(); } } });
+    t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rep, rep); return t;
+  }
+  function blobTex() { return mkTex(64, 64, (x) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }); }
+  function instTrees(g, pts, shadow, leafHue) {
+    const n = pts.length, trunk = new T.InstancedMesh(new T.CylinderGeometry(0.28, 0.42, 3, 6), lam(0x5a3d22), n), la = new T.InstancedMesh(new T.IcosahedronGeometry(1.9, 0), lam(0xffffff), n), lb = new T.InstancedMesh(new T.IcosahedronGeometry(1.4, 0), lam(0xffffff), n), d = new T.Object3D(), c = new T.Color(), r = rng(99);
+    pts.forEach((p, i) => { const s = p[2]; d.rotation.set(0, r() * 6.28, 0); d.scale.setScalar(s); d.position.set(p[0], 1.5 * s, p[1]); d.updateMatrix(); trunk.setMatrixAt(i, d.matrix);
+      d.position.set(p[0], 4.2 * s, p[1]); d.updateMatrix(); la.setMatrixAt(i, d.matrix); c.setHSL(leafHue + r() * 0.09, 0.55, 0.2 + r() * 0.12); la.setColorAt(i, c);
+      d.scale.setScalar(s * 0.85); d.position.set(p[0] + 0.6 * s, 5.8 * s, p[1] + 0.2 * s); d.updateMatrix(); lb.setMatrixAt(i, d.matrix); c.setHSL(leafHue + 0.03 + r() * 0.08, 0.6, 0.27 + r() * 0.1); lb.setColorAt(i, c); });
+    [trunk, la, lb].forEach((m) => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; if (shadow) m.castShadow = true; g.add(m); });
+  }
+  function palmGeo() {
+    const pos = [], col = [], idx = [], vert = (x, y, z, c) => { pos.push(x, y, z); col.push(c[0], c[1], c[2]); return pos.length / 3 - 1; };
+    const H0 = 6.4, lean = 1.1, N = 7, S0 = 6, rings = [];
+    for (let i = 0; i <= N; i++) { const t = i / N, cx = lean * t * t, cy = H0 * t, tx = 2 * lean * t, tl = Math.hypot(tx, H0), Tx = tx / tl, Ty = H0 / tl, vx = Ty, vy = -Tx, r = 0.3 - 0.15 * t + (i === 0 ? 0.08 : 0), sh = 0.85 + 0.15 * (i % 2), ring = [];
+      for (let k = 0; k < S0; k++) { const a = (k / S0) * 6.2832; ring.push(vert(cx + vx * Math.cos(a) * r, cy + vy * Math.cos(a) * r, Math.sin(a) * r, [0.42 * sh, 0.3 * sh, 0.18 * sh])); } rings.push(ring); }
+    for (let i = 0; i < N; i++) for (let k = 0; k < S0; k++) { const a = rings[i][k], b = rings[i][(k + 1) % S0], c2 = rings[i + 1][k], d = rings[i + 1][(k + 1) % S0]; idx.push(a, b, c2, b, d, c2); }
+    for (let f = 0; f < 8; f++) { const an = (f / 8) * 6.2832 + (f % 2) * 0.2, dx = Math.cos(an), dz = Math.sin(an), sx = -dz, sz = dx, len = 3.6 + (f % 3) * 0.5; let prev = null;
+      for (let s = 0; s <= 5; s++) { const t = s / 5, al = len * t, y = H0 + t - 2.2 * t * t + 0.25, w = 0.08 + 0.75 * Math.sin(3.1416 * Math.pow(t, 0.7)), bx = lean + dx * al, bz = dz * al, g1 = [0.1, 0.36 + 0.1 * t, 0.12], g2 = [0.2, 0.55, 0.18];
+        const L = vert(bx + sx * w, y - 0.12 * w, bz + sz * w, g2), M = vert(bx, y + 0.1, bz, g1), Rr = vert(bx - sx * w, y - 0.12 * w, bz - sz * w, g2); if (prev) idx.push(prev[0], prev[1], L, prev[1], M, L, prev[1], prev[2], M, prev[2], Rr, M); prev = [L, M, Rr]; } }
+    const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  }
+  function instPalms(g, pts) {
+    const pm = new T.InstancedMesh(palmGeo(), lam(0xffffff, { vertexColors: true, side: T.DoubleSide }), pts.length), d = new T.Object3D(), r = rng(5);
+    pts.forEach((p, i) => { d.rotation.set((r() - 0.5) * 0.1, r() * 6.28, (r() - 0.5) * 0.1); d.scale.setScalar(p[2]); d.position.set(p[0], 0, p[1]); d.updateMatrix(); pm.setMatrixAt(i, d.matrix); }); pm.instanceMatrix.needsUpdate = true; pm.castShadow = true; g.add(pm);
+  }
+  function scatter(g, geo, mat, pts, shadow) {
+    const m = new T.InstancedMesh(geo, mat, pts.length), d = new T.Object3D(), c = new T.Color(), r = rng(3);
+    pts.forEach((p, i) => { d.rotation.set(0, r() * 6.28, 0); d.scale.set(p[2] * (p[4] || 1), p[2] * (p[5] || 1), p[2] * (p[4] || 1)); d.position.set(p[0], p[3], p[1]); d.updateMatrix(); m.setMatrixAt(i, d.matrix); if (p[6] !== undefined) { c.setHex(p[6]); m.setColorAt(i, c); } });
+    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; if (shadow) m.castShadow = true; g.add(m); return m;
+  }
+  function clouds(g, th, hue) {
+    const r = rng(21), arr = [];
+    for (let i = 0; i < 9; i++) { const cg = new T.Group(); for (let k = 0; k < 4; k++) { const s = mesh(new T.SphereGeometry(4 + r() * 4, 10, 8), bas(hue || 0xffffff, { transparent: true, opacity: 0.92 }), (k - 1.5) * 5, r() * 1.5, r() * 2); s.scale.y = 0.55; cg.add(s); } cg.position.set(-150 + r() * 300, 38 + r() * 22, -120 - r() * 90); cg.userData.v = 0.5 + r() * 0.8; g.add(cg); arr.push(cg); }
+    th.clouds = arr;
+  }
+  function arenaRings(g, a, b, c) {
+    const disc = flat(mesh(new T.CircleGeometry(24, 64), lam(0xffffff, { map: paverTex(9) })), 0.04); disc.scale.y = 0.5; g.add(disc);
+    [[24.8, a, 0.05], [22.6, b, 0.052], [21.6, c, 0.054]].forEach(([rad, col, y]) => { const m = flat(mesh(new T.CircleGeometry(rad, 64), lam(col, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })), y); m.scale.y = 0.5; g.add(m); });
+  }
+  function shadowsOn(g) { g.traverse((o) => { if (!o.isMesh || o.isInstancedMesh) return; const ty = o.geometry && o.geometry.type; if (ty === "PlaneGeometry" || ty === "CircleGeometry") { o.receiveShadow = true; return; } const m = o.material; o.castShadow = !(m && (m.type === "MeshBasicMaterial" || m.transparent)); o.receiveShadow = true; }); }
+
+  /* ---------- themes ---------- */
+  function meadow() {
+    const g = new T.Group(), th = { group: g, bg: 0xcfe3ee, fog: [60, 230], sunPos: [-26, 22, 20], sunCol: 0xfff0cf, sunInt: 0.85, hSky: 0xcfe6ff, hGnd: 0x55703a, hInt: 0.62, exp: 1 };
+    th.sky = skyDome([0.80, 0.90, 0.95], [0.40, 0.68, 0.95], [0.15, 0.42, 0.85], [-0.45, 0.3, -0.84], [1, 0.9, 0.62], false); g.add(th.sky);
+    const gr = flat(mesh(new T.PlaneGeometry(500, 500), lam(0xffffff, { map: grassTex(60) })), 0); g.add(gr);
+    const mt = mkTex(512, 512, (x) => { for (let i = 0; i < 70; i++) { const px = Math.random() * 512, py = Math.random() * 512, rr = 40 + Math.random() * 90, dark = Math.random() < 0.5; for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) { const gg = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rr); gg.addColorStop(0, dark ? "rgba(10,60,20,.22)" : "rgba(210,255,140,.16)"); gg.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = gg; x.fillRect(px + ox - rr, py + oy - rr, rr * 2, rr * 2); } } }); mt.wrapS = mt.wrapT = T.RepeatWrapping; mt.repeat.set(2, 2);
+    g.add(flat(mesh(new T.PlaneGeometry(500, 500), bas(0xffffff, { map: mt, transparent: true, depthWrite: false })), 0.012));
+    arenaRings(g, 0xcdbd92, 0xa89868, 0xd6c8a0);
+    const r = rng(42), trees = [];
+    for (let i = 0; i < 70; i++) { const x = (r() - 0.5) * 150, z = -16 - r() * 60; if (Math.abs(x) < 6 && z > -24) continue; trees.push([x, z, 0.9 + r() * 0.9]); }
+    [[-21, -8], [22, -9], [-27, -3], [28, -2], [-17, -14], [18, -15]].forEach(([x, z]) => trees.push([x, z, 1.1 + r() * 0.4]));
+    instTrees(g, trees, true, 0.26);
+    const bush = [], fl = []; for (let i = 0; i < 200; i++) { const x = (r() - 0.5) * 110, z = -12 - r() * 40; if (Math.abs(x) < 20 && z > -14) continue; bush.push([x, z, 0.7 + r() * 0.9, 0.3, 1.1, 0.7, new T.Color().setHSL(0.25 + r() * 0.11, 0.55, 0.15 + r() * 0.13).getHex()]); }
+    scatter(g, new T.IcosahedronGeometry(0.75, 0), lam(0xffffff), bush, false);
+    for (let i = 0; i < 260; i++) { const x = (r() - 0.5) * 70, z = -10 - r() * 14; fl.push([x, z, 0.16, 0.2, 1, 1, [0xff6b8b, 0xffd43b, 0xffffff, 0xb36bff, 0xff9f43][i % 5]]); }
+    scatter(g, new T.SphereGeometry(1, 6, 5), lam(0xffffff), fl, false);
+    const rk = []; for (let i = 0; i < 14; i++) rk.push([(r() - 0.5) * 80, -14 - r() * 25, 0.6 + r() * 1.4, 0.5, 1.2, 0.8, 0x8a8f94]); scatter(g, new T.DodecahedronGeometry(1, 0), lam(0xffffff), rk, true);
+    const hl = []; for (let i = 0; i < 7; i++) hl.push([-170 + i * 55 + r() * 20, -150 - r() * 60, 38 + r() * 24, -8, 1.5, 0.42, new T.Color().setHSL(0.3 + r() * 0.05, 0.4, 0.3 + r() * 0.05).getHex()]);
+    scatter(g, new T.SphereGeometry(1, 18, 10), lam(0xffffff), hl, false);
+    for (let i = 0; i < 5; i++) { const m = mesh(new T.ConeGeometry(30 + r() * 16, 56 + r() * 30, 7), lam(0x6f8f86), -130 + i * 65 + r() * 20, 22, -230 - r() * 40); g.add(m); }
+    clouds(g, th, 0xffffff); shadowsOn(g); return th;
+  }
+  function dusk() {
+    const g = new T.Group(), th = { group: g, bg: 0xf0b98a, fog: [50, 250], sunPos: [-30, 9, 22], sunCol: 0xffb36b, sunInt: 1.0, hSky: 0xffd9b8, hGnd: 0x8a6a6a, hInt: 0.68, exp: 1 };
+    th.sky = skyDome([0.99, 0.72, 0.52], [0.80, 0.50, 0.58], [0.22, 0.24, 0.52], [-0.5, 0.08, -0.86], [1, 0.62, 0.3], false); g.add(th.sky);
+    const sand = flat(mesh(new T.PlaneGeometry(500, 90), lam(0xf0d9a6)), 0); sand.position.z = 15; g.add(sand); const foam = flat(mesh(new T.PlaneGeometry(500, 2.4), bas(0xffffff, { transparent: true, opacity: 0.55, depthWrite: false })), 0.02); foam.position.z = -30.5; g.add(foam);
+    const sea = flat(mesh(new T.PlaneGeometry(900, 500), lam(new T.Color(0x2a7a96).multiplyScalar(1.15).getHex(), { map: waterTex(70), emissive: 0x3a1a20 })), -0.35); sea.position.z = -280; g.add(sea); th.sea = sea.material.map;
+    const streak = mesh(new T.PlaneGeometry(60, 260), bas(0xffa860, { map: blobTex(), transparent: true, opacity: 0.7, depthWrite: false, blending: T.AdditiveBlending }), -75, -0.2, -190); streak.rotation.x = -Math.PI / 2; g.add(streak);
+    arenaRings(g, 0xe6d2a0, 0xb99a62, 0xe9d9b0);
+    const r = rng(8), palms = [];
+    for (let i = 0; i < 30; i++) { const x = (r() - 0.5) * 120, z = -12 - r() * 15; if (Math.abs(x) < 9 && z > -18) continue; palms.push([x, z, 0.9 + r() * 0.6]); }
+    [[-22, -7], [23, -8], [-28, -2], [29, -3]].forEach(([x, z]) => palms.push([x, z, 1.15 + r() * 0.3])); instPalms(g, palms);
+    const rk = []; for (let i = 0; i < 16; i++) rk.push([(r() - 0.5) * 90, -10 - r() * 22, 0.5 + r() * 1.1, 0.4, 1.2, 0.8, 0x9a8f86]); scatter(g, new T.DodecahedronGeometry(1, 0), lam(0xffffff), rk, true);
+    const isl = []; for (let i = 0; i < 6; i++) isl.push([-220 + i * 85 + r() * 30, -260 - r() * 70, 40 + r() * 25, -3, 1.4, 0.3, 0x5a4468]); scatter(g, new T.SphereGeometry(1, 16, 8), bas(0xffffff), isl, false);
+    clouds(g, th, 0xffd2b0); shadowsOn(g); return th;
+  }
+  function stadium() {
+    const g = new T.Group(), th = { group: g, bg: 0x061224, fog: [70, 280], sunPos: [-14, 30, 18], sunCol: 0x9fc4ff, sunInt: 0.32, hSky: 0x3a5a98, hGnd: 0x0a1624, hInt: 0.34, exp: 1 };
+    th.sky = skyDome([0.06, 0.12, 0.22], [0.03, 0.07, 0.17], [0.01, 0.02, 0.07], [0.35, 0.45, -0.82], [0.7, 0.8, 1], true); g.add(th.sky);
+    const gt = mkTex(128, 128, (x) => { x.fillStyle = "#0d2230"; x.fillRect(0, 0, 128, 128); x.strokeStyle = "#2bd0ff"; x.lineWidth = 2; x.strokeRect(1, 1, 126, 126); x.strokeStyle = "rgba(43,208,255,.35)"; x.beginPath(); x.moveTo(64, 0); x.lineTo(64, 128); x.moveTo(0, 64); x.lineTo(128, 64); x.stroke(); }); gt.wrapS = gt.wrapT = T.RepeatWrapping; gt.repeat.set(60, 60);
+    g.add(flat(mesh(new T.PlaneGeometry(500, 500), lam(0x18475e, { map: gt, emissive: 0x0b3a4c, emissiveMap: gt })), 0));
+    [[26, 0x35d6ff, 0.05], [22, 0x1b7fb0, 0.052]].forEach(([rad, col, y]) => { const m = flat(mesh(new T.RingGeometry(rad - 0.35, rad, 72), bas(col, { side: T.DoubleSide })), y); m.scale.y = 0.5; g.add(m); });
+    const disc = flat(mesh(new T.CircleGeometry(21.5, 64), lam(0x0e3550, { emissive: 0x08283c })), 0.045); disc.scale.y = 0.5; g.add(disc); th.ring = flat(mesh(new T.RingGeometry(9.5, 10, 60, 1, 0, 5.2), bas(0x7fd8ff, { side: T.DoubleSide, transparent: true, opacity: 0.8 })), 0.06); th.ring.scale.y = 0.5; g.add(th.ring);
+    // stands
+    const r = rng(77); const seats = [], cols = [0xffcf6b, 0x6fb8ff, 0xff7aa8, 0xffffff];
+    for (let tier = 0; tier < 5; tier++) { const z = -52 - tier * 5, y = 2.6 + tier * 2.5; g.add(mesh(new T.BoxGeometry(190, 2.6, 4.6), lam(0x0a1522, { emissive: 0x040a12 }), 0, y - 1.3, z)); for (let i = 0; i < 80; i++) seats.push([(i - 39.5) * 2.3 + (tier % 2) * 1.1, z + 1.5, 0.35, y + 0.4, 1, 1.4, cols[(i * 7 + tier * 3) % 4]]); }
+    scatter(g, new T.BoxGeometry(1, 1, 1), bas(0xffffff), seats, false);
+    // floodlight towers + beams
+    th.beams = []; [[-44, -34], [44, -34], [-30, -70], [30, -70]].forEach(([x, z], i) => { g.add(mesh(new T.CylinderGeometry(0.5, 0.8, 34, 8), lam(0x20262e), x, 17, z)); const head = mesh(new T.BoxGeometry(7, 4, 1.2), bas(0xeaf6ff), x, 35, z); head.lookAt(0, 0, 0); g.add(head);
+      const bm = mesh(new T.ConeGeometry(8, 80, 32, 1, true), bas(0xbfe3ff, { transparent: true, opacity: 0.04, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }), 0, 0, 0); const dir = new T.Vector3(-x, -35, 18 - z).normalize(), mid = new T.Vector3(x, 35, z).addScaledVector(dir, 40); bm.position.copy(mid); bm.quaternion.setFromUnitVectors(new T.Vector3(0, -1, 0), dir); bm.userData.b = i; g.add(bm); th.beams.push(bm);
+      const gl = new T.Sprite(new T.SpriteMaterial({ map: blobTex(), color: 0xcfe9ff, transparent: true, opacity: 0.7, depthWrite: false, blending: T.AdditiveBlending })); gl.scale.set(18, 18, 1); gl.position.set(x, 35, z); g.add(gl); });
+    shadowsOn(g); return th;
+  }
+  const BUILD = { meadow, dusk, stadium };
+
+  function setTheme(name) {
+    if (!BUILD[name]) name = "meadow"; if (cur && cur.name === name) return;
+    if (cur) cur.group.visible = false;
+    if (!themes[name]) { themes[name] = BUILD[name](); themes[name].name = name; S.add(themes[name].group); }
+    cur = themes[name]; cur.group.visible = true; A.theme = name;
+    S.background = new T.Color(cur.bg); S.fog = new T.Fog(cur.bg, cur.fog[0], cur.fog[1]); sun.color.setHex(cur.sunCol); sun.intensity = cur.sunInt; hemi.color.setHex(cur.hSky); hemi.groundColor.setHex(cur.hGnd); hemi.intensity = cur.hInt;
+  }
+  A.render = function (name, t, camX) {
+    if (!A.ready) return null; setTheme(name); const dt = Math.min(0.1, Math.max(0, t - lastT)); lastT = t;
+    if (cur.sky) { cur.sky.position.copy(C.position); cur.sky.material.uniforms.uT.value = t; }
+    if (cur.clouds) cur.clouds.forEach((c) => { c.position.x += c.userData.v * dt; if (c.position.x > 190) c.position.x = -190; });
+    if (cur.sea) { cur.sea.offset.x = Math.sin(t * 0.15) * 0.5 + t * 0.01; cur.sea.offset.y = Math.cos(t * 0.12) * 0.5; }
+    if (cur.ring) cur.ring.rotation.z = t * 0.2;
+    if (cur.beams) cur.beams.forEach((b) => { b.material.opacity = 0.035 + 0.012 * Math.sin(t * 0.8 + b.userData.b * 1.7); });
+    const cx = (camX || 0) * 1.6; C.position.set(cx, 6.5, 30); C.lookAt(cx, LOOKY, 0); sun.target.position.set(0, 0, 0); sun.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2]);
+    if (cur.sky) cur.sky.position.copy(C.position); R.render(S, C); return R.domElement;
+  };
+  A.draw = function (ctx, name, t, camX) {
+    if (!A.ready) { A.active = false; return false; }
+    try { frame++; if (q < 1 && (frame & 1)) { /* mobile: reuse last frame */ } else A.render(name, t, camX); ctx.drawImage(R.domElement, 0, 0, W, H); A.active = true; return true; }
+    catch (e) { A.failed = true; A.ready = false; A.active = false; console.warn("[arena3d] disabled:", e && e.message); return false; }
+  };
+})();
+
+
+/* ============================================================
+   ARENA THEME / CAMERA / FLIP HOTKEYS
+============================================================ */
+function arenaThemeName() {
+  try {
+    if (typeof pendingLeagueMatch !== "undefined" && pendingLeagueMatch) return "stadium";
+  } catch (e) {}
+  if (typeof onlineBattleActive !== "undefined" && onlineBattleActive) return "dusk";
+  return "meadow";
+}
+
+function arenaCamX() {
+  return clamp(((player.x + enemy.x) / 2 - GAME.width / 2) / (GAME.width / 2), -1, 1);
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    if (window.Arena3D) Arena3D.load();
+  }, 2500);
+});
+
+window.addEventListener("keydown", (e) => {
+  if (!gameRunning || e.repeat || (e.key !== "[" && e.key !== "]")) return;
+  const tag = (e.target && e.target.tagName) || "";
+  if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+  const mine = e.key === "[";
+  const pokemon = mine ? playerPokemon : enemyPokemon;
+  const fighter = mine ? player : enemy;
+  const name = cleanPokemonName(pokemon && pokemon.name);
+  if (!name) return;
+  FACING_OVERRIDES[name] = -getArtworkNaturalFacing(pokemon);
+  try {
+    localStorage.setItem("pf-facing", JSON.stringify(FACING_OVERRIDES));
+  } catch (x) {}
+  showText(fighter.x, GAME.ground - 270, "↔ " + name + " flipped", "#ffe14a");
+});
