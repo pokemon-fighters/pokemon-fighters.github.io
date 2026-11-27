@@ -407,10 +407,10 @@
     const sp = new THREE.Mesh(geo, mat); sp.scale.set(s, s, 1); sp.position.y = s * 0.46; inner.add(sp);
     new THREE.TextureLoader().setCrossOrigin("anonymous").load(ART + c.id + ".png", (tx) => { mat.map = tx; mat.color.set(0xffffff); mat.needsUpdate = true; if (opt) fitMon(g, c, tx.image, opt); });
     const sh = mesh(new THREE.CircleGeometry(s * 0.3, 20), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.28, depthWrite: false }), 0, 0.04, 0); sh.rotation.x = -Math.PI / 2; g.add(sh);
-    g.userData = { s, inner, sp, mat, geo, base: geo.attributes.position.array.slice(), key: c.s, ghost: isGhost(c), art: artFlip(c), yb: s * 0.46, pop: 0, flash: 0, lunge: -1, lx: 0, lz: 0, ph: Math.random() * 6, idle: true, sink: false, px: null, pz: null, walk: 0, cull: false };
+    g.userData = { s, inner, sp, mat, geo, base: geo.attributes.position.array.slice(), key: c.s, ghost: isGhost(c), art: artFlip(c), yawK: opt && opt.mode === "battle" ? 0.78 : 0.34, yaw: 0, yb: s * 0.46, pop: 0, flash: 0, lunge: -1, lx: 0, lz: 0, ph: Math.random() * 6, idle: true, sink: false, px: null, pz: null, walk: 0, cull: false };
     return g;
   }
-  const face = (h, right) => { const u = h.userData; u.sp.scale.x = (right ? -1 : 1) * (u.art || 1) * u.s; };
+  const face = (h, right) => { const u = h.userData; u.sp.scale.x = (right ? -1 : 1) * (u.art || 1) * u.s; u.yaw = (right ? 1 : -1) * (u.yawK || 0.4); };
   let T = 0;
   /* body parts move on their own: head sways, arms/tail flap, legs step when walking, body leans into attacks */
   function warpMon(u) {
@@ -432,7 +432,7 @@
     if (u.flash > 0) { u.flash -= dt; u.mat.color.set(Math.floor(u.flash * 14) % 2 ? 0xffffff : 0xff6a6a); if (u.flash <= 0) u.mat.color.set(0xffffff); }
     if (u.lunge >= 0) { u.lunge += dt * 3.4; const k = u.lunge < 1 ? Math.sin(Math.PI * u.lunge) : 0; u.inner.position.set(u.lx * k * 2.4, 0, u.lz * k * 2.4); if (u.lunge >= 1) u.lunge = -1; }
     if (u.idle && !u.sink) u.sp.position.y = u.yb + Math.abs(Math.sin(T * 2.6 + u.ph)) * 0.05 * u.s;
-    if (camera) { u.sp.quaternion.copy(camera.quaternion); u.cull = h.position.distanceToSquared(camera.position) > 12000; }
+    if (camera) { u.sp.quaternion.copy(camera.quaternion); applyYaw(u); u.cull = h.position.distanceToSquared(camera.position) > 12000; }
     if (u.px !== null && dt > 0) u.walk += (Math.min(1, Math.hypot(h.position.x - u.px, h.position.z - u.pz) / dt / 4) - u.walk) * Math.min(1, dt * 8); u.px = h.position.x; u.pz = h.position.z;
     if (!u.cull) warpMon(u);
   }
@@ -797,6 +797,9 @@
     const h = e.key === "[" ? BT.pH : BT.fH; if (!h || !h.userData || !h.userData.key) return;
     try { const o = JSON.parse(localStorage.getItem("pf-facing") || "{}"), k = String(h.userData.key).toLowerCase(); o[k] = o[k] > 0 ? -1 : 1; localStorage.setItem("pf-facing", JSON.stringify(o)); h.userData.art = o[k] > 0 ? -1 : 1; h.userData.sp.scale.x *= -1; } catch (x) {}
   });
+  /* turn each billboard toward its opponent / walking direction so front-on artwork really looks at the other Pokémon */
+  let YAWQ = null, YAWV = null;
+  function applyYaw(u) { if (!u.yaw) return; if (!YAWQ) { YAWQ = new THREE.Quaternion(); YAWV = new THREE.Vector3(0, 1, 0); } u.sp.quaternion.multiply(YAWQ.setFromAxisAngle(YAWV, u.yaw)); }
   /* ---------- town beautification: pavers, fountain, benches, lamps, trees, flower beds ---------- */
   let AO_TEX = null, PAVER = null;
   function aoTex() { if (!AO_TEX) AO_TEX = canvasTex(64, 64, (x) => { const gr = x.createRadialGradient(32, 32, 14, 32, 32, 32); gr.addColorStop(0, "rgba(20,12,0,.55)"); gr.addColorStop(1, "rgba(20,12,0,0)"); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); }); return AO_TEX; }
