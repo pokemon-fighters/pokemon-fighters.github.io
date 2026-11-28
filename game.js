@@ -1840,6 +1840,7 @@ function gameLoop(time) {
 
   dt = clamp(dt, 0.5, 1.7);
 
+  perfTick(time - lastTime);
   lastTime = time;
 
   update(dt);
@@ -3333,7 +3334,7 @@ function draw() {
 
   drawFighters();
 
-  drawAtmosphere();
+  if (PERF.level < 2) drawAtmosphere();
 
   drawProjectiles();
 
@@ -3345,7 +3346,7 @@ function draw() {
 
   ctx.restore();
 
-  drawBloom();
+  if (PERF.level < 2) drawBloom();
 }
 
 /* ============================================================
@@ -3353,8 +3354,14 @@ function draw() {
 ============================================================ */
 
 function drawBackground() {
-  if (window.Arena3D && Arena3D.draw(ctx, arenaThemeName(), performance.now() * 0.001, arenaCamX())) {
-    return;
+  if (window.Arena3D) {
+    if (PERF.level < 1) {
+      if (Arena3D.draw(ctx, arenaThemeName(), performance.now() * 0.001, arenaCamX())) {
+        return;
+      }
+    } else {
+      Arena3D.active = false;
+    }
   }
   const t = performance.now() * 0.001;
 
@@ -3806,17 +3813,21 @@ function drawAtmosphere() {
    ctx.filter) and costs one tiny offscreen copy per frame. */
 let bloomCanvas = null;
 let bloomCtx = null;
+let bloomFrame = 0;
 function drawBloom() {
   if (!bloomCanvas) {
     bloomCanvas = document.createElement("canvas");
-    bloomCanvas.width = 240;
-    bloomCanvas.height = Math.round((240 * GAME.height) / GAME.width);
+    bloomCanvas.width = 160;
+    bloomCanvas.height = Math.round((160 * GAME.height) / GAME.width);
     bloomCtx = bloomCanvas.getContext("2d");
     bloomCtx.imageSmoothingEnabled = true;
     bloomCtx.imageSmoothingQuality = "high";
   }
-  bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
-  bloomCtx.drawImage(canvas, 0, 0, bloomCanvas.width, bloomCanvas.height);
+  /* refresh the small glow picture only every 3rd frame */
+  if (bloomFrame++ % 3 === 0) {
+    bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
+    bloomCtx.drawImage(canvas, 0, 0, bloomCanvas.width, bloomCanvas.height);
+  }
   ctx.save();
   ctx.globalCompositeOperation = "screen";
   ctx.globalAlpha = 0.2;
@@ -5711,6 +5722,7 @@ function onlineRenderLoop(time) {
 
   let dt = (time - lastTime) / 16.6667;
   dt = clamp(dt, 0.5, 1.7);
+  perfTick(time - lastTime);
   lastTime = time;
 
   /* Render fighters and projectiles at their interpolated position
@@ -6164,6 +6176,7 @@ window.PokemonOnlineBattle = {
 (function () {
   const A = (window.Arena3D = { ready: false, failed: false, loading: false, active: false, theme: "" });
   const W = 1200, H = 650, GROUND = 505;
+  let RS = 0.7;
   let T = null, R = null, S = null, C = null, sun = null, hemi = null, cur = null, LOOKY = 6, frame = 0, q = 1, lastT = 0;
   const themes = {};
   let mkTex = (w, h, fn) => { const c = document.createElement("canvas"); c.width = w; c.height = h; fn(c.getContext("2d"), w, h); return new T.CanvasTexture(c); };
@@ -6182,18 +6195,17 @@ window.PokemonOnlineBattle = {
   };
 
   A._init = function (THREEref, rendererRef) {
-    T = THREEref; q = typeof matchMedia === "function" && matchMedia("(pointer:coarse)").matches ? 0.75 : 1;
-    R = rendererRef || new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    T = THREEref; q = typeof matchMedia === "function" && matchMedia("(pointer:coarse)").matches ? 0.75 : 1; RS = q < 1 ? 0.5 : 0.7;
+    R = rendererRef || new T.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: "high-performance" });
     if (!rendererRef) R.setPixelRatio(1);
-    R.setSize(Math.round(W * q), Math.round(H * q), false); R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
+    R.setSize(Math.round(W * RS), Math.round(H * RS), false); R.shadowMap.enabled = false;
     S = new T.Scene(); C = new T.PerspectiveCamera(38, W / H, 0.1, 600);
     hemi = new T.HemisphereLight(0xffffff, 0x445533, 0.6); S.add(hemi);
-    sun = new T.DirectionalLight(0xffffff, 0.8); sun.castShadow = true; const ss = q < 1 ? 1024 : 2048; sun.shadow.mapSize.set(ss, ss);
-    const sc = sun.shadow.camera; sc.left = -46; sc.right = 46; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 160; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.05; S.add(sun, sun.target);
+    sun = new T.DirectionalLight(0xffffff, 0.8); S.add(sun, sun.target);
     // camera: pitched slightly down; solve the look-at height so the fighters' ground line (z = 0) lands exactly on the 2D game's ground line
     C.position.set(0, 6.5, 30); const target = 1 - (2 * GROUND) / H; let lo = -10, hi = 24;
     for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; C.lookAt(0, m, 0); C.updateMatrixWorld(); const v = new T.Vector3(0, 0, 0).project(C); if (v.y > target) lo = m; else hi = m; }
-    LOOKY = (lo + hi) / 2; A.ready = true; A.loading = false;
+    LOOKY = (lo + hi) / 2; A.ready = true; A.loading = false; if (A._warm) setTimeout(A._warm, 0);
   };
 
   /* ---------- shared pieces ---------- */
@@ -6221,7 +6233,12 @@ window.PokemonOnlineBattle = {
     t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rep, rep); return t;
   }
   function blobTex() { return mkTex(64, 64, (x) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }); }
+  function blobShadows(g, pts, r0) {
+    const n = pts.length, m = new T.InstancedMesh(new T.CircleGeometry(1, 12), bas(0x0a1a08, { transparent: true, opacity: 0.3, depthWrite: false }), n), d = new T.Object3D();
+    pts.forEach((p, i) => { d.rotation.set(-Math.PI / 2, 0, 0); d.scale.setScalar((r0 || 1.7) * p[2]); d.position.set(p[0], 0.06, p[1]); d.updateMatrix(); m.setMatrixAt(i, d.matrix); }); m.instanceMatrix.needsUpdate = true; g.add(m);
+  }
   function instTrees(g, pts, shadow, leafHue) {
+    blobShadows(g, pts, 1.9);
     const n = pts.length, trunk = new T.InstancedMesh(new T.CylinderGeometry(0.28, 0.42, 3, 6), lam(0x5a3d22), n), la = new T.InstancedMesh(new T.IcosahedronGeometry(1.9, 0), lam(0xffffff), n), lb = new T.InstancedMesh(new T.IcosahedronGeometry(1.4, 0), lam(0xffffff), n), d = new T.Object3D(), c = new T.Color(), r = rng(99);
     pts.forEach((p, i) => { const s = p[2]; d.rotation.set(0, r() * 6.28, 0); d.scale.setScalar(s); d.position.set(p[0], 1.5 * s, p[1]); d.updateMatrix(); trunk.setMatrixAt(i, d.matrix);
       d.position.set(p[0], 4.2 * s, p[1]); d.updateMatrix(); la.setMatrixAt(i, d.matrix); c.setHSL(leafHue + r() * 0.09, 0.55, 0.2 + r() * 0.12); la.setColorAt(i, c);
@@ -6240,6 +6257,7 @@ window.PokemonOnlineBattle = {
     const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
   function instPalms(g, pts) {
+    blobShadows(g, pts, 1.6);
     const pm = new T.InstancedMesh(palmGeo(), lam(0xffffff, { vertexColors: true, side: T.DoubleSide }), pts.length), d = new T.Object3D(), r = rng(5);
     pts.forEach((p, i) => { d.rotation.set((r() - 0.5) * 0.1, r() * 6.28, (r() - 0.5) * 0.1); d.scale.setScalar(p[2]); d.position.set(p[0], 0, p[1]); d.updateMatrix(); pm.setMatrixAt(i, d.matrix); }); pm.instanceMatrix.needsUpdate = true; pm.castShadow = true; g.add(pm);
   }
@@ -6331,11 +6349,19 @@ window.PokemonOnlineBattle = {
     const cx = (camX || 0) * 1.6; C.position.set(cx, 6.5, 30); C.lookAt(cx, LOOKY, 0); sun.target.position.set(0, 0, 0); sun.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2]);
     if (cur.sky) cur.sky.position.copy(C.position); R.render(S, C); return R.domElement;
   };
+  let cacheC = null, cacheX = null, lastRender = 0, lastCam = 9, lastName = "";
   A.draw = function (ctx, name, t, camX) {
     if (!A.ready) { A.active = false; return false; }
-    try { frame++; if (q < 1 && (frame & 1)) { /* mobile: reuse last frame */ } else A.render(name, t, camX); ctx.drawImage(R.domElement, 0, 0, W, H); A.active = true; return true; }
-    catch (e) { A.failed = true; A.ready = false; A.active = false; console.warn("[arena3d] disabled:", e && e.message); return false; }
+    try {
+      const now = performance.now(), cq = Math.round((camX || 0) * 25) / 25;
+      if (!cacheC) { cacheC = document.createElement("canvas"); cacheC.width = Math.round(W * RS); cacheC.height = Math.round(H * RS); cacheX = cacheC.getContext("2d"); }
+      /* the backdrop barely changes: re-render the 3D scene ~10x per second (or when the camera shifts) and reuse the picture in between */
+      if (name !== lastName || now - lastRender > 100 || (cq !== lastCam && now - lastRender > 45)) { A.render(name, t, cq); cacheX.drawImage(R.domElement, 0, 0, cacheC.width, cacheC.height); lastRender = now; lastCam = cq; lastName = name; }
+      ctx.drawImage(cacheC, 0, 0, W, H); A.active = true; return true;
+    } catch (e) { A.failed = true; A.ready = false; A.active = false; console.warn("[arena3d] disabled:", e && e.message); return false; }
   };
+  /* build every theme once, spread out while the player is on the menus, so the first battle does not stutter */
+  A._warm = function () { ["meadow", "dusk", "stadium"].forEach((n, i) => setTimeout(() => { try { if (A.ready && !A.active) { setTheme(n); R.render(S, C); } } catch (e) {} }, 600 + i * 900)); };
 })();
 
 
@@ -6374,4 +6400,62 @@ window.addEventListener("keydown", (e) => {
     localStorage.setItem("pf-facing", JSON.stringify(FACING_OVERRIDES));
   } catch (x) {}
   showText(fighter.x, GAME.ground - 270, "↔ " + name + " flipped", "#ffe14a");
+});
+
+
+/* ============================================================
+   PERFORMANCE GOVERNOR
+   level 0 = full (3D arena + glow), 1 = 2D arena + glow,
+   2 = 2D arena, no glow. Steps down by itself when the frame
+   rate stays under ~40 fps and remembers the choice.
+   Shift+Q cycles it by hand.
+============================================================ */
+const PERF = {
+  level: (() => {
+    try {
+      return Math.min(2, Math.max(0, parseInt(localStorage.getItem("pf-perf") || "0", 10) || 0));
+    } catch (e) {
+      return 0;
+    }
+  })(),
+  ema: 16.7,
+  slow: 0,
+  n: 0,
+};
+
+function perfSave() {
+  try {
+    localStorage.setItem("pf-perf", String(PERF.level));
+  } catch (e) {}
+}
+
+function perfTick(ms) {
+  if (document.hidden || !isFinite(ms) || ms <= 0) return;
+  PERF.ema += (Math.min(ms, 100) - PERF.ema) * 0.06;
+  PERF.n++;
+  if (PERF.n < 150 || PERF.level >= 2) return;
+  if (PERF.ema > 25) {
+    PERF.slow++;
+  } else {
+    PERF.slow = Math.max(0, PERF.slow - 2);
+  }
+  if (PERF.slow > 100) {
+    PERF.level++;
+    PERF.slow = 0;
+    PERF.n = 60;
+    PERF.ema = 16.7;
+    perfSave();
+    try {
+      showText(GAME.width / 2, 110, PERF.level === 1 ? "Smoother mode: 2D arena" : "Lite mode: effects off", "#7fe3ff");
+    } catch (e) {}
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Q" || !e.shiftKey || e.repeat || !gameRunning) return;
+  PERF.level = (PERF.level + 1) % 3;
+  PERF.slow = 0;
+  PERF.n = 0;
+  perfSave();
+  showText(GAME.width / 2, 110, ["Graphics: High", "Graphics: Medium (2D arena)", "Graphics: Low (no effects)"][PERF.level], "#7fe3ff");
 });
